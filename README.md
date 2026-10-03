@@ -33,7 +33,7 @@ Requirements:
 
 - Python 3 for the loopback static server.
 - A current Chromium-, Firefox-, or WebKit-based browser.
-- Node.js 24 or newer only when running the test suite.
+- Node.js 26 or newer only when running the test suite.
 
 On Windows, double-click `start-server.cmd`. On any platform, run:
 
