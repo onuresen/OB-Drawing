@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OB Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
+  <title>OB Drawing</title>
+  <link rel="stylesheet" href="styles.css?v=2026-10-02-text-selection">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">OB</span>
+      <h1>Drawing</h1>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="workspace" aria-label="PDF drawing workspace">
+      <div class="toolbar" role="toolbar" aria-label="Drawing controls">
+        <div class="toolbar-document">
+          <label class="button button-primary file-button" for="pdfFile">
+            <span aria-hidden="true">＋</span>
+            Add PDFs
+          </label>
+          <input id="pdfFile" class="visually-hidden" type="file" accept="application/pdf,.pdf" multiple>
+          <span id="documentName" class="document-name" title="No PDF open">No PDF open</span>
+        </div>
+
+        <div class="toolbar-navigation">
+          <div class="control-group toolbar-cluster" aria-label="Page navigation">
+            <button id="previousPage" class="icon-button" type="button" aria-label="Previous page" aria-keyshortcuts="PageUp" title="Previous page (Page Up)" disabled>←</button>
+            <label class="page-field">
+              <span class="visually-hidden">Current page</span>
+              <input id="pageNumber" type="number" min="1" value="1" disabled>
+            </label>
+            <span id="pageCount" class="page-count">/ 0</span>
+            <button id="nextPage" class="icon-button" type="button" aria-label="Next page" aria-keyshortcuts="PageDown" title="Next page (Page Down)" disabled>→</button>
+          </div>
+
+          <span class="toolbar-divider" aria-hidden="true"></span>
+
+          <div class="control-group toolbar-cluster" aria-label="Zoom controls">
+            <button id="zoomOut" class="icon-button" type="button" aria-label="Zoom out" title="Zoom out (−)" disabled>−</button>
+            <span id="zoomValue" class="zoom-value">Fit</span>
+            <button id="zoomIn" class="icon-button" type="button" aria-label="Zoom in" title="Zoom in (+)" disabled>＋</button>
+            <button id="actualSize" class="button button-quiet view-button" type="button" title="Actual size (100%)" disabled>100%</button>
+            <button id="fitWidth" class="button button-quiet view-button" type="button" title="Fit page width" disabled>Width</button>
+            <button id="fitPage" class="button button-quiet" type="button" aria-keyshortcuts="0 F" title="Fit page (0 or F)" disabled>Fit</button>
+          </div>
+
+          <span class="toolbar-divider" aria-hidden="true"></span>
+
+          <div class="control-group toolbar-cluster history-controls" aria-label="Editing history">
+            <button id="undoAction" class="icon-button" type="button" aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" title="Nothing to undo (Ctrl+Z)" disabled>↶</button>
+            <button id="redoAction" class="icon-button" type="button" aria-label="Redo" aria-keyshortcuts="Control+Y Meta+Y Control+Shift+Z Meta+Shift+Z" title="Nothing to redo (Ctrl+Y)" disabled>↷</button>
+          </div>
+        </div>
+
+        <div class="toolbar-actions">
+          <label class="shape-tool">
+            <span class="visually-hidden">Mark shape</span>
+            <select id="shapeTool" title="Mark shape" disabled>
+              <option value="rectangle">Rectangle</option>
+              <option value="ellipse">Ellipse</option>
+              <option value="polygon">Polygon</option>
+            </select>
+          </label>
+          <button id="markOccurrence" class="button mark-button" type="button" aria-keyshortcuts="M" aria-pressed="false" title="Mark occurrence (M)" disabled>
+            Mark
+          </button>
+          <button id="openPdfSearch" class="button button-quiet" type="button" aria-keyshortcuts="Control+F Meta+F" aria-controls="pdfSearchBar" title="Find in current PDF (Ctrl+F)" disabled>Find</button>
+          <button id="openDrawingMap" class="button button-quiet" type="button" aria-haspopup="dialog" aria-controls="drawingMapDialog" title="Open drawing set map">Map</button>
+          <div class="shortcut-help">
+            <button id="shortcutHelp" class="icon-button help-button" type="button" aria-label="Keyboard and mouse shortcuts" aria-keyshortcuts="?" aria-expanded="false" aria-controls="shortcutPanel" title="Shortcuts (?)">?</button>
+            <section id="shortcutPanel" class="shortcut-panel" aria-labelledby="shortcutTitle" hidden>
+              <div class="shortcut-heading">
+                <div>
+                  <p class="eyebrow">Navigation</p>
+                  <h2 id="shortcutTitle">Mouse &amp; keyboard</h2>
+                </div>
+                <button id="closeShortcutHelp" class="icon-button shortcut-close" type="button" aria-label="Close shortcuts" aria-keyshortcuts="Escape">×</button>
+              </div>
+              <dl class="shortcut-list">
+                <div><dt><kbd>PgUp</kbd> <kbd>PgDn</kbd></dt><dd>Previous / next page</dd></div>
+                <div><dt><kbd>Home</kbd> <kbd>End</kbd></dt><dd>First / last page</dd></div>
+                <div><dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom in / out</dd></div>
+                <div><dt><kbd>0</kbd> or <kbd>F</kbd></dt><dd>Fit page</dd></div>
+                <div><dt>Wheel</dt><dd>Scroll the drawing workspace</dd></div>
+                <div><dt><kbd>Space</kbd> + drag</dt><dd>Pan drawing</dd></div>
+                <div><dt>Middle drag</dt><dd>Pan drawing</dd></div>
+                <div><dt><kbd>Shift</kbd> + wheel</dt><dd>Pan horizontally</dd></div>
+                <div><dt><kbd>Alt</kbd> + wheel</dt><dd>Previous / next page</dd></div>
+                <div><dt><kbd>M</kbd></dt><dd>Toggle marking</dd></div>
+                <div><dt><kbd>Ctrl</kbd> + <kbd>F</kbd></dt><dd>Find in current PDF</dd></div>
+                <div><dt><kbd>Enter</kbd></dt><dd>Finish polygon</dd></div>
+                <div><dt><kbd>Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Undo object change</dd></div>
+                <div><dt><kbd>Ctrl</kbd> + <kbd>Y</kbd></dt><dd>Redo object change</dd></div>
+                <div><dt><kbd>Esc</kbd></dt><dd>Cancel current action</dd></div>
+                <div><dt><kbd>Ctrl/Cmd</kbd> + wheel</dt><dd>Zoom around pointer</dd></div>
+              </dl>
+              <p>Shortcuts pause while you type in a field.</p>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <form id="pdfSearchBar" class="pdf-search-bar" role="search" aria-label="Find in current PDF" hidden>
+        <label class="pdf-search-field">
+          <span class="visually-hidden">Find text in current PDF</span>
+          <input id="pdfSearchInput" type="search" placeholder="Find in current PDF" autocomplete="off" spellcheck="false">
+        </label>
+        <output id="pdfSearchCount" class="pdf-search-count" for="pdfSearchInput" aria-live="polite">Type to find</output>
+        <button id="previousPdfSearchMatch" class="icon-button" type="button" aria-label="Previous search result" title="Previous result (Shift+Enter)" disabled>↑</button>
+        <button id="nextPdfSearchMatch" class="icon-button" type="button" aria-label="Next search result" title="Next result (Enter)" disabled>↓</button>
+        <button id="closePdfSearch" class="icon-button" type="button" aria-label="Close PDF search" aria-keyshortcuts="Escape" title="Close search (Escape)">×</button>
+      </form>
+
+      <div id="viewerStage" class="viewer-stage">
+        <div id="markingGuide" class="marking-guide" hidden>
+          <span class="marking-pulse" aria-hidden="true"></span>
+          <span class="marking-guide-copy">
+            <strong>Marking active</strong>
+            <span id="markingGuideText">Drag around a visible object occurrence.</span>
+          </span>
+          <kbd>Esc</kbd>
+        </div>
+        <div id="emptyState" class="empty-state">
+          <div class="empty-symbol" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <p id="emptyEyebrow" class="eyebrow">Start with a drawing set</p>
+          <h2 id="emptyTitle">Add local architectural PDFs</h2>
+          <p id="emptyDescription">The source files stay on this computer. OBD stores their shared object layer in a separate project JSON file.</p>
+          <label id="emptyChoosePdf" class="button button-primary" for="pdfFile">Choose PDFs</label>
+        </div>
+
+        <div id="pageSurface" class="page-surface" hidden>
+          <div id="pageContent" class="page-content">
+            <canvas id="pdfCanvas" aria-label="Rendered PDF page"></canvas>
+            <div id="pdfTextLayer" class="text-layer" aria-label="Selectable PDF text"></div>
+            <svg id="occurrenceOverlay" class="occurrence-overlay" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="Occurrence marking layer"></svg>
+            <div id="renderingIndicator" class="rendering-indicator" hidden>Rendering…</div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="status-bar">
+        <p id="statusMessage" role="status" aria-live="polite">Open a PDF to begin.</p>
+        <p id="documentSummary">0 objects · 0 occurrences</p>
+      </footer>
+    </section>
+
+    <aside class="side-panel" aria-label="Object session">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Project objects</p>
+          <h2>Objects</h2>
+        </div>
+        <span id="objectBadge" class="count-badge">0</span>
+      </div>
+
+      <div class="concept-note">
+        <strong>A label is not identity.</strong>
+        <span>You create or choose the object. OBD never merges marks because their visible labels match.</span>
+      </div>
+
+      <section class="document-section" aria-labelledby="projectDocumentsTitle">
+        <div class="section-heading">
+          <h3 id="projectDocumentsTitle">Drawing PDFs</h3>
+          <span id="documentBadge">0</span>
+        </div>
+        <p id="documentHelp" class="quiet-copy">Add PDFs directly, or import a project and relink its source files.</p>
+        <ol id="documentList" class="document-list"></ol>
+        <input id="relinkPdfFile" class="visually-hidden" type="file" accept="application/pdf,.pdf">
+      </section>
+
+      <section id="objectComposer" class="object-composer" aria-labelledby="objectFormTitle">
+        <p class="eyebrow">Explicit identity</p>
+        <h3 id="objectFormTitle">Create object</h3>
+        <p id="objectFormHint" class="quiet-copy">Open a PDF before creating objects.</p>
+
+        <form id="createObjectForm" class="create-object-form">
+          <label class="field-label" for="categoryFilter">Find category</label>
+          <input id="categoryFilter" class="text-input" type="search" placeholder="Search categories" autocomplete="off" disabled>
+          <label class="field-label" for="objectCategory">Category</label>
+          <select id="objectCategory" class="text-input" required disabled></select>
+          <label class="field-label" for="objectLabel">Object label</label>
+          <div class="form-row">
+            <input id="objectLabel" class="text-input" type="text" maxlength="80" placeholder="D-105" required autocomplete="off" disabled>
+            <button id="createObjectButton" class="button button-primary" type="submit" disabled>Create</button>
+          </div>
+        </form>
+
+        <div id="linkExistingBlock" class="link-existing" hidden>
+          <span class="choice-divider">or link to an existing object</span>
+          <div class="form-row">
+            <label class="visually-hidden" for="existingObjectSelect">Existing object</label>
+            <select id="existingObjectSelect" class="text-input" disabled></select>
+            <button id="linkExistingObject" class="button" type="button" disabled>Link</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="object-section" aria-labelledby="sessionObjects">
+        <div class="section-heading">
+          <h3 id="sessionObjects">Objects</h3>
+          <span>In memory</span>
+        </div>
+        <p id="noObjects" class="quiet-copy">No objects yet.</p>
+        <ol id="objectList" class="object-list"></ol>
+      </section>
+
+      <section id="selectedObjectPanel" class="selected-object-panel" aria-labelledby="selectedObjectTitle" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Object Lens</p>
+            <h3 id="selectedObjectTitle">Object</h3>
+          </div>
+          <span id="selectedObjectIdentity"></span>
+        </div>
+
+        <label class="field-label" for="editObjectCategory">Category</label>
+        <select id="editObjectCategory" class="text-input"></select>
+        <label class="field-label" for="editObjectLabel">Label</label>
+        <div class="form-row">
+          <input id="editObjectLabel" class="text-input" type="text" maxlength="80" required autocomplete="off">
+          <button id="saveObjectLabel" class="button" type="button">Save</button>
+        </div>
+
+        <div class="panel-actions">
+          <button id="markForObject" class="button button-primary" type="button" aria-label="Mark another occurrence" title="Mark another occurrence" disabled>Mark</button>
+          <button id="deleteObject" class="button danger-button" type="button" aria-label="Delete selected object" title="Delete selected object">Delete</button>
+        </div>
+
+        <div id="objectLensSummary" class="object-lens-summary" aria-live="polite"></div>
+
+        <div class="evidence-export">
+          <details id="objectExportMenu" class="object-export-menu">
+            <summary class="button">Export</summary>
+            <div class="object-export-options">
+              <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral evidence JSON manifest" disabled>
+                <strong>Evidence JSON</strong>
+                <span>Portable manifest</span>
+              </button>
+              <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export evidence with marked preview images" disabled>
+                <strong>Evidence ZIP</strong>
+                <span>Manifest + marked previews</span>
+              </button>
+              <button id="exportJoineryAiPack" class="object-export-option" type="button" aria-label="Export selected object for Joinery Configurator AI" title="Export an AI-ready Joinery Configurator evidence pack" disabled>
+                <strong>Joinery AI pack</strong>
+                <span id="joineryAiHint">Door and Window objects</span>
+              </button>
+            </div>
+          </details>
+          <p id="evidenceExportStatus" class="evidence-export-status" role="status" aria-live="polite" hidden></p>
+        </div>
+
+        <div class="subsection-heading">
+          <h4>Representations</h4>
+          <div class="subsection-actions">
+            <span id="selectedOccurrenceCount">0</span>
+            <button id="openRepresentationBoard" class="compact-action" type="button" aria-haspopup="dialog" aria-controls="representationBoard" disabled>Show all</button>
+          </div>
+        </div>
+        <p id="noObjectOccurrences" class="quiet-copy">This object has no linked representations yet.</p>
+
+        <details id="evidenceReviewPanel" class="evidence-review">
+          <summary class="evidence-review-summary">
+            <span>
+              <strong>Evidence notes</strong>
+              <small>Optional</small>
+            </span>
+            <span id="evidenceReviewCount" aria-live="polite">Optional</span>
+          </summary>
+          <div class="evidence-review-body">
+            <p class="evidence-review-intro">Add source-linked notes only when the PDF-object workflow needs them.</p>
+            <div id="evidenceConflictSummary" class="evidence-conflict-summary" role="status" aria-live="polite" hidden></div>
+            <form id="addEvidenceForm" class="evidence-form">
+              <label class="field-label" for="evidenceTopic">Topic</label>
+              <input id="evidenceTopic" class="text-input" type="text" maxlength="80" placeholder="e.g. Material, operation, condition" required autocomplete="off">
+              <label class="field-label" for="evidenceValue">Note</label>
+              <textarea id="evidenceValue" class="text-input evidence-value" maxlength="500" rows="3" placeholder="What the source shows, or what still needs confirmation" required></textarea>
+              <div class="evidence-form-grid">
+                <label>
+                  <span class="field-label">Basis</span>
+                  <select id="evidenceKind" class="text-input">
+                    <option value="observation">Observed from source</option>
+                    <option value="assumption">Assumed / needs confirmation</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="field-label">Source</span>
+                  <select id="evidenceSource" class="text-input"></select>
+                </label>
+              </div>
+              <button id="addEvidence" class="button" type="submit">Add note</button>
+            </form>
+            <p id="noEvidence" class="quiet-copy">No evidence notes saved for this object.</p>
+            <ol id="evidenceList" class="evidence-list"></ol>
+          </div>
+        </details>
+      </section>
+
+      <section id="unlinkedSection" class="unlinked-section" aria-labelledby="unlinkedTitle" hidden>
+        <div class="section-heading">
+          <h3 id="unlinkedTitle">Unlinked marks</h3>
+          <span id="unlinkedCount">0</span>
+        </div>
+        <p class="quiet-copy">Select a mark, then create or choose its object.</p>
+        <ol id="unlinkedList" class="object-occurrence-list"></ol>
+      </section>
+
+      <section class="sidecar-section" aria-labelledby="sidecarTitle">
+        <div class="section-heading">
+          <h3 id="sidecarTitle">Project file</h3>
+          <span id="saveState" class="save-state" role="status" aria-live="polite" data-dirty="false">No document</span>
+        </div>
+        <p class="quiet-copy">Export a versioned OBD project beside its PDFs, or import a project first and relink its local source files.</p>
+        <div class="sidecar-actions">
+          <button id="exportSidecar" class="button button-primary" type="button" disabled>Export JSON</button>
+          <button id="chooseSidecar" class="button" type="button">Import JSON</button>
+          <input id="sidecarFile" class="visually-hidden" type="file" accept="application/json,.json">
+        </div>
+        <p id="sidecarStatus" class="sidecar-status" role="alert" hidden></p>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="drawingMapDialog" class="drawing-map-dialog" aria-labelledby="drawingMapTitle" aria-describedby="drawingMapHelp">
+    <div class="drawing-map-dialog-shell">
+      <header class="drawing-map-dialog-header">
+        <div>
+          <p class="eyebrow">Project navigator</p>
+          <h2 id="drawingMapTitle">Drawing Set Map</h2>
+          <p id="drawingMapHelp" class="quiet-copy">Add PDFs to map pages and object coverage.</p>
+        </div>
+        <div class="drawing-map-dialog-actions">
+          <span id="drawingMapBadge">0 pages</span>
+          <button id="closeDrawingMap" class="icon-button" type="button" aria-label="Close drawing set map" title="Close (Escape)">×</button>
+        </div>
+      </header>
+      <div id="drawingMap" class="drawing-map"></div>
+    </div>
+  </dialog>
+
+  <dialog id="representationBoard" class="representation-board" aria-labelledby="representationBoardTitle" aria-describedby="representationBoardSummary">
+    <div class="representation-board-shell">
+      <header class="representation-board-header">
+        <div>
+          <p class="eyebrow">Representations</p>
+          <h2 id="representationBoardTitle">Object</h2>
+          <p id="representationBoardSummary" class="representation-board-summary"></p>
+        </div>
+        <button id="closeRepresentationBoard" class="icon-button representation-board-close" type="button" aria-label="Close representations" title="Close (Escape)">×</button>
+      </header>
+      <ol id="representationBoardGrid" class="representation-board-grid"></ol>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

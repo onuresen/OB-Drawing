@@ -1,0 +1,18 @@
+# Local documents and exported project data
+*.pdf
+*.obd.json
+*.zip
+exports/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Python and editor output
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
