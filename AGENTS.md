@@ -45,6 +45,7 @@ Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision
 - [x] Group X — active-PDF text search with `Ctrl+F`, session-only page indexing, exact result navigation, visible-page highlights, and no OCR or drawing-set index.
 - [x] Group Y — continuous pointer-anchored wheel zoom with immediate whole-page preview and one debounced high-quality PDF render.
 - [x] Group Z — calmer reader-first visual hierarchy with a compact brand bar, grouped controls, quiet canvas, and lighter object rail.
+- [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
 
 ## File map
 

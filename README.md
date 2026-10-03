@@ -21,6 +21,12 @@ OBD runs locally. Selected PDFs, rendered previews, object data, and search inde
 
 This repository intentionally contains no sample architectural PDFs or project sidecars. Use only documents you are authorized to use, and do not attach confidential drawings to public issues.
 
+## Try it online
+
+Open [OB Drawing on GitHub Pages](https://onuresen.github.io/OB-Drawing/). PDFs are opened directly by your browser and are not uploaded to a server.
+
+For offline use or local development, run the same application locally as described below.
+
 ## Run locally
 
 Requirements:
