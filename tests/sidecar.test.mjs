@@ -12,6 +12,7 @@ import {
   MULTI_DOCUMENT_PROJECT_FORMAT,
   nextDocumentId,
   PREVIOUS_PROJECT_FORMAT,
+  RENAMED_PROJECT_FORMAT,
   PROJECT_FORMAT,
   sha256Hex,
   SIDECAR_FORMAT,
@@ -320,4 +321,11 @@ test("a changed PDF reports fingerprint, size, and page-count differences", () =
     "file size differs",
     "page count differs",
   ]);
+});
+
+test("projects saved under the old obd-project-v4 name import unchanged", () => {
+  const current = validProject();
+  const renamed = { ...validProject(), format: RENAMED_PROJECT_FORMAT };
+  assert.deepEqual(validateSidecar(renamed), validateSidecar(current));
+  assert.equal(validateSidecar(renamed).format, PROJECT_FORMAT);
 });

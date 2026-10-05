@@ -248,7 +248,7 @@ export async function createJoineryContactSheet(object, renderedAssets) {
   context.fillStyle = inkSoft;
   context.font = "18px system-ui, sans-serif";
   context.fillText(`${object.id} · ${renderedAssets.length} representation${renderedAssets.length === 1 ? "" : "s"} · all images refer to the same physical object`, margin, 82);
-  context.fillText("Blue marks identify the OBD object. Clean source crops are included separately in the package.", margin, 108);
+  context.fillText("Blue marks identify the object. Clean source crops are included separately in the package.", margin, 108);
 
   let rowTop = headerHeight + margin;
   for (let index = 0; index < cardMetrics.length; index += 1) {

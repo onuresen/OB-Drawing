@@ -1,8 +1,8 @@
-# OB Drawing Concept
+# Object-Centric Drawing Concept
 
 ## Core idea
 
-Construction teams usually navigate PDF drawing sets by page, sheet number, and markup. OBD adds another route: navigate by the building object represented on those drawings.
+Construction teams usually navigate PDF drawing sets by page, sheet number, and markup. Object-Centric Drawing adds another route: navigate by the building object represented on those drawings.
 
 The rectangle is not the object. It is one **occurrence** of the object.
 

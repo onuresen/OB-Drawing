@@ -1,4 +1,4 @@
-# OBD Decisions
+# Decisions
 
 ## 2026-09-28 — Project identity
 
@@ -22,13 +22,13 @@
 
 ## 2026-09-28 — Separate sidecar
 
-**Decision:** Preserve the source PDF and store OBD data in a separate JSON sidecar.
+**Decision:** Preserve the source PDF and store Object-Centric Drawing data in a separate JSON sidecar.
 
 **Why:** The experiment remains reversible, portable, and independent of proprietary PDF annotation formats.
 
-**Alternative:** Embedding annotations directly in the PDF was deferred because it mixes presentation markup with OBD identity and relationship data.
+**Alternative:** Embedding annotations directly in the PDF was deferred because it mixes presentation markup with Object-Centric Drawing identity and relationship data.
 
-**Revisit when:** Interoperability testing proves that embedded PDF objects can preserve the complete OBD model without losing portability.
+**Revisit when:** Interoperability testing proves that embedded PDF objects can preserve the complete Object-Centric Drawing model without losing portability.
 
 ## 2026-09-28 — Manual identity first
 
@@ -132,9 +132,9 @@
 
 ## 2026-09-30 — Portable evidence before ecosystem integration
 
-**Decision:** Keep `obd-project-v2` as the editable OBD source of truth and introduce a separate `obd-object-evidence-v1` export boundary. Current OBD objects are physical instances; reusable configurations are separate records connected only by an explicit `instanceOf` relationship.
+**Decision:** Keep `obd-project-v2` as the editable Object-Centric Drawing source of truth and introduce a separate `objdraw-object-evidence-v1` export boundary. Current Object-Centric Drawing objects are physical instances; reusable configurations are separate records connected only by an explicit `instanceOf` relationship.
 
-**Why:** The Object Lens already assembles an evidence dossier, but Joinery Configurator describes reusable opening configurations and CDI consumes governed source records. A neutral evidence package lets both systems use OBD evidence without making their schemas part of OBD or confusing a physical Door with a shared type.
+**Why:** The Object Lens already assembles an evidence dossier, but Joinery Configurator describes reusable opening configurations and CDI consumes governed source records. A neutral evidence package lets both systems use Object-Centric Drawing evidence without making their schemas part of Object-Centric Drawing or confusing a physical Door with a shared type.
 
 **Portability boundary:** The package preserves selected subject identity, exact source documents, pages, fingerprints, and typed geometry. It contains no local paths, credentials, inferred links, PDF bytes, target-system records, or implicit relationships based on matching labels. Joinery Configurator, CDI, Revit, and future integrations remain adapters outside the portable core.
 
@@ -146,7 +146,7 @@
 
 ## 2026-09-30 — Companion preview assets outside the neutral manifest
 
-**Decision:** Export the selected object's `obd-object-evidence-v1` manifest directly as JSON, or package that identical manifest with marked PNG crops and an `obd-object-evidence-assets-v1` index in a dependency-free stored ZIP.
+**Decision:** Export the selected object's `objdraw-object-evidence-v1` manifest directly as JSON, or package that identical manifest with marked PNG crops and an `objdraw-object-evidence-assets-v1` index in a dependency-free stored ZIP.
 
 **Why:** Visual crops make the evidence set useful to humans and future AI interpretation, but embedding base64 images in the neutral manifest would enlarge it, mix binary presentation with identity/source records, and complicate downstream validation. A companion index keeps every asset tied to an exact occurrence while preserving missing-source states.
 
@@ -164,7 +164,7 @@
 
 **Conflict and deletion boundary:** Conflicts are derived when active entries on one Door share a normalized topic but disagree on value. Rejected entries remain traceable but do not contribute. Evidence content and source cannot be edited in place; review transitions and explicit removal are undoable. Door or occurrence deletion is blocked while evidence references it, so object editing cannot silently destroy provenance.
 
-**Compatibility:** `obd-object-layer-v1` and `obd-project-v2` remain importable and migrate in memory with an empty observation collection. New project exports use v3. The neutral `obd-object-evidence-v1` package now carries only the selected subjects' governed evidence and retains exact source occurrence identity.
+**Compatibility:** `obd-object-layer-v1` and `obd-project-v2` remain importable and migrate in memory with an empty observation collection. New project exports use v3. The neutral `objdraw-object-evidence-v1` package now carries only the selected subjects' governed evidence and retains exact source occurrence identity.
 
 **Alternative:** Free-form editable notes were rejected because changing a claim or source in place would erase its review meaning. Persisting a separate conflict record was rejected because it could drift from the active evidence values. Automatically converting AI output into observations was rejected because Group S must keep machine drafts visibly separate until a human accepts them.
 
@@ -178,19 +178,19 @@
 
 **Interaction boundary:** `Show all` is available only when the selected object has linked occurrences. Missing PDFs remain visible and use the existing relink path. Opening, closing, and sorting the board are view state; they do not change project data, history, or saved state.
 
-**Presentation boundary:** Keep one compact `OB` + `Drawing` brand lockup and use short visible action verbs backed by explicit accessible labels and tooltips. Category-neutral object language remains the separate R4 data-model and interface change.
+**Presentation boundary:** Keep one compact brand lockup (now the plain title; see 2026-10-05 rename) and use short visible action verbs backed by explicit accessible labels and tooltips. Category-neutral object language remains the separate R4 data-model and interface change.
 
 **Alternative:** Replacing the drawing canvas with a permanent gallery was rejected because source-page marking and navigation remain the core authoring workspace. Persisting preview images in the project was rejected because the board can render them from exact source occurrences and local attachments.
 
 **Revisit when:** Real projects require side-by-side pinning, filtering by drawing role, or comparison annotations that cannot be handled by the sorted responsive grid.
 
-## 2026-09-30 — Category-neutral physical objects with stable OBD keys
+## 2026-09-30 — Category-neutral physical objects with stable Object-Centric Drawing keys
 
-**Decision:** Supersede the editable project contract with `obd-project-v4`. Every object carries one stable category key from a grouped physical-model catalogue. New identities use `object-*`; imported `door-*` identities remain valid and are never rewritten. Label and category changes preserve the physical-instance identity and all explicit occurrence and evidence links.
+**Decision:** Supersede the editable project contract with `objdraw-project-v4`. Every object carries one stable category key from a grouped physical-model catalogue. New identities use `object-*`; imported `door-*` identities remain valid and are never rewritten. Label and category changes preserve the physical-instance identity and all explicit occurrence and evidence links.
 
 **Why:** Door-only language made a useful object-navigation experiment look like a hardcoded joinery prototype. A broad searchable catalogue allows the same evidence workflow to describe architecture, structure, MEP, spatial, site, fabrication, and custom objects without coupling the portable core to one discipline.
 
-**Portability boundary:** Category labels and groupings are familiar to Revit users, but persisted values are neutral OBD keys rather than Autodesk API identifiers. Categories classify a physical subject; they do not infer identity, configuration, or downstream target records. Duplicate labels and matching categories never merge objects.
+**Portability boundary:** Category labels and groupings are familiar to Revit users, but persisted values are neutral Object-Centric Drawing keys rather than Autodesk API identifiers. Categories classify a physical subject; they do not infer identity, configuration, or downstream target records. Duplicate labels and matching categories never merge objects.
 
 **Compatibility:** `obd-object-layer-v1`, `obd-project-v2`, and `obd-project-v3` migrate in memory. Their Door records receive `category: "doors"`; every object, occurrence, observation, document, and relationship ID is retained. New exports use only v4, while the evidence-package validator continues to accept packages produced by supported older project versions.
 
@@ -200,13 +200,13 @@
 
 ## 2026-09-30 — Joinery integration begins as an AI-ready evidence handoff
 
-**Decision:** Add `obd-joinery-ai-handoff-v1` as a selected-object export for Door and Window subjects. The ZIP contains the neutral OBD evidence manifest, clean and marked representation crops, a combined marked contact sheet, and exact occurrence/document/page mappings.
+**Decision:** Add `objdraw-joinery-ai-handoff-v1` as a selected-object export for Door and Window subjects. The ZIP contains the neutral Object-Centric Drawing evidence manifest, clean and marked representation crops, a combined marked contact sheet, and exact occurrence/document/page mappings.
 
-**Why:** The proven manual workflow gives one drawing snapshot plus the Configurator prompt to an external AI and receives an importable draft JSON with useful but imperfect accuracy. OBD can improve that workflow by assembling every known representation of the same physical object, eliminating repeated screenshot capture without asking the user to re-enter dimensions or Joinery structure in OBD.
+**Why:** The proven manual workflow gives one drawing snapshot plus the Configurator prompt to an external AI and receives an importable draft JSON with useful but imperfect accuracy. Object-Centric Drawing can improve that workflow by assembling every known representation of the same physical object, eliminating repeated screenshot capture without asking the user to re-enter dimensions or Joinery structure in Object-Centric Drawing.
 
-**Trust boundary:** T1 does not call AI, infer dimensions, create pane trees, or store Joinery-specific fields in the OBD project. The user uploads the pack to an AI of their choice. Its output remains an unverified draft until target validation and human comparison with the evidence. Missing representations remain explicit, and export fails if no local source can render.
+**Trust boundary:** T1 does not call AI, infer dimensions, create pane trees, or store Joinery-specific fields in the Object-Centric Drawing project. The user uploads the pack to an AI of their choice. Its output remains an unverified draft until target validation and human comparison with the evidence. Missing representations remain explicit, and export fails if no local source can render.
 
-**Prompt authority:** `JoineryConfigurator_Photo_to_JSON_Prompt.md` belongs to the standalone Joinery Configurator repository. OBD names the expected file and target schema but does not duplicate or silently synchronize the prompt.
+**Prompt authority:** `JoineryConfigurator_Photo_to_JSON_Prompt.md` belongs to the standalone Joinery Configurator repository. Object-Centric Drawing names the expected file and target schema but does not duplicate or silently synchronize the prompt.
 
 **Alternative:** A deterministic field-to-field adapter with manual width, height, and pane inputs was rejected because it repeats the Configurator's job and misunderstands the intended visual-AI workflow. Direct API integration is deferred until the external handoff proves valuable and the draft-validation loop is defined.
 
@@ -216,7 +216,7 @@
 
 **Decision:** Make text embedded in digitally generated PDFs selectable and copyable through the pinned PDF.js text layer. Do not add OCR.
 
-**Why:** OBD should first become a strong architectural PDF reader with object memory. Native PDF text is exact, source-aligned, local, and sufficient to establish familiar reading and future search behavior without introducing recognition confidence, language models, background processing, or a second text source.
+**Why:** Object-Centric Drawing should first become a strong architectural PDF reader with object memory. Native PDF text is exact, source-aligned, local, and sufficient to establish familiar reading and future search behavior without introducing recognition confidence, language models, background processing, or a second text source.
 
 **Interaction boundary:** The text layer is transient view state between the PDF canvas and occurrence SVG. Ordinary selection never changes project data. Existing occurrence shapes remain interactive, while explicit Mark mode temporarily disables text selection and restores a full-page marking surface.
 
@@ -230,7 +230,7 @@
 
 **Why:** Current-document search improves ordinary drawing reading immediately and reuses the selectable text foundation without creating a project-wide information-retrieval system. Page-ordered results, exact navigation, and visible-page highlighting are sufficient to test the value.
 
-**Boundary:** Search text, matches, highlights, progress, and current-result position are view state. They never enter `obd-project-v4`, undo history, the saved baseline, or browser storage. Switching PDFs closes the search surface. OCR and drawing-set-wide search remain excluded.
+**Boundary:** Search text, matches, highlights, progress, and current-result position are view state. They never enter `objdraw-project-v4`, undo history, the saved baseline, or browser storage. Switching PDFs closes the search surface. OCR and drawing-set-wide search remain excluded.
 
 **Revisit when:** Active-PDF search is proven useful and real multi-document work shows that users repeatedly need one query across the complete drawing set.
 
@@ -274,6 +274,30 @@
 
 **Decision:** Append the PDF.js-style `endOfContent` boundary after every successful text-layer render, expand it while the user is dragging, and reposition it beside the active text span on selection changes in affected Chromium versions. Remove its listeners and transient state whenever the layer is replaced or cancelled.
 
-**Why:** PDF text is rendered as many absolutely positioned spans. Affected Chromium versions can collapse a drag across those spans into narrow, fragmented columns unless the viewer both supplies and dynamically relocates the same selection boundary used by PDF.js's own text-layer builder. The embedded text was available, but OBD's lower-level wrapper had omitted this viewer behavior.
+**Why:** PDF text is rendered as many absolutely positioned spans. Affected Chromium versions can collapse a drag across those spans into narrow, fragmented columns unless the viewer both supplies and dynamically relocates the same selection boundary used by PDF.js's own text-layer builder. The embedded text was available, but Object-Centric Drawing's lower-level wrapper had omitted this viewer behavior.
 
 **Boundary:** The helper changes only browser selection behavior. It does not alter extracted text, search indexing, the rendered PDF, project data, marking geometry, or OCR scope. Explicit Mark mode continues to take interaction priority and intentionally disables text selection.
+
+## 2026-10-05 — Enforce the local-only boundary with a Content-Security-Policy
+
+**Decision:** `index.html` declares a strict CSP meta tag. Scripts, workers, styles, and fetches come only from the same origin. Images and fonts also allow `data:` and `blob:`. Objects, `<base>`, and form posts are blocked.
+
+**Why:** Object-Centric Drawing says it never uploads documents. The CSP makes the browser enforce that, instead of relying only on the code. It also limits damage if an imported project file ever reaches an unsafe code path.
+
+**Alternative:** No CSP. Rejected because the policy costs nothing at runtime and is checked by the browser on every load.
+
+**Revisit when:** a feature needs a remote host, WebAssembly decoders, or inline scripts. Change the policy in the same pull request and record why.
+
+**Boundary:** Checked in Chromium: PDF render, text layer, and injected inline scripts blocked. `frame-ancestors` cannot be set from a meta tag, and GitHub Pages does not allow custom headers.
+
+## 2026-10-05 — Rename to Object-Centric Drawing
+
+**Decision:** The project is now **Object-Centric Drawing**. It has no short acronym. File formats use the `objdraw-` prefix, for example `objdraw-project-v4` and `.objdraw.json`. This replaces the 2026-09-28 project identity entry.
+
+**Why:** This is a personal project. The old "OB" name could be read as an employer link. The full name says what the tool does.
+
+**Alternative:** "OCD" as a short form. Rejected because most readers know it as a health condition, and it cannot be searched.
+
+**Compatibility:** Files saved as `obd-project-v4` still import and are saved again as `objdraw-project-v4`. Older `obd-*` formats migrate as before.
+
+**Confidence:** high.

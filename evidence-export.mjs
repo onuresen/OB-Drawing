@@ -1,4 +1,4 @@
-export const EVIDENCE_ASSET_INDEX_FORMAT = "obd-object-evidence-assets-v1";
+export const EVIDENCE_ASSET_INDEX_FORMAT = "objdraw-object-evidence-assets-v1";
 
 function safePart(value, fallback) {
   const result = String(value ?? "")

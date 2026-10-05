@@ -1,14 +1,14 @@
-# OBD Object Evidence Package
+# Object-Centric Drawing Object Evidence Package
 
 ## Purpose
 
-`obd-object-evidence-v1` is a portable, target-neutral package for carrying one or more explicitly selected physical subjects and their exact drawing evidence out of an OBD project.
+`objdraw-object-evidence-v1` is a portable, target-neutral package for carrying one or more explicitly selected physical subjects and their exact drawing evidence out of an Object-Centric Drawing project.
 
-It is not a replacement for `obd-project-v4`. The project file remains the editable OBD source of truth. An evidence package is a bounded export assembled from that project for review, exchange, or translation by a separate adapter.
+It is not a replacement for `objdraw-project-v4`. The project file remains the editable Object-Centric Drawing source of truth. An evidence package is a bounded export assembled from that project for review, exchange, or translation by a separate adapter.
 
 ## Semantic boundary
 
-OBD currently treats each object as a **physical instance**. An object such as `object-001` means one explicitly identified building object even when another object has the same visible label. Stable category keys such as `doors` and `windows` describe the object without defining its identity.
+Object-Centric Drawing currently treats each object as a **physical instance**. An object such as `object-001` means one explicitly identified building object even when another object has the same visible label. Stable category keys such as `doors` and `windows` describe the object without defining its identity.
 
 A reusable type or configuration is a separate entity. An instance belongs to a configuration only through an explicit `instanceOf` relationship. Matching labels, categories, geometry, or AI suggestions never create that relationship.
 
@@ -18,11 +18,11 @@ This distinction allows a future Joinery Configurator adapter to translate revie
 
 ```json
 {
-  "format": "obd-object-evidence-v1",
+  "format": "objdraw-object-evidence-v1",
   "exportedAt": "2026-09-30T00:00:00.000Z",
   "producer": {
-    "name": "OB Drawing",
-    "projectFormat": "obd-project-v4"
+    "name": "Object-Centric Drawing",
+    "projectFormat": "objdraw-project-v4"
   },
   "subjects": [
     {
@@ -107,39 +107,39 @@ Later groups may add separately governed sections or companion assets for:
 - domain-profile declarations;
 - adapter results.
 
-Human observations, assumptions, review decisions, and derived unresolved conflicts are governed by `obd-project-v4`. Conflicts are recalculated from active values rather than serialized as a second source of truth.
+Human observations, assumptions, review decisions, and derived unresolved conflicts are governed by `objdraw-project-v4`. Conflicts are recalculated from active values rather than serialized as a second source of truth.
 
-AI output must remain distinguishable from captured facts and human-reviewed values. Target-specific Joinery Configurator or CDI records should be produced by adapters and must not silently become part of the neutral OBD project model.
+AI output must remain distinguishable from captured facts and human-reviewed values. Target-specific Joinery Configurator or CDI records should be produced by adapters and must not silently become part of the neutral Object-Centric Drawing project model.
 
 ## R1 export forms
 
 The Object Lens exposes two user-controlled export forms for the selected physical subject:
 
-- **Manifest only:** `<label>-<subject-id>.obd-evidence.json`
-- **Manifest with visual companions:** `<label>-<subject-id>.obd-evidence.zip`
+- **Manifest only:** `<label>-<subject-id>.objdraw-evidence.json`
+- **Manifest with visual companions:** `<label>-<subject-id>.objdraw-evidence.zip`
 
 The ZIP uses stored entries so it needs no external compression dependency. Its layout is:
 
 ```text
-manifest.obd-evidence.json
+manifest.objdraw-evidence.json
 assets.json
 previews/
   occurrence-001.png
   occurrence-002.png
 ```
 
-`manifest.obd-evidence.json` is the same validated neutral contract produced by the plain export. Preview binaries do not enter that manifest.
+`manifest.objdraw-evidence.json` is the same validated neutral contract produced by the plain export. Preview binaries do not enter that manifest.
 
-`assets.json` uses `obd-object-evidence-assets-v1`. Each included item identifies its `occurrenceId`, relative PNG path, media type, width, and height. Every occurrence without a PNG remains listed under `unavailable` with a bounded reason such as `source-pdf-missing` or `preview-render-failed`.
+`assets.json` uses `objdraw-object-evidence-assets-v1`. Each included item identifies its `occurrenceId`, relative PNG path, media type, width, and height. Every occurrence without a PNG remains listed under `unavailable` with a bounded reason such as `source-pdf-missing` or `preview-render-failed`.
 
-Each PNG uses the existing Object Lens context crop and draws the exact rectangle, ellipse, or polygon above the source image. The option is explicit and remains browser view state; it is not saved in the OBD project.
+Each PNG uses the existing Object Lens context crop and draws the exact rectangle, ellipse, or polygon above the source image. The option is explicit and remains browser view state; it is not saved in the Object-Centric Drawing project.
 
 ## Planned flow
 
 ```text
-obd-project-v4
+objdraw-project-v4
   -> explicit subject selection
-  -> obd-object-evidence-v1
+  -> objdraw-object-evidence-v1
   -> optional reviewed interpretation
   -> target adapter
   -> Joinery Configurator, CDI, or another consumer
@@ -149,6 +149,6 @@ R0 provides the pure package builder and validator. R1 adds the selected-object 
 
 ## T1 Joinery AI handoff
 
-The separate `obd-joinery-ai-handoff-v1` ZIP reuses one selected subject's validated evidence manifest and adds clean crops, marked crops, a combined contact sheet, and the current Joinery Configurator photo-to-JSON prompt/schema. It is a user-controlled handoff to Copilot or another external AI, not a field-mapping adapter and not an AI result stored in OBD.
+The separate `objdraw-joinery-ai-handoff-v1` ZIP reuses one selected subject's validated evidence manifest and adds clean crops, marked crops, a combined contact sheet, and the current Joinery Configurator photo-to-JSON prompt/schema. It is a user-controlled handoff to Copilot or another external AI, not a field-mapping adapter and not an AI result stored in Object-Centric Drawing.
 
 See [JOINERY-AI-HANDOFF.md](JOINERY-AI-HANDOFF.md) for the package layout, eligibility, prompt-synchronization rule, and validation boundary.

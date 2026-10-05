@@ -1,4 +1,4 @@
-# OBD Project Data Model
+# Object-Centric Drawing Project Data Model
 
 ## Principle
 
@@ -8,7 +8,7 @@ An object can have occurrences in several PDFs. Each occurrence explicitly names
 
 ```json
 {
-  "format": "obd-project-v4",
+  "format": "objdraw-project-v4",
   "exportedAt": "2026-09-30T08:00:00.000Z",
   "activeDocumentId": "document-001",
   "documents": [
@@ -84,7 +84,7 @@ PDF bytes and filesystem paths are never embedded. Each document stores its file
 
 An object's generated ID is immutable project identity. Its visible label, such as `D-105`, is editable evidence and does not need to be unique. Two objects may share a label without becoming the same object. Category is a separate editable classification and changing it never changes identity or occurrence links.
 
-New objects use neutral `object-*` identities. Imported `door-*` identities remain valid indefinitely so migration never rewrites established links. Categories use stable OBD keys such as `doors`, `windows`, and `mechanical-equipment`; they are familiar physical-model classifications, not Autodesk API identifiers.
+New objects use neutral `object-*` identities. Imported `door-*` identities remain valid indefinitely so migration never rewrites established links. Categories use stable Object-Centric Drawing keys such as `doors`, `windows`, and `mechanical-equipment`; they are familiar physical-model classifications, not Autodesk API identifiers.
 
 The user explicitly creates or confirms every cross-page and cross-document object link. Matching text, geometry, or labels must not silently merge objects.
 
@@ -92,11 +92,11 @@ Deleting an occurrence normally removes only that occurrence. Deleting an object
 
 ## Physical instance and reusable configuration
 
-An OBD object currently identifies one physical building-object instance. A reusable type or configuration is a different entity even when it shares the instance's visible label.
+An Object-Centric Drawing object currently identifies one physical building-object instance. A reusable type or configuration is a different entity even when it shares the instance's visible label.
 
 Portable evidence exports may introduce configuration records and explicit `instanceOf` relationships. No configuration relationship may be inferred from matching labels, categories, shapes, or AI output. This keeps instance identity stable while allowing reviewed configuration evidence to be translated to systems such as Joinery Configurator.
 
-The `obd-project-v4` editing contract adds stable object categories without changing physical-instance identity. The separate `obd-object-evidence-v1` package extracts selected physical subjects, exact document/page/geometry evidence, and their governed observations for downstream review or adapters. See [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md).
+The `objdraw-project-v4` editing contract adds stable object categories without changing physical-instance identity. The separate `objdraw-object-evidence-v1` package extracts selected physical subjects, exact document/page/geometry evidence, and their governed observations for downstream review or adapters. See [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md).
 
 ## Governed evidence rules
 
@@ -153,7 +153,7 @@ All values are normalized from `0` to `1` against the referenced page width and 
 
 A successful v3 migration additionally preserves governed observations and their exact source links while replacing legacy `type: "Door"` with `category: "doors"`.
 
-All migrated data is validated as `obd-project-v4` before it can enter runtime state. New exports use only `obd-project-v4`; migration is one-way and does not rewrite the user's original file.
+All migrated data is validated as `objdraw-project-v4` before it can enter runtime state. New exports use only `objdraw-project-v4`; migration is one-way and does not rewrite the user's original file.
 
 The interface can import this project before its PDFs are available. Local files are then attached by exact fingerprint, either in a multi-file batch or through a document-specific Relink action. Attachment state and per-document view state stay in memory and are not project content. A missing PDF never removes its manifest entry, objects, or occurrences.
 
