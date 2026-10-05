@@ -1,4 +1,4 @@
-# OB Drawing Prototype Acceptance - 2026-09-29
+# Object-Centric Drawing Prototype Acceptance - 2026-09-29
 
 ## Result
 

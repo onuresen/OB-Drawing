@@ -4,15 +4,14 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OB Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
-  <title>OB Drawing</title>
+  <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
+  <title>Object-Centric Drawing</title>
   <link rel="stylesheet" href="styles.css?v=2026-10-02-text-selection">
 </head>
 <body>
   <header class="app-header">
     <div class="brand-lockup">
-      <span class="brand-mark" aria-hidden="true">OB</span>
-      <h1>Drawing</h1>
+      <h1>Object-Centric Drawing</h1>
     </div>
   </header>
 
@@ -132,7 +131,7 @@
           </div>
           <p id="emptyEyebrow" class="eyebrow">Start with a drawing set</p>
           <h2 id="emptyTitle">Add local architectural PDFs</h2>
-          <p id="emptyDescription">The source files stay on this computer. OBD stores their shared object layer in a separate project JSON file.</p>
+          <p id="emptyDescription">The source files stay on this computer. This app stores their shared object layer in a separate project JSON file.</p>
           <label id="emptyChoosePdf" class="button button-primary" for="pdfFile">Choose PDFs</label>
         </div>
 
@@ -163,7 +162,7 @@
 
       <div class="concept-note">
         <strong>A label is not identity.</strong>
-        <span>You create or choose the object. OBD never merges marks because their visible labels match.</span>
+        <span>You create or choose the object. The app never merges marks because their visible labels match.</span>
       </div>
 
       <section class="document-section" aria-labelledby="projectDocumentsTitle">
@@ -317,7 +316,7 @@
           <h3 id="sidecarTitle">Project file</h3>
           <span id="saveState" class="save-state" role="status" aria-live="polite" data-dirty="false">No document</span>
         </div>
-        <p class="quiet-copy">Export a versioned OBD project beside its PDFs, or import a project first and relink its local source files.</p>
+        <p class="quiet-copy">Export a versioned project beside its PDFs, or import a project first and relink its local source files.</p>
         <div class="sidecar-actions">
           <button id="exportSidecar" class="button button-primary" type="button" disabled>Export JSON</button>
           <button id="chooseSidecar" class="button" type="button">Import JSON</button>

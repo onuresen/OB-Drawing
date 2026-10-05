@@ -182,7 +182,7 @@ test("selected subject exports include its reviewed source-linked evidence", () 
     observations,
     selectedObjectIds: ["door-001"],
   });
-  assert.equal(result.producer.projectFormat, "obd-project-v4");
+  assert.equal(result.producer.projectFormat, "objdraw-project-v4");
   assert.deepEqual(result.observations.map((entry) => entry.id), ["observation-001"]);
   assert.equal(result.observations[0].subjectId, "door-001");
 });

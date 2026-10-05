@@ -2,7 +2,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
-class OBDRequestHandler(SimpleHTTPRequestHandler):
+class LocalRequestHandler(SimpleHTTPRequestHandler):
     module_types = {
         ".js": "application/javascript",
         ".mjs": "application/javascript",
@@ -15,8 +15,8 @@ class OBDRequestHandler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("127.0.0.1", 8765), OBDRequestHandler)
-    print("OB Drawing is available at http://localhost:8765")
+    server = ThreadingHTTPServer(("127.0.0.1", 8765), LocalRequestHandler)
+    print("Object-Centric Drawing is available at http://localhost:8765")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

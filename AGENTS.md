@@ -1,8 +1,8 @@
-# OB Drawing Agent Handoff
+# Object-Centric Drawing Agent Handoff
 
 ## Product boundary
 
-OB Drawing is a standalone browser prototype for object-centric navigation across architectural PDF drawing sets.
+Object-Centric Drawing is a standalone browser prototype for object-centric navigation across architectural PDF drawing sets.
 
 The PDF is a source document. Drawn shapes are visual occurrences. They become part of a shared building object only through an explicit create/link action; matching labels never imply identity.
 
@@ -34,7 +34,7 @@ Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision
 - [x] Group R4 — category-neutral objects, searchable grouped physical-model catalogue, and lossless v1/v2/v3-to-v4 migration.
 - [ ] Group S — deferred; AI-assisted interpretation is outside the current PDF-object proof.
 - [x] Group T1 — Joinery AI Handoff Pack with complete selected-object evidence, clean/marked representations, contact sheet, and an explicit Configurator prompt reference.
-- [x] Group T2 — closed without OBD implementation; AI-result validation remains owned by Joinery Configurator.
+- [x] Group T2 — closed without Object-Centric Drawing implementation; AI-result validation remains owned by Joinery Configurator.
 - [ ] Group T3 — deferred; direct AI connection is not part of the current PDF-object proof.
 - [ ] Group U — deferred until a concrete CDI exchange workflow is selected.
 - [ ] Group V — deferred until the core PDF-object workflow is proven on a coordinated drawing set.
@@ -52,11 +52,11 @@ Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision
 | File | Role |
 |---|---|
 | `index.html` | Application structure and controls. |
-| `styles.css` | OBD visual system and responsive layout. |
+| `styles.css` | Object-Centric Drawing visual system and responsive layout. |
 | `app.js` | PDF session, rendering, interaction state, and object/occurrence UI. |
 | `geometry.mjs` | Pure normalized-coordinate helpers. |
 | `object-model.mjs` | Pure category-neutral object identity, link, edit, and delete operations. |
-| `category-catalog.mjs` | Stable grouped OBD physical-model category catalogue and search helpers. |
+| `category-catalog.mjs` | Stable grouped Object-Centric Drawing physical-model category catalogue and search helpers. |
 | `navigation.mjs` | Pure shortcut mapping, bounded zoom-step, and list-focus recovery rules. |
 | `project-documents.mjs` | Pure fingerprint matching, document occurrence counts, removal guards, and cross-document target selection. |
 | `object-lens.mjs` | Pure Object Lens coverage summaries, deterministic representation ordering, and normalized thumbnail-context framing. |
@@ -93,7 +93,7 @@ Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision
 | `serve.py` | Loopback-only static server with explicit JavaScript-module MIME types. |
 | `start-server.cmd` | Local HTTP launcher on port `8765`. |
 | `DATA-MODEL.md` | Intended object-layer contract. |
-| `OBJECT-EVIDENCE-PACKAGE.md` | Portable `obd-object-evidence-v1` contract and ecosystem adapter boundary. |
+| `OBJECT-EVIDENCE-PACKAGE.md` | Portable `objdraw-object-evidence-v1` contract and ecosystem adapter boundary. |
 | `JOINERY-AI-HANDOFF.md` | Joinery AI bundle layout, use flow, prompt-version, and trust boundary. |
 | `DECISIONS.md` | Durable product and architecture decisions. |
 | `ACCEPTANCE-2026-09-29.md` | Runtime five-Door evidence, fixes, limitations, and remaining proof. |
@@ -115,8 +115,8 @@ Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision
 - A visible mark is not identity. Marks remain unlinked until an explicit create/link action.
 - “Mark another occurrence” is an explicit link intent and may assign the selected object automatically.
 - Deleting an object preserves its shapes as unlinked occurrences. Deleting an occurrence does not delete its object. Either deletion is blocked while governed evidence references its target.
-- New project files use `obd-project-v4`; legacy `obd-object-layer-v1`, `obd-project-v2`, and `obd-project-v3` files migrate in memory and remain importable.
-- Categories use stable neutral OBD keys from `category-catalog.mjs`; familiar Revit-style grouping does not make Autodesk API identifiers part of the contract.
+- New project files use `objdraw-project-v4`; legacy `obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, and `obd-project-v4` files migrate in memory and remain importable.
+- Categories use stable neutral Object-Centric Drawing keys from `category-catalog.mjs`; familiar Revit-style grouping does not make Autodesk API identifiers part of the contract.
 - A project has a non-empty `documents[]` manifest and one valid `activeDocumentId`. Duplicate document IDs and exact duplicate fingerprints are rejected.
 - Every occurrence retains `documentId` at runtime and must reference a page within that document's own page count.
 - Persisted occurrence geometry is typed. Rectangle and ellipse use normalized bounds; polygon uses three or more normalized points enclosing a non-zero area.
@@ -169,21 +169,21 @@ Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision
 - Representation Board renders attached PDFs into in-memory, page-bounded previews with the exact rectangle, ellipse, or polygon overlay. Missing PDFs remain visible and recoverable.
 - Representation Board sorts by project PDF order, page, and occurrence identity without persisting a second view model.
 - Activating a Representation Board card closes the board and uses exact occurrence navigation, so the referenced PDF/page opens with the occurrence selected and marked. Missing PDFs retain their card and enter the existing relink state.
-- The application brand is one compact `OB` + `Drawing` lockup. Primary object actions use short visible verbs with fuller accessible labels and tooltips.
+- The application brand is the plain `Object-Centric Drawing` title. Primary object actions use short visible verbs with fuller accessible labels and tooltips.
 - Drawing Set Map is an on-demand dialog and read-only projection of the governed document and occurrence model. It does not infer object identity or persist map state.
 - Map groups expose every document page, occurrence density, current-page state, selected-Door coverage, and attached or missing source state. Activating a page uses its exact document and page identity.
 - Expanded drawing-map groups are view-only browser state and do not enter history or make the project dirty.
-- `obd-project-v4` remains OBD's editable project source of truth; `obd-object-evidence-v1` is a selected, target-neutral export package rather than a replacement project format.
-- Current OBD objects are physical instances. Reusable configurations remain separate and connect only through an explicit `instanceOf` relationship; duplicate labels never imply that relationship.
+- `objdraw-project-v4` remains Object-Centric Drawing's editable project source of truth; `objdraw-object-evidence-v1` is a selected, target-neutral export package rather than a replacement project format.
+- Current Object-Centric Drawing objects are physical instances. Reusable configurations remain separate and connect only through an explicit `instanceOf` relationship; duplicate labels never imply that relationship.
 - Evidence packages retain exact source document fingerprints, page identities, and typed geometry, include only referenced documents, and fail closed on unknown or unrepresented subjects.
 - Joinery Configurator and CDI remain downstream adapters. Target-specific fields, AI drafts, and adapter output do not silently enter the neutral project or evidence contract.
 - Joinery AI handoff is available only for `doors` and `windows`, requires at least one successfully rendered local representation, and maps those categories only to target opening modes `door` and `window`.
 - A Joinery handoff always includes the neutral manifest, exact occurrence/document/page mappings, clean and marked crops, one marked contact sheet, and an explicit reference to the separately maintained target prompt/schema.
-- `JoineryConfigurator_Photo_to_JSON_Prompt.md` is authoritative in the Joinery Configurator repository. OBD must not duplicate or silently synchronize it.
+- `JoineryConfigurator_Photo_to_JSON_Prompt.md` is authoritative in the Joinery Configurator repository. Object-Centric Drawing must not duplicate or silently synchronize it.
 - Handoff export is read-only. It never calls AI, infers Joinery fields, changes project content, enters history, marks the project saved, or stores the downstream response.
 - The selected object's compact Export menu keeps target-neutral JSON, preview ZIP, and eligible adapter packs together without making adapters part of the main workflow.
-- Evidence JSON is available only for a selected object with linked source occurrences and downloads one validated `.obd-evidence.json` manifest.
-- Evidence ZIP downloads a stored `.obd-evidence.zip` containing `manifest.obd-evidence.json`, `assets.json`, and `previews/<occurrence-id>.png` for each attached source that renders successfully.
+- Evidence JSON is available only for a selected object with linked source occurrences and downloads one validated `.objdraw-evidence.json` manifest.
+- Evidence ZIP downloads a stored `.objdraw-evidence.zip` containing `manifest.objdraw-evidence.json`, `assets.json`, and `previews/<occurrence-id>.png` for each attached source that renders successfully.
 - Exported previews use the same page-bounded Object Lens framing and add the exact rectangle, ellipse, or polygon mark. Missing or failed sources remain listed in the asset index rather than being hidden.
 - Evidence export is a read-only projection. It does not mark the project saved, enter undo history, persist its preview option, or change attachment/view state.
 - Governed evidence belongs to one exact Door. An `observation` requires one of that Door's exact occurrences; an `assumption` may instead apply to the whole Door.
@@ -230,7 +230,7 @@ Then run `start-server.cmd` and check:
 11. Renaming a Door preserves its ID and occurrence links.
 12. Deleting a Door leaves its former occurrences in the unlinked list.
 13. Deleting one occurrence does not delete its Door or sibling occurrences.
-14. Export produces valid `obd-project-v4` JSON with categorized objects, `documents[]`, `activeDocumentId`, typed geometry, and governed observations.
+14. Export produces valid `objdraw-project-v4` JSON with categorized objects, `documents[]`, `activeDocumentId`, typed geometry, and governed observations.
 15. Import of a matching v4 project or migrated v1/v2/v3 file restores all IDs, categories, labels, document links, pages, bounds, and available evidence.
 16. Import of malformed JSON or an invalid model is rejected without changing the session.
 17. Relinking with a different or revised PDF shows a warning and leaves the project document unattached.
@@ -294,9 +294,9 @@ Then run `start-server.cmd` and check:
 75. Two physical subjects with the same label remain distinct and acquire no implicit configuration relationship.
 76. A configuration enters the package only through an explicit, category-compatible `instanceOf` relationship.
 77. Unknown or unrepresented subjects, invalid relationship targets, invalid pages, and invalid geometry fail closed.
-78. Creating or validating an evidence package does not change `obd-project-v4`, local PDF attachment state, browser storage, or object history.
+78. Creating or validating an evidence package does not change `objdraw-project-v4`, local PDF attachment state, browser storage, or object history.
 79. Selecting an object with linked representations enables its compact Export menu options; an object without representations cannot be exported.
-80. Evidence JSON produces a valid `obd-object-evidence-v1` document containing only the selected physical subject and its referenced evidence.
+80. Evidence JSON produces a valid `objdraw-object-evidence-v1` document containing only the selected physical subject and its referenced evidence.
 81. Evidence ZIP produces a readable archive containing the identical manifest, one asset index, and one PNG per successfully rendered attached occurrence.
 82. Rectangle, ellipse, and polygon preview assets retain page context and show the exact selected evidence geometry.
 83. Missing PDFs and render failures remain explicit in `assets.json` without blocking export of the manifest or other previews.
@@ -312,7 +312,7 @@ Then run `start-server.cmd` and check:
 93. Representation Board cards are ordered by project PDF order, then page, then occurrence identity, independently of creation order.
 94. Activating a board card closes the board, opens its exact PDF/page, and selects the marked occurrence.
 95. Missing source PDFs remain visible in the board and route to the existing relink state without dropping object selection.
-96. The compact `OB` + `Drawing` header and short Mark, Delete, Export, and Create actions remain legible without horizontal clipping at supported widths.
+96. The `Object-Centric Drawing` header and short Mark, Delete, Export, and Create actions remain legible without horizontal clipping at supported widths.
 97. The creation form searches a grouped catalogue of at least 70 stable physical-model categories and preserves category selection when possible.
 98. New objects receive neutral `object-*` identities while legacy `door-*` identities remain valid after import.
 99. Changing an object's category or label preserves its identity, occurrences, and governed evidence links.
@@ -320,7 +320,7 @@ Then run `start-server.cmd` and check:
 101. V1, v2, and v3 projects migrate to v4 with legacy Doors assigned `category: "doors"` and no ID rewriting.
 102. Object lists, marking guidance, evidence review, export, and status announcements use category-neutral language.
 103. A Door or Window with at least one linked representation enables `AI pack`; other categories remain explicitly unsupported without acquiring guessed Joinery meaning.
-104. The Joinery AI ZIP contains `AI-HANDOFF.md`, `handoff.json`, the validated OBD manifest, clean and marked images, and a combined contact sheet; the index references the separate Configurator prompt authority.
+104. The Joinery AI ZIP contains `AI-HANDOFF.md`, `handoff.json`, the validated Object-Centric Drawing manifest, clean and marked images, and a combined contact sheet; the index references the separate Configurator prompt authority.
 105. Every image in the handoff index retains exact occurrence, document, page, and subject provenance; every unavailable occurrence retains a bounded reason.
 106. The handoff instructions tell an external AI that all representations describe one physical object and request exactly one raw Configurator JSON object.
 107. A handoff fails closed when no representation renders, while partially missing sources remain explicit without blocking available evidence.

@@ -1,6 +1,6 @@
 # Local documents and exported project data
 *.pdf
-*.obd.json
+*.objdraw.json
 *.zip
 exports/
 

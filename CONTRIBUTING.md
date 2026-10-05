@@ -1,12 +1,12 @@
 # Contributing
 
-OB Drawing is an experimental local-first PDF reader with an explicit object layer. Contributions should preserve its central contract: visible labels are evidence, not identity, and source PDFs remain unchanged.
+Object-Centric Drawing is an experimental local-first PDF reader with an explicit object layer. Contributions should preserve its central contract: visible labels are evidence, not identity, and source PDFs remain unchanged.
 
 ## Before opening a change
 
 - Read `AGENTS.md` and the relevant entry in `DECISIONS.md`.
 - Keep changes bounded and avoid introducing OCR, automatic identity matching, cloud upload, or BIM synchronization without a separately reviewed product decision.
-- Do not commit source PDFs, exported `.obd.json` projects, generated ZIP files, credentials, local paths, or screenshots containing personal information.
+- Do not commit source PDFs, exported `.objdraw.json` projects, generated ZIP files, credentials, local paths, or screenshots containing personal information.
 - Use only synthetic or clearly redistributable fixtures in tests and documentation.
 
 ## Verification

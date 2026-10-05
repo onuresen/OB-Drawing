@@ -2,7 +2,7 @@
 
 ## Supported version
 
-Only the current `main` branch is supported while OB Drawing remains an experimental prototype.
+Only the current `main` branch is supported while Object-Centric Drawing remains an experimental prototype.
 
 ## Reporting a vulnerability
 
@@ -10,4 +10,4 @@ Do not disclose suspected vulnerabilities, sensitive PDFs, exported project data
 
 ## Local-data boundary
 
-OB Drawing is designed to process selected PDFs in the browser and bind its supplied server to loopback. A security report should call out any behavior that uploads document content, exposes the loopback server beyond the local machine, persists source data unexpectedly, or allows imported project data to execute code.
+Object-Centric Drawing is designed to process selected PDFs in the browser and bind its supplied server to loopback. A security report should call out any behavior that uploads document content, exposes the loopback server beyond the local machine, persists source data unexpectedly, or allows imported project data to execute code.

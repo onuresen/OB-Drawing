@@ -1,7 +1,8 @@
 import { EVIDENCE_KINDS, REVIEW_STATES } from "./evidence-model.mjs";
 import { DEFAULT_OBJECT_CATEGORY, isObjectCategoryKey } from "./category-catalog.mjs";
 
-export const PROJECT_FORMAT = "obd-project-v4";
+export const PROJECT_FORMAT = "objdraw-project-v4";
+export const RENAMED_PROJECT_FORMAT = "obd-project-v4";
 export const PREVIOUS_PROJECT_FORMAT = "obd-project-v3";
 export const MULTI_DOCUMENT_PROJECT_FORMAT = "obd-project-v2";
 export const LEGACY_SIDECAR_FORMAT = "obd-object-layer-v1";
@@ -354,6 +355,9 @@ export function validateSidecar(value) {
   requireCondition(isRecord(value), "The sidecar root must be an object.");
   if (value.format === LEGACY_SIDECAR_FORMAT) {
     return migrateLegacySidecar(value);
+  }
+  if (value.format === RENAMED_PROJECT_FORMAT) {
+    return validateProject({ ...value, format: PROJECT_FORMAT });
   }
   if (value.format === PREVIOUS_PROJECT_FORMAT) {
     return migrateProjectV3(value);

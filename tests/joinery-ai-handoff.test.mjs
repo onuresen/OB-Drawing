@@ -9,7 +9,7 @@ import {
 } from "../joinery-ai-handoff.mjs";
 
 const evidencePackage = {
-  format: "obd-object-evidence-v1",
+  format: "objdraw-object-evidence-v1",
   subjects: [{ id: "door-001", kind: "physical-instance", category: "doors", label: "D-105" }],
   documents: [{ id: "document-001", name: "doors.pdf" }],
   occurrences: [{ id: "occurrence-001", subjectId: "door-001", documentId: "document-001", page: 4 }],
@@ -32,7 +32,7 @@ const rendered = [{
   height: 340,
 }];
 
-test("door and window subjects map to the Configurator without adding fields to OBD", () => {
+test("door and window subjects map to the Configurator without adding fields to Object-Centric Drawing", () => {
   assert.equal(joineryOpeningType("doors"), "door");
   assert.equal(joineryOpeningType("windows"), "window");
   assert.equal(joineryOpeningType("walls"), null);

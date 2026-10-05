@@ -1,4 +1,4 @@
-# OBD Prototype Scope
+# Object-Centric Drawing Prototype Scope
 
 ## Goal
 

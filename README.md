@@ -1,8 +1,8 @@
-# OB Drawing
+# Object-Centric Drawing
 
 > One building object, across every drawing.
 
-OB Drawing (OBD) is a local-first browser prototype for navigating architectural PDF drawing sets by building object as well as by page. A physical object may appear in a plan, elevation, schedule, section, or detail. OBD connects those visible occurrences through explicit user-created identity without modifying the source PDFs.
+Object-Centric Drawing is a local-first browser prototype for navigating architectural PDF drawing sets by building object as well as by page. A physical object may appear in a plan, elevation, schedule, section, or detail. Object-Centric Drawing connects those visible occurrences through explicit user-created identity without modifying the source PDFs.
 
 ## What it does
 
@@ -17,13 +17,13 @@ The mechanics have passed a bounded round-trip test. The product-value hypothesi
 
 ## Privacy and document safety
 
-OBD runs locally. Selected PDFs, rendered previews, object data, and search indexes remain in browser memory unless you explicitly export a project or evidence package. The application does not upload source documents.
+Object-Centric Drawing runs locally. Selected PDFs, rendered previews, object data, and search indexes remain in browser memory unless you explicitly export a project or evidence package. The application does not upload source documents.
 
 This repository intentionally contains no sample architectural PDFs or project sidecars. Use only documents you are authorized to use, and do not attach confidential drawings to public issues.
 
 ## Try it online
 
-Open [OB Drawing on GitHub Pages](https://onuresen.github.io/OB-Drawing/). PDFs are opened directly by your browser and are not uploaded to a server.
+Open [Object-Centric Drawing on GitHub Pages](https://onuresen.github.io/object-centric-drawing/). PDFs are opened directly by your browser and are not uploaded to a server.
 
 For offline use or local development, run the same application locally as described below.
 
@@ -47,7 +47,7 @@ The supplied server binds only to loopback and provides the JavaScript-module MI
 
 ## Save and restore
 
-Export an `.obd.json` project beside its source PDFs. It stores fingerprints, document metadata, objects, occurrences, geometry, and governed evidence—not PDF bytes. A project can be imported before or after its PDFs are selected; identical renamed files can be matched by fingerprint.
+Export an `.objdraw.json` project beside its source PDFs. It stores fingerprints, document metadata, objects, occurrences, geometry, and governed evidence—not PDF bytes. A project can be imported before or after its PDFs are selected; identical renamed files can be matched by fingerprint.
 
 ## Development
 
@@ -70,8 +70,8 @@ Contributor guidance is in [CONTRIBUTING.md](CONTRIBUTING.md). Product and archi
 
 ## Project status
 
-OBD is an independent experimental project. It is not affiliated with or endorsed by an employer, software vendor, standards body, or the publishers of documents opened with it. It is not a BIM authoring tool, PDF editor, or replacement for professional review.
+Object-Centric Drawing is an independent experimental project. It is not affiliated with or endorsed by an employer, software vendor, standards body, or the publishers of documents opened with it. It is not a BIM authoring tool, PDF editor, or replacement for professional review.
 
 ## License
 
-OB Drawing is licensed under the [Apache License 2.0](LICENSE). Bundled third-party components retain their own licenses; see [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Object-Centric Drawing is licensed under the [Apache License 2.0](LICENSE). Bundled third-party components retain their own licenses; see [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

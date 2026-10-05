@@ -1,4 +1,4 @@
-export const OBJECT_EVIDENCE_FORMAT = "obd-object-evidence-v1";
+export const OBJECT_EVIDENCE_FORMAT = "objdraw-object-evidence-v1";
 export const PHYSICAL_INSTANCE_KIND = "physical-instance";
 export const INSTANCE_OF_RELATIONSHIP = "instanceOf";
 
@@ -86,10 +86,10 @@ export function validateObjectEvidencePackage(value) {
   requireCondition(value.format === OBJECT_EVIDENCE_FORMAT, `Unsupported evidence package format. Expected ${OBJECT_EVIDENCE_FORMAT}.`);
   requireCondition(typeof value.exportedAt === "string" && !Number.isNaN(Date.parse(value.exportedAt)), "Invalid exportedAt timestamp.");
   requireCondition(isRecord(value.producer), "The evidence package requires producer metadata.");
-  requireCondition(value.producer.name === "OB Drawing", "The producer name must be OB Drawing.");
+  requireCondition(value.producer.name === "Object-Centric Drawing", "The producer name must be Object-Centric Drawing.");
   requireCondition(
-    ["obd-project-v2", "obd-project-v3", "obd-project-v4"].includes(value.producer.projectFormat),
-    "The producer project format must be a supported OBD project version.",
+    ["obd-project-v2", "obd-project-v3", "obd-project-v4", "objdraw-project-v4"].includes(value.producer.projectFormat),
+    "The producer project format must be a supported Object-Centric Drawing project version.",
   );
   requireCondition(Array.isArray(value.subjects) && value.subjects.length > 0, "Subjects must be a non-empty array.");
   requireCondition(Array.isArray(value.configurations), "Configurations must be an array.");
@@ -178,7 +178,7 @@ export function validateObjectEvidencePackage(value) {
   return {
     format: OBJECT_EVIDENCE_FORMAT,
     exportedAt: value.exportedAt,
-    producer: { name: "OB Drawing", projectFormat: value.producer.projectFormat },
+    producer: { name: "Object-Centric Drawing", projectFormat: value.producer.projectFormat },
     subjects: value.subjects.map((subject) => ({
       id: subject.id,
       kind: PHYSICAL_INSTANCE_KIND,
@@ -249,7 +249,7 @@ export function createObjectEvidencePackage({
   return validateObjectEvidencePackage({
     format: OBJECT_EVIDENCE_FORMAT,
     exportedAt,
-    producer: { name: "OB Drawing", projectFormat: "obd-project-v4" },
+    producer: { name: "Object-Centric Drawing", projectFormat: "objdraw-project-v4" },
     subjects: selectedObjectIds.map((objectId) => {
       const object = objectsById.get(objectId);
       return {

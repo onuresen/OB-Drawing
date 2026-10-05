@@ -593,7 +593,7 @@ function updateSaveState() {
       ? "Unsaved changes"
       : "Saved";
   elements.saveState.dataset.dirty = String(isDirty);
-  document.title = isDirty ? "OB Drawing — Unsaved changes" : "OB Drawing";
+  document.title = isDirty ? "Object-Centric Drawing — Unsaved changes" : "Object-Centric Drawing";
 }
 
 function markObjectLayerSaved() {
@@ -1524,7 +1524,7 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
     const manifestText = `${JSON.stringify(evidencePackage, null, 2)}\n`;
 
     if (!includePreviews) {
-      const filename = `${stem}.obd-evidence.json`;
+      const filename = `${stem}.objdraw-evidence.json`;
       downloadBlob(new Blob([manifestText], { type: "application/json" }), filename);
       elements.objectExportMenu.open = false;
       setEvidenceExportStatus(`Exported ${filename} with ${occurrences.length} source representation${occurrences.length === 1 ? "" : "s"}.`);
@@ -1532,7 +1532,7 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
       return;
     }
 
-    const files = [{ name: "manifest.obd-evidence.json", data: manifestText }];
+    const files = [{ name: "manifest.objdraw-evidence.json", data: manifestText }];
     const assets = [];
     const unavailableReasons = new Map();
     for (const occurrence of occurrences) {
@@ -1559,7 +1559,7 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
     const assetIndex = createEvidenceAssetIndex(occurrences, assets, unavailableReasons);
     files.splice(1, 0, { name: "assets.json", data: `${JSON.stringify(assetIndex, null, 2)}\n` });
     const zipBytes = createStoredZip(files, new Date(exportedAt));
-    const filename = `${stem}.obd-evidence.zip`;
+    const filename = `${stem}.objdraw-evidence.zip`;
     downloadBlob(new Blob([zipBytes], { type: "application/zip" }), filename);
     elements.objectExportMenu.open = false;
     const unavailableCount = assetIndex.unavailable.length;
@@ -1611,7 +1611,7 @@ async function exportSelectedObjectForJoineryAi() {
       exportedAt,
     });
     const files = [
-      { name: "manifest.obd-evidence.json", data: `${JSON.stringify(evidencePackage, null, 2)}\n` },
+      { name: "manifest.objdraw-evidence.json", data: `${JSON.stringify(evidencePackage, null, 2)}\n` },
     ];
     const renderedAssets = [];
     const unavailableRepresentations = [];
@@ -1667,7 +1667,7 @@ async function exportSelectedObjectForJoineryAi() {
     setEvidenceExportStatus(
       `Exported ${filename} with ${renderedAssets.length} clean/marked representation pair${renderedAssets.length === 1 ? "" : "s"} and one contact sheet${missingCount ? `; ${missingCount} unavailable source${missingCount === 1 ? "" : "s"} recorded` : ""}. Use it with the current prompt from Joinery Configurator.`,
     );
-    setStatus(`Exported the Joinery AI handoff for ${object.label} (${object.id}). The OBD project was not changed.`);
+    setStatus(`Exported the Joinery AI handoff for ${object.label} (${object.id}). The project was not changed.`);
   } catch (error) {
     console.error(error);
     setEvidenceExportStatus(`Joinery AI handoff failed: ${error.message}`, true);
@@ -1729,7 +1729,7 @@ function showDocumentPlaceholder(projectDocument = null) {
   } else {
     elements.emptyEyebrow.textContent = "Start with a drawing set";
     elements.emptyTitle.textContent = "Add local architectural PDFs";
-    elements.emptyDescription.textContent = "The source files stay on this computer. OBD stores their shared object layer in a separate project JSON file.";
+    elements.emptyDescription.textContent = "The source files stay on this computer. This app stores their shared object layer in a separate project JSON file.";
   }
 }
 
@@ -2476,7 +2476,7 @@ function sidecarDownloadName() {
     .replace(/\.pdf$/i, "")
     .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-")
     .trim();
-  return `${baseName || "drawing"}.obd-project.json`;
+  return `${baseName || "drawing"}.objdraw-project.json`;
 }
 
 function exportSidecar() {
@@ -2581,7 +2581,9 @@ async function importSidecar(file) {
         ? " and migrated from v2"
         : parsed.format === "obd-project-v3"
           ? " and migrated from v3"
-          : "";
+          : parsed.format === "obd-project-v4"
+            ? " and updated from the old OBD format"
+            : "";
     setSidecarMessage(`Imported ${file.name}${migrationNote}.`);
     const missingCount = state.documents.length - state.documentSessions.size;
     setStatus(`Restored ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}, ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, and ${state.observations.length} evidence entr${state.observations.length === 1 ? "y" : "ies"}.${missingCount ? ` ${missingCount} PDF${missingCount === 1 ? " needs" : "s need"} relinking.` : ""}`);
