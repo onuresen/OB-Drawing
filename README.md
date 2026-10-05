@@ -62,6 +62,7 @@ Contributor guidance is in [CONTRIBUTING.md](CONTRIBUTING.md). Product and archi
 ## Project documents
 
 - [CONCEPT.md](CONCEPT.md) — product idea and terminology.
+- [TEST-RUN.md](TEST-RUN.md) — one-hour test: object vs page navigation.
 - [PROTOTYPE-SCOPE.md](PROTOTYPE-SCOPE.md) — bounded experiment and exclusions.
 - [DATA-MODEL.md](DATA-MODEL.md) — project and occurrence model.
 - [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md) — portable evidence contract.
