@@ -11,7 +11,7 @@ OB Drawing is an experimental local-first PDF reader with an explicit object lay
 
 ## Verification
 
-Use Node.js 22 or newer and run:
+Use Node.js 26 or newer (the same version CI uses) and run:
 
 ```sh
 npm run check

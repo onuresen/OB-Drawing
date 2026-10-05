@@ -8,10 +8,7 @@ The browser prototype completed a five-Door, six-occurrence export/reload/import
 
 ## Source boundary
 
-- Source: `BIM Modelling Guide/source/BIM_Modeling_Guide_with_Structure_ENU_vS3-03.pdf`
-- Source type: real 67-page architectural/BIM modelling guide, not a project drawing set.
-- PDF fingerprint: `ce887a02203a4ba8b0f1118f4e620e567808b9715c706ad574a6b8f13b6eb299`
-- File size: `4,648,339` bytes.
+- Source type: a real 67-page architectural/BIM modelling guide, not a project drawing set. The file is not named here and is not committed.
 - Pages used: PDF pages 60 and 61, covering Door/Window component, plan-detail, model-view, and curtain-wall imagery.
 - Test labels began with `TEST-`. They are workflow placeholders, not asserted building-object identities.
 - The cross-page `TEST-D03 Entrance-panel` link tests navigation between related representations. It does not claim that the two guide images depict one verified physical Door.

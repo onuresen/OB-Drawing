@@ -277,3 +277,15 @@
 **Why:** PDF text is rendered as many absolutely positioned spans. Affected Chromium versions can collapse a drag across those spans into narrow, fragmented columns unless the viewer both supplies and dynamically relocates the same selection boundary used by PDF.js's own text-layer builder. The embedded text was available, but OBD's lower-level wrapper had omitted this viewer behavior.
 
 **Boundary:** The helper changes only browser selection behavior. It does not alter extracted text, search indexing, the rendered PDF, project data, marking geometry, or OCR scope. Explicit Mark mode continues to take interaction priority and intentionally disables text selection.
+
+## 2026-10-05 — Enforce the local-only boundary with a Content-Security-Policy
+
+**Decision:** `index.html` declares a strict CSP meta tag. Scripts, workers, styles, and fetches come only from the same origin. Images and fonts also allow `data:` and `blob:`. Objects, `<base>`, and form posts are blocked.
+
+**Why:** OBD says it never uploads documents. The CSP makes the browser enforce that, instead of relying only on the code. It also limits damage if an imported project file ever reaches an unsafe code path.
+
+**Alternative:** No CSP. Rejected because the policy costs nothing at runtime and is checked by the browser on every load.
+
+**Revisit when:** a feature needs a remote host, WebAssembly decoders, or inline scripts. Change the policy in the same pull request and record why.
+
+**Boundary:** Checked in Chromium: PDF render, text layer, and injected inline scripts blocked. `frame-ancestors` cannot be set from a meta tag, and GitHub Pages does not allow custom headers.
