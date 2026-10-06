@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Autodesk.Revit.UI;
 
 namespace ObjectCentricDrawing
@@ -39,6 +41,8 @@ namespace ObjectCentricDrawing
                     "Open a sheet, or select sheets in the Project Browser. Doors and windows on "
                     + "those sheets become objects, and each place they appear becomes an occurrence. "
                     + "The PDF is not changed; object data goes in a .objdraw.json file beside it.",
+                LargeImage = LoadIcon("exportpdf32.png"),
+                Image = LoadIcon("exportpdf16.png"),
             };
             panel.AddItem(button);
 
@@ -46,5 +50,23 @@ namespace ObjectCentricDrawing
         }
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;
+
+        // A missing icon costs a picture, not the ribbon, so this returns null instead of throwing.
+        private static ImageSource? LoadIcon(string fileName)
+        {
+            try
+            {
+                using var stream = Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream(typeof(App).Namespace + ".Resources." + fileName);
+                if (stream == null) return null;
+                // OnLoad decodes the frame before the stream is disposed.
+                return new PngBitmapDecoder(
+                    stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 }
