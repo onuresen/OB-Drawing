@@ -12,8 +12,16 @@
     }
   ],
   "objects": [
-    { "id": "object-001", "category": "doors", "label": "D-101" },
-    { "id": "object-002", "category": "windows", "label": "Fixed 900x1200 #348211" }
+    {
+      "id": "object-001",
+      "category": "doors",
+      "label": "D-101"
+    },
+    {
+      "id": "object-002",
+      "category": "windows",
+      "label": "Fixed 900x1200 #348211"
+    }
   ],
   "occurrences": [
     {
@@ -21,21 +29,72 @@
       "objectId": "object-001",
       "documentId": "document-001",
       "page": 1,
-      "geometry": { "type": "rectangle", "bounds": { "x": 0.312, "y": 0.4205, "width": 0.0214, "height": 0.0302 } }
+      "geometry": {
+        "type": "rectangle",
+        "bounds": {
+          "x": 0.312,
+          "y": 0.4205,
+          "width": 0.0214,
+          "height": 0.0302
+        }
+      }
     },
     {
       "id": "occurrence-002",
       "objectId": "object-001",
       "documentId": "document-001",
       "page": 2,
-      "geometry": { "type": "rectangle", "bounds": { "x": 0.6, "y": 0.1, "width": 0.4, "height": 0.25 } }
+      "geometry": {
+        "type": "rectangle",
+        "bounds": {
+          "x": 0.6,
+          "y": 0.1,
+          "width": 0.4,
+          "height": 0.25
+        }
+      }
     },
     {
       "id": "occurrence-003",
       "objectId": "object-002",
       "documentId": "document-001",
       "page": 1,
-      "geometry": { "type": "rectangle", "bounds": { "x": 0.7, "y": 0.2, "width": 0.018, "height": 0.006 } }
+      "geometry": {
+        "type": "rectangle",
+        "bounds": {
+          "x": 0.7,
+          "y": 0.2,
+          "width": 0.018,
+          "height": 0.006
+        }
+      }
+    },
+    {
+      "id": "occurrence-004",
+      "objectId": "object-002",
+      "documentId": "document-001",
+      "page": 2,
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          {
+            "x": 0.398551,
+            "y": 0.25641
+          },
+          {
+            "x": 0.434783,
+            "y": 0.307692
+          },
+          {
+            "x": 0.471014,
+            "y": 0.25641
+          },
+          {
+            "x": 0.434783,
+            "y": 0.205128
+          }
+        ]
+      }
     }
   ],
   "observations": []

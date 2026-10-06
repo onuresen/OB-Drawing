@@ -14,6 +14,7 @@ namespace ObjectCentricDrawing
     {
         private readonly List<(CategoryCount Count, CheckBox Box)> _rows = new();
         private readonly CheckBox _requireMark;
+        private readonly RadioButton _outline;
         private readonly TextBlock _summary;
         private readonly Button _export;
 
@@ -67,6 +68,24 @@ namespace ObjectCentricDrawing
             _requireMark.Unchecked += (_, _) => Update();
             root.Children.Add(_requireMark);
 
+            root.Children.Add(new TextBlock { Text = "Shape", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 2) });
+            var rectangle = new RadioButton
+            {
+                Content = "Rectangle",
+                GroupName = "shape",
+                IsChecked = !previous.Outline,
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            _outline = new RadioButton
+            {
+                Content = "Outline (rooms follow their boundary; others get a convex outline)",
+                GroupName = "shape",
+                IsChecked = previous.Outline,
+                Margin = new Thickness(0, 2, 0, 2),
+            };
+            root.Children.Add(rectangle);
+            root.Children.Add(_outline);
+
             _summary = new TextBlock { Margin = new Thickness(0, 12, 0, 0), FontWeight = FontWeights.SemiBold };
             root.Children.Add(_summary);
 
@@ -83,6 +102,7 @@ namespace ObjectCentricDrawing
                 {
                     Categories = _rows.Where(r => r.Box.IsChecked == true).Select(r => r.Count.Category.Category).ToHashSet(),
                     RequireMark = _requireMark.IsChecked == true,
+                    Outline = _outline.IsChecked == true,
                 };
                 DialogResult = true;
             };

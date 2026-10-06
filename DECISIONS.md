@@ -337,3 +337,15 @@
 **Alternative:** Tabs instead of stacked panes. Rejected because selecting in the list and editing below it should be visible together.
 
 **Confidence:** high.
+
+## 2026-10-06 — Outline shapes from Revit, rectangle stays the default
+
+**Decision:** The Revit export offers Shape: Rectangle or Outline. Outline gives rooms their boundary loop. Everything else gets the convex hull of what the view draws, including shared nested families.
+
+**Why:** Rotated elements and rooms got boxes much larger than themselves, and the boxes overlapped. A convex outline fixes rotation without polygon unions.
+
+**Alternative:** Exact outlines that follow inside corners. Rejected by Onur for now: too detailed for the benefit.
+
+**Default:** Rectangle, because it is verified on a real sheet. Outline is opt-in. Any element whose outline fails keeps its rectangle.
+
+**Confidence:** med. The maths was checked against the app's validator in a JavaScript port; the C# was not built or run in Revit.

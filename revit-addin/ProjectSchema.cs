@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ObjectCentricDrawing
 {
@@ -36,7 +37,17 @@ namespace ObjectCentricDrawing
 
     internal sealed record Occurrence(string Id, string ObjectId, string DocumentId, int Page, Geometry Geometry);
 
-    internal sealed record Geometry(string Type, Bounds Bounds);
+    // A rectangle carries Bounds; a polygon carries Points. The other one is left out of the JSON.
+    internal sealed record Geometry(
+        string Type,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Bounds? Bounds,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<PagePoint>? Points)
+    {
+        public static Geometry Rectangle(Bounds bounds) => new("rectangle", bounds, null);
+        public static Geometry Polygon(List<PagePoint> points) => new("polygon", null, points);
+    }
+
+    internal sealed record PagePoint(double X, double Y);
 
     internal sealed record Bounds(double X, double Y, double Width, double Height);
 
