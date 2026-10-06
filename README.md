@@ -68,6 +68,7 @@ Contributor guidance is in [CONTRIBUTING.md](CONTRIBUTING.md). Product and archi
 - [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md) — portable evidence contract.
 - [JOINERY-AI-HANDOFF.md](JOINERY-AI-HANDOFF.md) — optional Door/Window adapter and trust boundary.
 - [AGENTS.md](AGENTS.md) — implementation handoff and acceptance checklist.
+- [revit-addin/README.md](revit-addin/README.md) — Revit add-in: export sheets to PDF with objects already marked (first spike, untested in Revit).
 
 ## Project status
 

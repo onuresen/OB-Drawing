@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Object-Centric Drawing</Name>
+    <Assembly>ObjectCentricDrawing.dll</Assembly>
+    <FullClassName>ObjectCentricDrawing.App</FullClassName>
+    <ClientId>D4DBB60C-73F3-4AA8-A064-377E3271CB83</ClientId>
+    <VendorId>esen.onur</VendorId>
+    <VendorDescription>Onur ESEN</VendorDescription>
+  </AddIn>
+</RevitAddIns>
