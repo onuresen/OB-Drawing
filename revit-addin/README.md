@@ -2,7 +2,7 @@
 
 Export Revit sheets to PDF, with the objects already marked.
 
-Status: **first spike. Not yet built or run in Revit.**
+Status: **first spike. Built and run in Revit 2026 on 2026-10-06: one sheet, 89 objects, rectangles on target.**
 
 ## What it does
 
@@ -39,12 +39,19 @@ The project core also stays free of Revit, as `DECISIONS.md` requires.
 
 These are assumptions. Each one moves every rectangle if it is wrong.
 
-- [ ] The title block bounding box matches the PDF page.
-- [ ] `ExportPaperFormat.Default` + 100% + centred gives no offset.
+- [x] The title block bounding box matches the PDF page. *(one sheet, 2026-10-06)*
+- [x] `ExportPaperFormat.Default` + 100% + centred gives no offset. *(one sheet, 2026-10-06)*
 - [ ] A combined PDF keeps the order the sheets were passed in.
 - [ ] One sheet is always one page.
 
 Test: export one sheet with a few doors. Open both files in the app. Check the rectangles sit on the doors.
+
+## Next
+
+From Onur's first real run (2026-10-06):
+
+- **Choose what to export.** Not everything: pick categories, maybe levels or marks, before exporting.
+- **Exact shapes.** Rectangles work now. Later: project the element's real outline to a polygon. Riskier, no rush.
 
 ## Build
 
@@ -52,6 +59,7 @@ Same setup as the Joinery Configurator add-in: Revit 2026.5, .NET 10 SDK.
 Open `ObjectCentricDrawing.slnx` in Visual Studio 2022 (17.13+) or later.
 `dotnet build` copies the DLL and `.addin` to `%ProgramData%\Autodesk\REVIT\Addins\2026\`.
 No NuGet packages; JSON uses `System.Text.Json`.
+The ribbon icon comes from `Resources/build-icons.py` (standard-library Python). Edit that, then re-run it.
 
 ## Shared ribbon tab
 

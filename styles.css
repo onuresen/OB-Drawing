@@ -666,6 +666,10 @@ h1 {
   stroke-dasharray: 6 4;
 }
 
+.occurrence-shape.is-dimmed:not(.is-selected) {
+  opacity: 0.22;
+}
+
 .occurrence-shape.is-moving,
 .occurrence-shape.is-resizing {
   cursor: grabbing;
@@ -735,16 +739,182 @@ h1 {
   margin: 0;
 }
 
+/* Two panes, like Revit's Project Browser over Properties.
+   --browser-pane-size is set by the splitter; until then the panes share the height. */
 .side-panel {
   width: 100%;
   min-width: 0;
   min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(140px, var(--browser-pane-size, 1fr)) 7px minmax(140px, 1fr);
+  overflow: hidden;
+  background: var(--white);
+  border-left: 1px solid var(--line);
+}
+
+/* Several panel blocks set their own display, which would otherwise beat the hidden attribute. */
+.side-panel [hidden] {
+  display: none !important;
+}
+
+.panel-pane {
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
-  padding: 18px;
-  background: var(--white);
-  border-left: 1px solid var(--line);
+  padding: 16px 18px;
+}
+
+.properties-pane {
+  background: hsl(216 18% 99%);
+}
+
+.pane-splitter {
+  position: relative;
+  cursor: row-resize;
+  background: var(--surface-muted);
+  border-block: 1px solid var(--line);
+  touch-action: none;
+}
+
+.pane-splitter::after {
+  content: "";
+  position: absolute;
+  inset: 2px calc(50% - 16px);
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+
+.pane-splitter:hover,
+.pane-splitter:focus-visible,
+.pane-splitter.is-dragging {
+  background: hsl(205 70% 93%);
+  outline: none;
+}
+
+.display-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  margin: 12px 0 10px;
+}
+
+.display-bar select {
+  max-width: 124px;
+}
+
+.object-groups {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.object-group-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.object-group-toggle {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 2px;
+  border: 0;
+  color: var(--ink);
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.object-group-toggle::before {
+  content: "\25B8";
+  display: inline-block;
+  width: 10px;
+  color: var(--ink-soft);
+  transition: transform 120ms ease;
+}
+
+.object-group-toggle[aria-expanded="true"]::before {
+  transform: rotate(90deg);
+}
+
+.object-group-toggle small {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.object-group-visibility {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.object-group.is-hidden-on-drawing .object-card-button {
+  opacity: 0.55;
+}
+
+.object-group .object-list {
+  gap: 3px;
+  margin-top: 2px;
+}
+
+/* Browser rows stay compact, like a tree in Revit or Visual Studio. */
+.object-group .object-card-button {
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 7px;
+}
+
+.object-group .object-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  font-size: 0.6rem;
+}
+
+.object-group .object-label {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+.object-group .object-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.section-summary h3::before {
+  content: "\25B8";
+  display: inline-block;
+  width: 12px;
+  color: var(--ink-soft);
+  transition: transform 120ms ease;
+}
+
+details[open] > .section-summary h3::before {
+  transform: rotate(90deg);
 }
 
 .panel-heading,
@@ -1409,12 +1579,16 @@ select.text-input {
 }
 
 .selected-object-panel {
-  padding: 14px;
-  border: 1px solid hsl(205 40% 80%);
-  border-left: 4px solid var(--selection);
-  border-radius: 10px;
-  background: hsl(205 55% 99%);
+  padding: 0;
+  border: 0;
+  background: none;
   box-shadow: none;
+}
+
+.properties-pane .selected-object-panel,
+.properties-pane .object-composer {
+  margin-top: 0;
+  padding-top: 12px;
 }
 
 .sidecar-actions {
@@ -2241,6 +2415,19 @@ button.evidence-source-link {
     height: auto;
     min-height: calc(100% - 48px);
     grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    display: block;
+    overflow: visible;
+  }
+
+  .panel-pane {
+    overflow: visible;
+  }
+
+  .pane-splitter {
+    display: none;
   }
 
   .workspace {

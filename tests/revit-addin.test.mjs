@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { isObjectCategoryKey } from "../category-catalog.mjs";
 import { PROJECT_FORMAT, validateSidecar } from "../sidecar.mjs";
 
@@ -44,4 +44,13 @@ test("a project shaped like the add-in output imports without loss", () => {
     project.occurrences.filter((o) => o.objectId === "object-001").map((o) => o.page),
     [1, 2],
   );
+});
+
+test("every ribbon icon the add-in loads exists and is embedded", () => {
+  const names = [...addin("App.cs").matchAll(/LoadIcon\("([^"]+)"\)/g)].map((m) => m[1]);
+  assert.ok(names.length >= 2, "no LoadIcon calls found");
+  for (const name of names) {
+    assert.ok(existsSync(new URL(`../revit-addin/Resources/${name}`, import.meta.url)), `${name} missing`);
+  }
+  assert.match(addin("ObjectCentricDrawing.csproj"), /EmbeddedResource Include="Resources\\\*\.png"/);
 });
