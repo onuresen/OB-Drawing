@@ -6,7 +6,7 @@ Object-Centric Drawing is a local-first browser prototype for navigating archite
 
 ## What it does
 
-- Opens multiple local PDFs with fit, zoom, pan, page navigation, selectable embedded text, and in-document search.
+- Opens multiple local PDFs with fit, zoom, pan, view rotation, page thumbnails, page navigation, selectable embedded text, and in-document search.
 - Marks rectangle, ellipse, and polygon occurrences using normalized page coordinates.
 - Links occurrences to explicit category-neutral objects; matching labels never merge identity automatically.
 - Navigates an object's representations across PDFs through Object Lens, Representation Board, and Drawing Set Map views.

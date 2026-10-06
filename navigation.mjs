@@ -91,6 +91,12 @@ export function keyboardShortcutAction(event) {
       if (lowerKey === "l") {
         return "toggle-labels";
       }
+      if (lowerKey === "r") {
+        return event.shiftKey ? "rotate-counterclockwise" : "rotate-clockwise";
+      }
+      if (lowerKey === "t") {
+        return "toggle-thumbnails";
+      }
       return null;
   }
 }
@@ -105,6 +111,7 @@ export function createFitPageView() {
     pageNumber: 1,
     scale: 1,
     zoomMode: "fit-page",
+    rotation: 0,
     scrollLeft: 0,
     scrollTop: 0,
   };

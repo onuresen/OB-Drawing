@@ -153,6 +153,31 @@ h1 {
   gap: 10px;
 }
 
+.toolbar-document .file-button {
+  flex: none;
+}
+
+/* The toolbar wraps by its own width, not the window's: the side panel and
+   thumbnails take space too. Below this width, navigation moves to a second row. */
+.workspace {
+  container-type: inline-size;
+}
+
+@container (max-width: 1120px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .toolbar-actions {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .toolbar-navigation {
+    grid-column: 1 / -1;
+  }
+}
+
 .toolbar-navigation {
   gap: 10px;
 }
@@ -360,8 +385,98 @@ h1 {
   font-size: 0.88rem;
 }
 
-.viewer-stage {
+/* Thumbnails beside the drawing. The row keeps the workspace's third grid row. */
+.viewer-row {
   grid-row: 3;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.thumbnail-panel {
+  grid-column: 1;
+  width: 148px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 10px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--surface-muted);
+}
+
+.thumbnail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thumbnail-button {
+  position: relative;
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--ink-soft);
+  background: none;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.thumbnail-button:hover {
+  border-color: var(--line-strong);
+  background: var(--white);
+}
+
+.thumbnail-button[aria-current="page"] {
+  border-color: var(--selection);
+  background: hsl(205 80% 97%);
+  color: var(--selection);
+  font-weight: 800;
+}
+
+.thumbnail-frame {
+  width: 112px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--white);
+  box-shadow: 0 1px 3px hsl(220 28% 16% / 0.12);
+}
+
+.thumbnail-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.thumbnail-badge {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  color: var(--white);
+  background: hsl(24 80% 42%);
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Pages where the selected object appears. */
+.thumbnail-button.has-selected .thumbnail-frame {
+  outline: 3px solid var(--selection);
+  outline-offset: 1px;
+}
+
+.viewer-stage {
+  grid-column: 2;
   min-height: 0;
   position: relative;
   display: grid;
@@ -2486,6 +2601,14 @@ button.evidence-source-link {
 
   .pane-splitter {
     display: none;
+  }
+
+  .thumbnail-panel {
+    width: 104px;
+  }
+
+  .thumbnail-frame {
+    width: 76px;
   }
 
   .workspace {

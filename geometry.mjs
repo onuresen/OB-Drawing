@@ -123,3 +123,62 @@ export function boundsSizeInPixels(bounds, rect) {
 export function meetsMinimumMarkSize(pixelSize, minimumSize = 7) {
   return pixelSize.width >= minimumSize && pixelSize.height >= minimumSize;
 }
+
+// View rotation. Saved geometry is always in the page's unrotated (as-opened) coordinates;
+// rotation only changes how it is drawn and how pointer positions map back.
+
+export function normalizeRotation(degrees) {
+  const quarterTurns = Math.round((Number(degrees) || 0) / 90);
+  return (((quarterTurns % 4) + 4) % 4) * 90;
+}
+
+// Unrotated page point -> point on the rotated (clockwise) view.
+export function rotatePoint(point, rotation) {
+  switch (normalizeRotation(rotation)) {
+    case 90:
+      return { x: 1 - point.y, y: point.x };
+    case 180:
+      return { x: 1 - point.x, y: 1 - point.y };
+    case 270:
+      return { x: point.y, y: 1 - point.x };
+    default:
+      return { x: point.x, y: point.y };
+  }
+}
+
+// Point on the rotated view -> unrotated page point. The inverse of rotatePoint.
+export function unrotatePoint(point, rotation) {
+  return rotatePoint(point, 360 - normalizeRotation(rotation));
+}
+
+export function rotateBounds(bounds, rotation) {
+  const a = rotatePoint({ x: bounds.x, y: bounds.y }, rotation);
+  const b = rotatePoint({ x: bounds.x + bounds.width, y: bounds.y + bounds.height }, rotation);
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    width: Math.abs(b.x - a.x),
+    height: Math.abs(b.y - a.y),
+  };
+}
+
+// SVG transform that draws unrotated 0-1 page geometry onto the rotated 0-1 view.
+export function rotationTransform(rotation) {
+  switch (normalizeRotation(rotation)) {
+    case 90:
+      return "matrix(0 1 -1 0 1 0)";
+    case 180:
+      return "matrix(-1 0 0 -1 1 1)";
+    case 270:
+      return "matrix(0 -1 1 0 0 1)";
+    default:
+      return "";
+  }
+}
+
+// The on-screen size of the unrotated page: width and height swap at 90 and 270.
+export function unrotatedSize(rect, rotation) {
+  return normalizeRotation(rotation) % 180 === 0
+    ? { width: rect.width, height: rect.height }
+    : { width: rect.height, height: rect.width };
+}

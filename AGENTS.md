@@ -49,6 +49,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group Z — calmer reader-first visual hierarchy with a compact brand bar, grouped controls, quiet canvas, and lighter object rail.
 - [x] Group AA — split side panel: object browser grouped by category over a properties pane, a draggable splitter, object search, per-category drawing visibility, and dim/isolate focus for the selected object. View-only; nothing is saved.
 - [x] Group AB — view options: group by category / page / none, natural label order, this-page-only filter, labels on marks (L), hide all marks (H), step through an object's places ([ ]), back/forward through jumps (Alt + arrows), object search (/), fit width (W), and Esc to clear the selection. Viewer preferences are remembered per browser.
+- [x] Group AC — view rotation (R / Shift+R, per PDF, saved geometry never rotates) and a lazily rendered page thumbnail strip (T) with mark counts, current page, and pages holding the selected object. The toolbar wraps by its own width.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
 
 ## File map
