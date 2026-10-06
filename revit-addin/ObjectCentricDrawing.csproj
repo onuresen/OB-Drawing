@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Started from the Joinery Configurator add-in project. Same target: Revit 2026.5,
+    which hosts .NET 10. A .NET 10 DLL does not load in Revit 2026.0-2026.4.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>ObjectCentricDrawing</AssemblyName>
+    <RootNamespace>ObjectCentricDrawing</RootNamespace>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <!-- Revit 2026 API assemblies. Adjust the path to your Revit installation. -->
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2026\RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>C:\Program Files\Autodesk\Revit 2026\RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    No NuGet packages. JSON uses System.Text.Json from the .NET runtime, so there is no
+    dependency DLL to copy next to the add-in.
+  -->
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <PropertyGroup>
+      <RevitAddinDir>$(ProgramData)\Autodesk\REVIT\Addins\2026</RevitAddinDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <DeployFiles Include="$(TargetDir)*.dll" />
+      <DeployFiles Include="$(ProjectDir)ObjectCentricDrawing.addin" />
+    </ItemGroup>
+    <MakeDir Directories="$(RevitAddinDir)" />
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(RevitAddinDir)" />
+  </Target>
+
+</Project>

@@ -301,3 +301,23 @@
 **Compatibility:** Files saved as `obd-project-v4` still import and are saved again as `objdraw-project-v4`. Older `obd-*` formats migrate as before.
 
 **Confidence:** high.
+
+## 2026-10-06 — One-way Revit export adapter
+
+**Decision:** A Revit add-in in `revit-addin/` exports sheets to PDF and writes a project file beside it. Doors and windows become objects. Each sheet view they appear in becomes an occurrence.
+
+**Why:** It is the same file the manual workflow produces. Marking a coordinated set by hand is slow; the model already knows which shapes are the same object.
+
+**Identity:** Here identity comes from the model, not from a matching label. One Revit element is one object. That is an explicit source, so it keeps the explicit-identity rule.
+
+**Boundary:** One-way export only. Nothing goes back to Revit. This is not the deferred BIM synchronization.
+
+**Decision:** Revit IDs go in a separate `.objdraw-revit.json` adapter file. The project file stays exactly `objdraw-project-v4`.
+
+**Why:** Import rebuilds objects field by field, so a Revit field inside the project would be dropped on the next save. It also keeps Revit out of the neutral core.
+
+**Alternative:** An optional `sourceRefs` field on each object. Rejected for both reasons above.
+
+**Revisit when:** the app needs to show or act on Revit identity.
+
+**Confidence:** med. Not yet built or run in Revit.

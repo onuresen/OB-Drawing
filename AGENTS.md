@@ -8,6 +8,8 @@ The PDF is a source document. Drawn shapes are visual occurrences. They become p
 
 Do not add OCR, automatic identity matching, BIM/Revit synchronization, revision comparison, collaboration, or CDI integration during the first prototype.
 
+The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md`, 2026-10-06). It writes a standard project file and keeps Revit IDs in a separate adapter file. It never writes back to Revit.
+
 ## Current status
 
 - [x] Group A — local PDF rendering, page/zoom controls, normalized rectangle drawing, selection, and repositioning.

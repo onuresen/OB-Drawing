@@ -1,0 +1,42 @@
+{
+  "format": "objdraw-project-v4",
+  "exportedAt": "2026-10-06T09:00:00.0000000Z",
+  "activeDocumentId": "document-001",
+  "documents": [
+    {
+      "id": "document-001",
+      "name": "synthetic-sheets.pdf",
+      "size": 482113,
+      "pageCount": 2,
+      "sha256": "0f4c1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7"
+    }
+  ],
+  "objects": [
+    { "id": "object-001", "category": "doors", "label": "D-101" },
+    { "id": "object-002", "category": "windows", "label": "Fixed 900x1200 #348211" }
+  ],
+  "occurrences": [
+    {
+      "id": "occurrence-001",
+      "objectId": "object-001",
+      "documentId": "document-001",
+      "page": 1,
+      "geometry": { "type": "rectangle", "bounds": { "x": 0.312, "y": 0.4205, "width": 0.0214, "height": 0.0302 } }
+    },
+    {
+      "id": "occurrence-002",
+      "objectId": "object-001",
+      "documentId": "document-001",
+      "page": 2,
+      "geometry": { "type": "rectangle", "bounds": { "x": 0.6, "y": 0.1, "width": 0.4, "height": 0.25 } }
+    },
+    {
+      "id": "occurrence-003",
+      "objectId": "object-002",
+      "documentId": "document-001",
+      "page": 1,
+      "geometry": { "type": "rectangle", "bounds": { "x": 0.7, "y": 0.2, "width": 0.018, "height": 0.006 } }
+    }
+  ],
+  "observations": []
+}

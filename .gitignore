@@ -16,3 +16,8 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Revit add-in build output and exports
+revit-addin/bin/
+revit-addin/obj/
+*.objdraw-revit.json
