@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-06-split-panel">
+  <link rel="stylesheet" href="styles.css?v=2026-10-06-view-options">
 </head>
 <body>
   <header class="app-header">
@@ -91,12 +91,18 @@
                 <div><dt>Middle drag</dt><dd>Pan drawing</dd></div>
                 <div><dt><kbd>Shift</kbd> + wheel</dt><dd>Pan horizontally</dd></div>
                 <div><dt><kbd>Alt</kbd> + wheel</dt><dd>Previous / next page</dd></div>
+                <div><dt><kbd>W</kbd></dt><dd>Fit width</dd></div>
                 <div><dt><kbd>M</kbd></dt><dd>Toggle marking</dd></div>
+                <div><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next place of the selected object</dd></div>
+                <div><dt><kbd>Alt</kbd> + <kbd>←</kbd> <kbd>→</kbd></dt><dd>Back / forward through jumps</dd></div>
+                <div><dt><kbd>/</kbd></dt><dd>Search objects</dd></div>
+                <div><dt><kbd>H</kbd></dt><dd>Hide / show all marks</dd></div>
+                <div><dt><kbd>L</kbd></dt><dd>Labels on marks</dd></div>
                 <div><dt><kbd>Ctrl</kbd> + <kbd>F</kbd></dt><dd>Find in current PDF</dd></div>
                 <div><dt><kbd>Enter</kbd></dt><dd>Finish polygon</dd></div>
                 <div><dt><kbd>Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Undo object change</dd></div>
                 <div><dt><kbd>Ctrl</kbd> + <kbd>Y</kbd></dt><dd>Redo object change</dd></div>
-                <div><dt><kbd>Esc</kbd></dt><dd>Cancel current action</dd></div>
+                <div><dt><kbd>Esc</kbd></dt><dd>Cancel current action, then clear the selection</dd></div>
                 <div><dt><kbd>Ctrl/Cmd</kbd> + wheel</dt><dd>Zoom around pointer</dd></div>
               </dl>
               <p>Shortcuts pause while you type in a field.</p>
@@ -140,6 +146,7 @@
             <canvas id="pdfCanvas" aria-label="Rendered PDF page"></canvas>
             <div id="pdfTextLayer" class="text-layer" aria-label="Selectable PDF text"></div>
             <svg id="occurrenceOverlay" class="occurrence-overlay" viewBox="0 0 1 1" preserveAspectRatio="none" aria-label="Occurrence marking layer"></svg>
+            <div id="markLabels" class="mark-labels" aria-hidden="true"></div>
             <div id="renderingIndicator" class="rendering-indicator" hidden>Rendering…</div>
           </div>
         </div>
@@ -169,7 +176,24 @@
             <option value="all">All marks</option>
             <option value="dim-others">Dim others</option>
             <option value="selected-only">Selected only</option>
+            <option value="none">No marks (H)</option>
           </select>
+        </div>
+        <div class="display-options">
+          <label class="display-option">
+            <span>Group</span>
+            <select id="groupBy" class="text-input">
+              <option value="category">Category</option>
+              <option value="page">Page</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="display-option display-check" title="Only objects marked on the page you are viewing">
+            <input id="currentPageOnly" type="checkbox"> This page
+          </label>
+          <label class="display-option display-check" title="Show object labels on the drawing (L)">
+            <input id="showLabels" type="checkbox"> Labels
+          </label>
         </div>
 
         <section class="object-section" aria-label="Objects by category">

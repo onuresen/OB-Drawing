@@ -95,3 +95,68 @@ test("focus recovery chooses the nearest surviving list item", () => {
   assert.equal(nextFocusIndex(-1, 3), 0);
   assert.equal(nextFocusIndex(0, 0), -1);
 });
+
+import { ViewHistory, stepObjectOccurrence } from "../navigation.mjs";
+
+test("new single-key shortcuts", () => {
+  assert.equal(keyboardShortcutAction({ key: "[" }), "previous-representation");
+  assert.equal(keyboardShortcutAction({ key: "]" }), "next-representation");
+  assert.equal(keyboardShortcutAction({ key: "/" }), "focus-object-search");
+  assert.equal(keyboardShortcutAction({ key: "W" }), "fit-width");
+  assert.equal(keyboardShortcutAction({ key: "h" }), "toggle-marks-hidden");
+  assert.equal(keyboardShortcutAction({ key: "l" }), "toggle-labels");
+  assert.equal(keyboardShortcutAction({ key: "]", blocked: true }), null);
+});
+
+test("Alt + arrows go back and forward, and nothing else uses Alt", () => {
+  assert.equal(keyboardShortcutAction({ key: "ArrowLeft", altKey: true }), "history-back");
+  assert.equal(keyboardShortcutAction({ key: "ArrowRight", altKey: true }), "history-forward");
+  assert.equal(keyboardShortcutAction({ key: "ArrowLeft", altKey: true, blocked: true }), null);
+  assert.equal(keyboardShortcutAction({ key: "ArrowLeft", altKey: true, shiftKey: true }), null);
+  assert.equal(keyboardShortcutAction({ key: "ArrowLeft" }), null);
+});
+
+test("view history goes back and forward and drops the forward branch on a new jump", () => {
+  const history = new ViewHistory(3);
+  const a = { documentId: "d1", page: 1 };
+  const b = { documentId: "d1", page: 5 };
+  const c = { documentId: "d2", page: 2 };
+  history.record(a, b);
+  history.record(b, c);
+  assert.deepEqual(history.back(c), b);
+  assert.deepEqual(history.back(b), a);
+  assert.equal(history.back(a), null);
+  assert.deepEqual(history.forward(a), b);
+  history.record(b, a);
+  assert.equal(history.canGoForward, false);
+  history.record(a, a);
+  assert.equal(history.backStack.length, 2, "a jump to the same place is not recorded");
+});
+
+test("view history keeps only its limit", () => {
+  const history = new ViewHistory(2);
+  for (let page = 1; page <= 5; page += 1) {
+    history.record({ documentId: "d", page }, { documentId: "d", page: page + 1 });
+  }
+  assert.deepEqual(history.backStack.map((entry) => entry.page), [4, 5]);
+});
+
+test("stepping through an object's representations follows PDF, page and reading order, and wraps", () => {
+  const occurrences = [
+    { id: "o-3", objectId: "x", documentId: "d2", page: 1, bounds: { x: 0.1, y: 0.1 } },
+    { id: "o-1", objectId: "x", documentId: "d1", page: 2, bounds: { x: 0.5, y: 0.5 } },
+    { id: "o-2", objectId: "x", documentId: "d1", page: 2, bounds: { x: 0.1, y: 0.8 } },
+    { id: "o-0", objectId: "x", documentId: "d1", page: 1, bounds: { x: 0.9, y: 0.9 } },
+    { id: "other", objectId: "y", documentId: "d1", page: 1, bounds: { x: 0, y: 0 } },
+  ];
+  const order = ["d1", "d2"];
+  const walk = [];
+  let current = null;
+  for (let step = 0; step < 5; step += 1) {
+    current = stepObjectOccurrence(occurrences, "x", current?.id, 1, order);
+    walk.push(current.id);
+  }
+  assert.deepEqual(walk, ["o-0", "o-1", "o-2", "o-3", "o-0"]);
+  assert.equal(stepObjectOccurrence(occurrences, "x", "o-0", -1, order).id, "o-3");
+  assert.equal(stepObjectOccurrence(occurrences, "none", null, 1, order), null);
+});

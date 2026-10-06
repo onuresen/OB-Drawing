@@ -349,3 +349,15 @@
 **Default:** Rectangle, because it is verified on a real sheet. Outline is opt-in. Any element whose outline fails keeps its rectangle.
 
 **Confidence:** med. The maths was checked against the app's validator in a JavaScript port; the C# was not built or run in Revit.
+
+## 2026-10-06 — View options are remembered per browser, never in the project
+
+**Decision:** Group by, this-page-only, labels and the marks mode are saved in the browser's local storage. The search text, hidden categories and collapsed groups are not saved.
+
+**Why:** These are how one person likes to read. They are not evidence, so they stay out of the project file. Search and hidden categories are per task; restoring them would surprise.
+
+**Decision:** Back and forward (Alt + arrows) record jumps only: selecting an object, stepping with [ and ], and the drawing map. Plain page turns are not recorded.
+
+**Why:** Page turns would fill the history and make "back" a page-by-page walk.
+
+**Confidence:** high.

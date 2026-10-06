@@ -8,6 +8,16 @@ export function isShortcutBlockedTarget(target) {
 
 export function keyboardShortcutAction(event) {
   if (event.altKey) {
+    // Alt + arrows go back and forward through jumps, like a browser or PDF reader.
+    if (event.blocked || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return null;
+    }
+    if (event.key === "ArrowLeft") {
+      return "history-back";
+    }
+    if (event.key === "ArrowRight") {
+      return "history-forward";
+    }
     return null;
   }
 
@@ -59,12 +69,27 @@ export function keyboardShortcutAction(event) {
       return "fit-page";
     case "?":
       return "toggle-help";
+    case "[":
+      return "previous-representation";
+    case "]":
+      return "next-representation";
+    case "/":
+      return "focus-object-search";
     default:
       if (lowerKey === "f") {
         return "fit-page";
       }
+      if (lowerKey === "w") {
+        return "fit-width";
+      }
       if (lowerKey === "m") {
         return "toggle-mark";
+      }
+      if (lowerKey === "h") {
+        return "toggle-marks-hidden";
+      }
+      if (lowerKey === "l") {
+        return "toggle-labels";
       }
       return null;
   }
@@ -134,4 +159,79 @@ export function nextFocusIndex(deletedIndex, remainingCount) {
     return -1;
   }
   return Math.min(Math.max(deletedIndex, 0), remainingCount - 1);
+}
+
+// Back and forward through view jumps (object selection, map, representation stepping).
+// A location is { documentId, page }. Plain page turns are not recorded.
+export class ViewHistory {
+  constructor(limit = 50) {
+    this.limit = limit;
+    this.backStack = [];
+    this.forwardStack = [];
+  }
+
+  static same(a, b) {
+    return Boolean(a && b && a.documentId === b.documentId && a.page === b.page);
+  }
+
+  // Call before a jump, with where the view was.
+  record(from, to) {
+    if (!from || ViewHistory.same(from, to)) {
+      return;
+    }
+    if (!ViewHistory.same(this.backStack.at(-1), from)) {
+      this.backStack.push({ documentId: from.documentId, page: from.page });
+      if (this.backStack.length > this.limit) {
+        this.backStack.shift();
+      }
+    }
+    this.forwardStack = [];
+  }
+
+  back(current) {
+    const target = this.backStack.pop() ?? null;
+    if (target && current) {
+      this.forwardStack.push({ documentId: current.documentId, page: current.page });
+    }
+    return target;
+  }
+
+  forward(current) {
+    const target = this.forwardStack.pop() ?? null;
+    if (target && current) {
+      this.backStack.push({ documentId: current.documentId, page: current.page });
+    }
+    return target;
+  }
+
+  get canGoBack() {
+    return this.backStack.length > 0;
+  }
+
+  get canGoForward() {
+    return this.forwardStack.length > 0;
+  }
+}
+
+// The next (or previous) representation of one object, in reading order:
+// PDF order, then page, then top-to-bottom and left-to-right. Wraps around.
+export function stepObjectOccurrence(occurrences, objectId, currentOccurrenceId, direction, documentIds = []) {
+  const documentOrder = new Map(documentIds.map((id, index) => [id, index]));
+  const top = (occurrence) => occurrence.bounds?.y ?? occurrence.geometry?.bounds?.y ?? 0;
+  const left = (occurrence) => occurrence.bounds?.x ?? occurrence.geometry?.bounds?.x ?? 0;
+  const ordered = occurrences
+    .filter((occurrence) => occurrence.objectId === objectId)
+    .sort((a, b) => (documentOrder.get(a.documentId) ?? Infinity) - (documentOrder.get(b.documentId) ?? Infinity)
+      || a.page - b.page
+      || top(a) - top(b)
+      || left(a) - left(b)
+      || a.id.localeCompare(b.id));
+  if (ordered.length === 0) {
+    return null;
+  }
+  const index = ordered.findIndex((occurrence) => occurrence.id === currentOccurrenceId);
+  if (index < 0) {
+    return direction < 0 ? ordered.at(-1) : ordered[0];
+  }
+  return ordered[(index + (direction < 0 ? -1 : 1) + ordered.length) % ordered.length];
 }

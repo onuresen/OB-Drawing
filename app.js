@@ -31,7 +31,9 @@ import {
   objectCategoryLabel,
 } from "./category-catalog.mjs";
 import {
+  applyDisplayPreferences,
   createDisplayState,
+  displayPreferences,
   groupObjectsForBrowser,
   occurrenceVisibility,
   toggleSetMember,
@@ -46,6 +48,8 @@ import {
   validateSidecar,
 } from "./sidecar.mjs";
 import {
+  ViewHistory,
+  stepObjectOccurrence,
   createFitPageView,
   isShortcutBlockedTarget,
   keyboardShortcutAction,
@@ -194,6 +198,10 @@ const elements = {
   noObjectMatches: document.querySelector("#noObjectMatches"),
   objectSearch: document.querySelector("#objectSearch"),
   markFocus: document.querySelector("#markFocus"),
+  groupBy: document.querySelector("#groupBy"),
+  currentPageOnly: document.querySelector("#currentPageOnly"),
+  showLabels: document.querySelector("#showLabels"),
+  markLabels: document.querySelector("#markLabels"),
   sidePanel: document.querySelector(".side-panel"),
   browserPane: document.querySelector("#browserPane"),
   paneSplitter: document.querySelector("#paneSplitter"),
@@ -269,7 +277,7 @@ const state = {
   documentViews: new Map(),
   pendingRelinkDocumentId: null,
   // View-only browser and canvas filters. Never saved in the project file.
-  display: createDisplayState(),
+  display: applyDisplayPreferences(createDisplayState(), readDisplayPreferences()),
 };
 
 let wheelPageAccumulator = 0;
@@ -283,6 +291,10 @@ let representationBoardGeneration = 0;
 // The object whose browser group was last opened and scrolled to. Selecting a different
 // object reveals it once; after that, the user may collapse its group again.
 let revealedObjectId = null;
+// Back/forward through jumps (Alt + arrows).
+const viewHistory = new ViewHistory(50);
+// What "H" restores when marks are shown again.
+let markFocusBeforeHiding = "all";
 let pdfSearchInputTimer = null;
 const pdfSearchState = {
   generation: 0,
@@ -296,6 +308,30 @@ const pdfSearchState = {
 const objectHistory = new ObjectLayerHistory(100);
 const objectLayerSaveState = new ObjectLayerSaveState();
 const pdfTextLayer = new PdfTextLayerRenderer(elements.textLayer, pdfjsLib.TextLayer);
+
+// View preferences are per browser and best effort: storage can be blocked or full.
+function readDisplayPreferences() {
+  try {
+    return JSON.parse(localStorage.getItem("objdraw-display") ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+function saveDisplayPreferences() {
+  try {
+    localStorage.setItem("objdraw-display", JSON.stringify(displayPreferences(state.display)));
+  } catch {
+    // The view still works; the choice is just not remembered.
+  }
+}
+
+function syncDisplayControls() {
+  elements.markFocus.value = state.display.markFocus;
+  elements.groupBy.value = state.display.groupBy;
+  elements.currentPageOnly.checked = state.display.currentPageOnly;
+  elements.showLabels.checked = state.display.showLabels;
+}
 
 function setStatus(message) {
   elements.statusMessage.textContent = message;
@@ -1090,16 +1126,31 @@ function renderObjectList() {
   const { display } = state;
   const selectedObject = getObject(state.selectedObjectId);
   const revealSelection = Boolean(selectedObject) && selectedObject.id !== revealedObjectId;
-  if (revealSelection) {
-    display.collapsedCategories.delete(selectedObject.category);
-  }
   revealedObjectId = selectedObject?.id ?? null;
 
   const searching = display.query.trim().length > 0;
-  const groups = groupObjectsForBrowser(state.objects, display.query);
+  const groups = groupObjectsForBrowser(state.objects, display.query, {
+    groupBy: display.groupBy,
+    occurrences: state.occurrences,
+    documents: state.documents,
+    currentPage: display.currentPageOnly && state.activeDocumentId
+      ? { documentId: state.activeDocumentId, page: state.pageNumber }
+      : null,
+  });
+  if (revealSelection) {
+    for (const group of groups) {
+      if (group.objects.some((object) => object.id === selectedObject.id)) {
+        display.collapsedGroups.delete(group.key);
+      }
+    }
+  }
+
   elements.objectList.replaceChildren();
   elements.noObjects.hidden = state.objects.length > 0;
   elements.noObjectMatches.hidden = state.objects.length === 0 || groups.length > 0;
+  elements.noObjectMatches.textContent = display.currentPageOnly && !searching
+    ? "No objects are marked on this page."
+    : "No objects match the search.";
   elements.objectBadge.textContent = String(state.objects.length);
 
   for (const group of groups) {
@@ -1108,33 +1159,37 @@ function renderObjectList() {
     const toggle = document.createElement("button");
     const name = document.createElement("span");
     const count = document.createElement("small");
-    const visibility = document.createElement("label");
-    const checkbox = document.createElement("input");
     const list = document.createElement("ol");
-    const hiddenOnDrawing = display.hiddenCategories.has(group.category);
+    const hiddenOnDrawing = Boolean(group.category) && display.hiddenCategories.has(group.category);
     // A search shows every match, whatever was collapsed before.
-    const expanded = searching || !display.collapsedCategories.has(group.category);
+    const expanded = searching || !display.collapsedGroups.has(group.key);
 
     item.className = `object-group${hiddenOnDrawing ? " is-hidden-on-drawing" : ""}`;
     header.className = "object-group-header";
     toggle.type = "button";
     toggle.className = "object-group-toggle";
-    toggle.dataset.categoryToggle = group.category;
+    toggle.dataset.groupToggle = group.key;
     toggle.setAttribute("aria-expanded", String(expanded));
     name.textContent = group.label;
     count.textContent = group.objects.length === group.total
       ? String(group.total)
       : `${group.objects.length} of ${group.total}`;
     toggle.append(name, count);
+    header.append(toggle);
 
-    visibility.className = "object-group-visibility";
-    visibility.title = `Show ${group.label} on the drawing`;
-    checkbox.type = "checkbox";
-    checkbox.checked = !hiddenOnDrawing;
-    checkbox.dataset.categoryVisibility = group.category;
-    checkbox.setAttribute("aria-label", `Show ${group.label} on the drawing`);
-    visibility.append(checkbox, document.createTextNode("Show"));
-    header.append(toggle, visibility);
+    // Drawing visibility is per category, so the checkbox only appears when grouping by category.
+    if (group.category) {
+      const visibility = document.createElement("label");
+      const checkbox = document.createElement("input");
+      visibility.className = "object-group-visibility";
+      visibility.title = `Show ${group.label} on the drawing`;
+      checkbox.type = "checkbox";
+      checkbox.checked = !hiddenOnDrawing;
+      checkbox.dataset.categoryVisibility = group.category;
+      checkbox.setAttribute("aria-label", `Show ${group.label} on the drawing`);
+      visibility.append(checkbox, document.createTextNode("Show"));
+      header.append(visibility);
+    }
 
     list.className = "object-list";
     list.hidden = !expanded;
@@ -1443,6 +1498,7 @@ function renderOverlay() {
   if (selectedOccurrence) {
     appendSelectionHandles(selectedOccurrence);
   }
+  renderMarkLabels(objectsById);
 
   if (state.interaction?.type === "draw") {
     elements.overlay.append(makeSvgShape(state.markGeometryType, state.interaction.bounds, null, "draft-shape"));
@@ -1453,6 +1509,35 @@ function renderOverlay() {
     if (previewPoints.length > 0) {
       elements.overlay.append(makeSvgShape("polygon", null, previewPoints, "draft-shape"));
     }
+  }
+}
+
+// Labels sit just above each visible mark's top-left corner, in page percentages.
+function renderMarkLabels(objectsById) {
+  elements.markLabels.replaceChildren();
+  if (!state.display.showLabels) {
+    return;
+  }
+  for (const occurrence of getCurrentPageOccurrences()) {
+    const object = objectsById.get(occurrence.objectId);
+    if (!object || !occurrence.bounds) {
+      continue;
+    }
+    const visibility = occurrenceVisibility(occurrence, objectsById, state.display, state.selectedObjectId);
+    if (visibility === "hidden" && occurrence.id !== state.selectedOccurrenceId) {
+      continue;
+    }
+    const label = document.createElement("span");
+    label.className = "mark-label";
+    if (object.id === state.selectedObjectId) {
+      label.classList.add("is-selected");
+    } else if (visibility === "dimmed") {
+      label.classList.add("is-dimmed");
+    }
+    label.textContent = object.label;
+    label.style.left = `${occurrence.bounds.x * 100}%`;
+    label.style.top = `${occurrence.bounds.y * 100}%`;
+    elements.markLabels.append(label);
   }
 }
 
@@ -1775,6 +1860,31 @@ async function exportSelectedObjectForJoineryAi() {
     elements.exportObjectEvidence.disabled = !currentObject || !hasRepresentations;
     elements.exportObjectEvidenceZip.disabled = !currentObject || !hasRepresentations;
   }
+}
+
+function setMarkFocus(mode) {
+  state.display.markFocus = mode;
+  syncDisplayControls();
+  saveDisplayPreferences();
+  renderOverlay();
+}
+
+function toggleMarksHidden() {
+  if (state.display.markFocus === "none") {
+    setMarkFocus(markFocusBeforeHiding);
+    setStatus("Marks shown.");
+  } else {
+    markFocusBeforeHiding = state.display.markFocus;
+    setMarkFocus("none");
+    setStatus("Marks hidden. Press H to show them again.");
+  }
+}
+
+function setShowLabels(show) {
+  state.display.showLabels = show;
+  syncDisplayControls();
+  saveDisplayPreferences();
+  renderOverlay();
 }
 
 // Drag or arrow keys move the line between the object browser and the properties pane.
@@ -2736,11 +2846,48 @@ async function importSidecar(file) {
   }
 }
 
+function currentLocation() {
+  return state.activeDocumentId && state.pdfDocument
+    ? { documentId: state.activeDocumentId, page: state.pageNumber }
+    : null;
+}
+
+async function goThroughHistory(direction) {
+  const current = currentLocation();
+  const target = direction < 0 ? viewHistory.back(current) : viewHistory.forward(current);
+  if (!target) {
+    setStatus(direction < 0 ? "Nothing to go back to." : "Nothing to go forward to.");
+    return;
+  }
+  if (target.documentId === state.activeDocumentId && state.pdfDocument) {
+    await navigateToPage(target.page);
+  } else {
+    await activateDocument(target.documentId, target.page);
+  }
+  const projectDocument = getProjectDocument(target.documentId);
+  setStatus(`${direction < 0 ? "Back" : "Forward"} to ${projectDocument?.name ?? target.documentId}, page ${target.page}.`);
+}
+
+async function stepSelectedObject(direction) {
+  const object = getObject(state.selectedObjectId);
+  if (!object) {
+    setStatus("Select an object first, then use [ and ] to step through where it appears.");
+    return;
+  }
+  const target = stepObjectOccurrence(
+    state.occurrences, object.id, state.selectedOccurrenceId, direction, state.documents.map((document) => document.id),
+  );
+  if (target) {
+    await selectOccurrenceAndNavigate(target.id);
+  }
+}
+
 async function selectOccurrenceAndNavigate(occurrenceId) {
   const occurrence = getOccurrence(occurrenceId);
   if (!occurrence) {
     return;
   }
+  viewHistory.record(currentLocation(), { documentId: occurrence.documentId, page: occurrence.page });
 
   state.selectedOccurrenceId = occurrence.id;
   state.selectedObjectId = occurrence.objectId;
@@ -2767,6 +2914,7 @@ async function navigateFromDrawingMap(documentId, pageNumber) {
   if (!projectDocument) {
     return;
   }
+  viewHistory.record(currentLocation(), { documentId, page: pageNumber });
   let attached;
   if (documentId === state.activeDocumentId && state.pdfDocument) {
     await navigateToPage(pageNumber);
@@ -2803,6 +2951,9 @@ async function selectObjectAndNavigate(objectId) {
     attachedDocumentIds: attachedDocumentIds(),
   });
   state.selectedOccurrenceId = targetOccurrence?.id ?? null;
+  if (targetOccurrence) {
+    viewHistory.record(currentLocation(), { documentId: targetOccurrence.documentId, page: targetOccurrence.page });
+  }
 
   if (targetOccurrence && targetOccurrence.documentId !== state.activeDocumentId) {
     await activateDocument(targetOccurrence.documentId, targetOccurrence.page);
@@ -3400,6 +3551,14 @@ function cancelCurrentAction() {
   const hadAction = Boolean(state.interaction || state.markMode || hadPanAction);
   state.interaction = null;
   setMarkMode(false);
+  // A second Escape, with nothing left to cancel, clears the selection.
+  if (!hadAction && (state.selectedObjectId || state.selectedOccurrenceId)) {
+    state.selectedObjectId = null;
+    state.selectedOccurrenceId = null;
+    refreshUi();
+    setStatus("Selection cleared.");
+    return true;
+  }
   refreshUi();
   return hadAction;
 }
@@ -3463,12 +3622,41 @@ function handleDocumentKeyDown(event) {
     }
     return;
   }
+  if (action === "focus-object-search") {
+    event.preventDefault();
+    elements.objectSearch.focus();
+    elements.objectSearch.select();
+    return;
+  }
+  if (action === "toggle-labels") {
+    event.preventDefault();
+    setShowLabels(!state.display.showLabels);
+    return;
+  }
   if (!state.pdfDocument) {
     return;
   }
 
   event.preventDefault();
   switch (action) {
+    case "fit-width":
+      fitWidth();
+      break;
+    case "toggle-marks-hidden":
+      toggleMarksHidden();
+      break;
+    case "previous-representation":
+      stepSelectedObject(-1);
+      break;
+    case "next-representation":
+      stepSelectedObject(1);
+      break;
+    case "history-back":
+      goThroughHistory(-1);
+      break;
+    case "history-forward":
+      goThroughHistory(1);
+      break;
     case "previous-page":
       navigateToPage(state.pageNumber - 1);
       break;
@@ -3634,12 +3822,13 @@ elements.categoryFilter.addEventListener("input", refreshCreateCategoryOptions);
 elements.objectLabel.addEventListener("input", () => elements.objectLabel.setCustomValidity(""));
 elements.linkExistingObject.addEventListener("click", linkSelectedOccurrenceToExistingObject);
 elements.objectList.addEventListener("click", async (event) => {
-  const groupToggle = event.target.closest("button[data-category-toggle]");
+  const groupToggle = event.target.closest("button[data-group-toggle]");
   if (groupToggle) {
     const { display } = state;
-    display.collapsedCategories = toggleSetMember(display.collapsedCategories, groupToggle.dataset.categoryToggle);
+    const key = groupToggle.dataset.groupToggle;
+    display.collapsedGroups = toggleSetMember(display.collapsedGroups, key);
     renderObjectList();
-    elements.objectList.querySelector(`button[data-category-toggle="${CSS.escape(groupToggle.dataset.categoryToggle)}"]`)?.focus();
+    elements.objectList.querySelector(`button[data-group-toggle="${CSS.escape(key)}"]`)?.focus();
     return;
   }
   const button = event.target.closest("button[data-object-id]");
@@ -3663,9 +3852,20 @@ elements.objectSearch.addEventListener("input", () => {
   renderObjectList();
 });
 elements.markFocus.addEventListener("change", () => {
-  state.display.markFocus = elements.markFocus.value;
-  renderOverlay();
+  setMarkFocus(elements.markFocus.value);
 });
+elements.groupBy.addEventListener("change", () => {
+  state.display.groupBy = elements.groupBy.value;
+  saveDisplayPreferences();
+  renderObjectList();
+});
+elements.currentPageOnly.addEventListener("change", () => {
+  state.display.currentPageOnly = elements.currentPageOnly.checked;
+  saveDisplayPreferences();
+  renderObjectList();
+});
+elements.showLabels.addEventListener("change", () => setShowLabels(elements.showLabels.checked));
+syncDisplayControls();
 setUpPaneSplitter();
 elements.saveObjectLabel.addEventListener("click", saveSelectedObjectLabel);
 elements.editObjectLabel.addEventListener("input", () => elements.editObjectLabel.setCustomValidity(""));
