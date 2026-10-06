@@ -14,12 +14,15 @@ namespace ObjectCentricDrawing
         public HashSet<BuiltInCategory> Categories { get; init; } = new();
         public bool RequireMark { get; init; }
 
+        // false = rectangles (the default, verified on a real sheet). true = convex outlines.
+        public bool Outline { get; init; }
+
         public static ExportOptions Defaults() => new()
         {
             Categories = ExportCategories.All.Where(c => c.DefaultOn).Select(c => c.Category).ToHashSet(),
         };
 
-        private sealed record Stored(List<string> Categories, bool RequireMark);
+        private sealed record Stored(List<string> Categories, bool RequireMark, bool Outline = false);
 
         private static string StorePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -39,7 +42,7 @@ namespace ObjectCentricDrawing
                     .ToHashSet();
                 return categories.Count == 0
                     ? Defaults()
-                    : new ExportOptions { Categories = categories, RequireMark = stored.RequireMark };
+                    : new ExportOptions { Categories = categories, RequireMark = stored.RequireMark, Outline = stored.Outline };
             }
             catch (Exception)
             {
@@ -54,7 +57,7 @@ namespace ObjectCentricDrawing
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
                 var keys = ExportCategories.All.Where(c => Categories.Contains(c.Category)).Select(c => c.Key).ToList();
-                File.WriteAllText(StorePath, JsonSerializer.Serialize(new Stored(keys, RequireMark)));
+                File.WriteAllText(StorePath, JsonSerializer.Serialize(new Stored(keys, RequireMark, Outline)));
             }
             catch (Exception)
             {

@@ -12,6 +12,9 @@ One button: **OneMore ▸ Object-Centric Drawing ▸ Export PDF + Objects**.
 2. Choose what to export. The dialog lists each category with how many elements the sheets show.
    Doors and windows are ticked by default. "Only elements with a Mark" skips unmarked ones
    (rooms use their number). The dialog shows the total before you export, and remembers your choice.
+   **Shape:** Rectangle (default) or Outline. Outline gives rooms their boundary and everything else
+   a convex outline of what the view draws, so rotated elements fit. Inside corners are not followed.
+   Any element whose outline fails keeps its rectangle.
 3. Pick where to save the PDF.
 4. Three files are written side by side:
 
@@ -33,7 +36,7 @@ The project core also stays free of Revit, as `DECISIONS.md` requires.
 
 - Categories: doors, windows, rooms, walls, stairs, furniture, casework, generic models, specialty equipment, plumbing, structural columns, mechanical and electrical equipment, electrical and lighting fixtures. Doors and windows are the default. Linear systems (pipes, ducts) are left out on purpose.
 - Plans, sections and elevations. Other views are skipped and listed.
-- Rectangles from the element's view bounding box. Rotated elements get loose boxes.
+- Rectangles from the element's view bounding box by default. Rotated elements get loose boxes; choose Outline for those.
 - Clipped to the viewport box and the page.
 - Split views are skipped.
 - Schedules are not read. There is no clean API from a schedule row to an element.
@@ -54,7 +57,7 @@ Test: export one sheet with a few doors. Open both files in the app. Check the r
 From Onur's first real run (2026-10-06):
 
 - **Choose what to export.** Done: categories and a Mark filter. Levels are not offered yet.
-- **Exact shapes.** Rectangles work now. Later: project the element's real outline to a polygon. Riskier, no rush.
+- **Exact shapes.** Done as the Outline option: convex outlines, room boundaries. Not built or run in Revit yet. Inside corners are left out on purpose.
 
 ## Build
 

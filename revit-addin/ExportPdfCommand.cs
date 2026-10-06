@@ -63,7 +63,7 @@ namespace ObjectCentricDrawing
                 File.WriteAllText(projectPath, JsonSerializer.Serialize(result.Project, ProjectFormat.Json));
                 File.WriteAllText(refsPath, JsonSerializer.Serialize(result.Refs, ProjectFormat.Json));
 
-                TaskDialog.Show("Export PDF + Objects", Summary(result, sheets.Count, baseName));
+                TaskDialog.Show("Export PDF + Objects", Summary(result, sheets.Count, baseName, options.Outline));
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -137,7 +137,8 @@ namespace ObjectCentricDrawing
 
         // One element seen in one viewport, already projected to page coordinates.
         private sealed record Placement(
-            int Page, ViewSheet Sheet, View View, Element Element, BuiltInCategory Category, Bounds Bounds);
+            int Page, ViewSheet Sheet, View View, Element Element, BuiltInCategory Category, Bounds Bounds,
+            Transform ModelToSheet, Rect2 Viewport, Rect2 Paper);
 
         // Walks every viewport on every sheet and yields the elements of the given categories
         // that land on the page. Both the dialog counts and the export use this, so they agree.
@@ -203,13 +204,14 @@ namespace ObjectCentricDrawing
                             SheetRect(bbox, modelToSheet).Intersect(viewportRect), paper.Value);
                         if (bounds == null) continue;
 
-                        yield return new Placement(i + 1, sheet, view, element, category, bounds);
+                        yield return new Placement(
+                            i + 1, sheet, view, element, category, bounds, modelToSheet, viewportRect, paper.Value);
                     }
                 }
             }
         }
 
-        private sealed record BuildResult(Project Project, RevitRefs Refs);
+        private sealed record BuildResult(Project Project, RevitRefs Refs, int Outlines, int Rectangles);
 
         private static BuildResult Build(Document doc, List<ViewSheet> sheets, string pdfPath, ExportOptions options)
         {
@@ -222,6 +224,7 @@ namespace ObjectCentricDrawing
             var occurrences = new List<Occurrence>();
             var occurrenceRefs = new List<RevitOccurrenceRef>();
             var skipped = new List<SkippedView>();
+            int outlineCount = 0;
 
             foreach (Placement p in Placements(doc, sheets, options.Categories, skipped))
             {
@@ -241,8 +244,27 @@ namespace ObjectCentricDrawing
                 }
 
                 string occurrenceId = $"occurrence-{occurrences.Count + 1:000}";
-                occurrences.Add(new Occurrence(
-                    occurrenceId, objectId, documentId, p.Page, new Geometry("rectangle", p.Bounds)));
+                Geometry geometry = Geometry.Rectangle(p.Bounds);
+                if (options.Outline)
+                {
+                    // An outline that comes back empty, or a geometry read that throws,
+                    // keeps the rectangle, so no object is lost.
+                    List<PagePoint>? points = null;
+                    try
+                    {
+                        List<Vec2>? outline = Outlines.OnSheet(doc, element, p.View, p.ModelToSheet);
+                        points = outline == null ? null : SheetMath.NormalizePolygon(outline, p.Viewport, p.Paper);
+                    }
+                    catch (Autodesk.Revit.Exceptions.ApplicationException)
+                    {
+                    }
+                    if (points != null)
+                    {
+                        geometry = Geometry.Polygon(points);
+                        outlineCount++;
+                    }
+                }
+                occurrences.Add(new Occurrence(occurrenceId, objectId, documentId, p.Page, geometry));
                 occurrenceRefs.Add(new RevitOccurrenceRef(
                     occurrenceId, p.Sheet.SheetNumber, p.Sheet.Name, p.Sheet.UniqueId, p.View.Name, p.View.UniqueId));
             }
@@ -270,7 +292,7 @@ namespace ObjectCentricDrawing
                 occurrenceRefs,
                 skipped);
 
-            return new BuildResult(project, refs);
+            return new BuildResult(project, refs, outlineCount, occurrences.Count - outlineCount);
         }
 
         private static string? UnsupportedReason(View view)
@@ -299,7 +321,7 @@ namespace ObjectCentricDrawing
         }
 
         // Projects all 8 corners and takes the 2D extent. Axis-aligned, so a rotated
-        // element gets a loose box. Polygons can come later.
+        // element gets a loose box. The Outline option (Outlines.cs) gives a tighter shape.
         private static Rect2 SheetRect(BoundingBoxXYZ bbox, Transform modelToSheet)
         {
             double minX = double.MaxValue, minY = double.MaxValue;
@@ -360,11 +382,15 @@ namespace ObjectCentricDrawing
             return string.IsNullOrWhiteSpace(name) ? "sheets" : name;
         }
 
-        private static string Summary(BuildResult result, int sheetCount, string baseName)
+        private static string Summary(BuildResult result, int sheetCount, string baseName, bool outline)
         {
+            string shapes = outline
+                ? $"{result.Outlines} outline(s), {result.Rectangles} kept as rectangles\n"
+                : "";
             string text =
                 $"{sheetCount} sheet(s) → {baseName}.pdf\n"
-                + $"{result.Project.Objects.Count} object(s), {result.Project.Occurrences.Count} occurrence(s)\n\n"
+                + $"{result.Project.Objects.Count} object(s), {result.Project.Occurrences.Count} occurrence(s)\n"
+                + shapes + "\n"
                 + "Open the PDF in Object-Centric Drawing, then import the .objdraw.json.";
             if (result.Refs.Skipped.Count > 0)
             {

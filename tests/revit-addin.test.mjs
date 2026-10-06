@@ -40,7 +40,11 @@ test("a project shaped like the add-in output imports without loss", () => {
   const fixture = JSON.parse(readFileSync(new URL("./fixtures/revit-export.synthetic.json", import.meta.url), "utf8"));
   const project = validateSidecar(fixture);
   assert.equal(project.objects.length, 2);
-  assert.equal(project.occurrences.length, 3);
+  assert.equal(project.occurrences.length, 4);
+  // An Outline export writes polygons; the app keeps every point.
+  const polygon = project.occurrences.find((o) => o.id === "occurrence-004");
+  assert.equal(polygon.geometry.type, "polygon");
+  assert.equal(polygon.geometry.points.length, 4);
   assert.deepEqual(
     project.occurrences.filter((o) => o.objectId === "object-001").map((o) => o.page),
     [1, 2],
@@ -75,4 +79,25 @@ test("the remembered export choice is stored by category key, not enum number", 
   const source = addin("ExportOptions.cs");
   assert.match(source, /Select\(c => c\.Key\)/);
   assert.doesNotMatch(source, /\(int\)\s*c\.Category/);
+});
+
+test("rectangles stay the default shape, and an outline always falls back to one", () => {
+  const options = addin("ExportOptions.cs");
+  assert.match(options, /bool Outline = false\)/, "stored default is not rectangle");
+  assert.doesNotMatch(options.slice(options.indexOf("Defaults()"), options.indexOf("private sealed record Stored")), /Outline\s*=\s*true/);
+  const build = addin("ExportPdfCommand.cs");
+  const start = build.indexOf("Geometry geometry = Geometry.Rectangle(p.Bounds);");
+  assert.ok(start > 0, "the rectangle is not the starting geometry");
+  assert.ok(build.indexOf("Geometry.Polygon(points)", start) > start, "the polygon does not replace the rectangle only on success");
+});
+
+test("polygons are written with the field names the app reads", () => {
+  const schema = addin("ProjectSchema.cs");
+  assert.match(schema, /record PagePoint\(double X, double Y\)/);
+  assert.match(schema, /new\("polygon", null, points\)/);
+  assert.match(schema, /List<PagePoint>\? Points\)/);
+  // The app's area threshold and the add-in's must agree, or the app rejects a polygon the add-in kept.
+  const sidecar = readFileSync(new URL("../sidecar.mjs", import.meta.url), "utf8");
+  assert.match(sidecar, /BOUNDS_EPSILON = 1e-9;/);
+  assert.match(addin("SheetMath.cs"), /> 1e-9 \? points : null;/);
 });
