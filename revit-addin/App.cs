@@ -38,8 +38,8 @@ namespace ObjectCentricDrawing
             {
                 ToolTip = "Export sheets to PDF with an Object-Centric Drawing project file next to it.",
                 LongDescription =
-                    "Open a sheet, or select sheets in the Project Browser. Doors and windows on "
-                    + "those sheets become objects, and each place they appear becomes an occurrence. "
+                    "Open a sheet, or select sheets in the Project Browser, then choose the categories "
+                    + "to export. Each element becomes an object, and each place it appears becomes an occurrence. "
                     + "The PDF is not changed; object data goes in a .objdraw.json file beside it.",
                 LargeImage = LoadIcon("exportpdf32.png"),
                 Image = LoadIcon("exportpdf16.png"),
