@@ -10,7 +10,8 @@ Object-Centric Drawing is a local-first browser prototype for navigating archite
 - Marks rectangle, ellipse, and polygon occurrences using normalized page coordinates.
 - Links occurrences to explicit category-neutral objects; matching labels never merge identity automatically.
 - Navigates an object's representations across PDFs through Object Lens, Representation Board, and Drawing Set Map views.
-- Separates an object browser (grouped by category, searchable, with per-category visibility and selected-object focus) from a properties pane.
+- Separates an object browser from a properties pane. The browser groups by category, page or not at all, filters to the current page, and searches. The drawing can show labels, hide categories, dim or hide other objects, or hide all marks.
+- Keyboard: step through one object's places with `[` `]`, go back and forward through jumps with Alt + arrows, search objects with `/`. Press `?` for the full list.
 - Saves the object and evidence layer as portable versioned JSON beside the unchanged PDFs.
 - Exports target-neutral evidence packages and an optional Door/Window Joinery AI handoff pack.
 
