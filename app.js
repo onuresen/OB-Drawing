@@ -31,6 +31,12 @@ import {
   objectCategoryLabel,
 } from "./category-catalog.mjs";
 import {
+  createDisplayState,
+  groupObjectsForBrowser,
+  occurrenceVisibility,
+  toggleSetMember,
+} from "./display-filter.mjs";
+import {
   compareDocumentFingerprint,
   createDocumentFingerprint,
   createSidecar,
@@ -185,6 +191,14 @@ const elements = {
   existingObjectSelect: document.querySelector("#existingObjectSelect"),
   linkExistingObject: document.querySelector("#linkExistingObject"),
   noObjects: document.querySelector("#noObjects"),
+  noObjectMatches: document.querySelector("#noObjectMatches"),
+  objectSearch: document.querySelector("#objectSearch"),
+  markFocus: document.querySelector("#markFocus"),
+  sidePanel: document.querySelector(".side-panel"),
+  browserPane: document.querySelector("#browserPane"),
+  paneSplitter: document.querySelector("#paneSplitter"),
+  propertiesEmpty: document.querySelector("#propertiesEmpty"),
+  documentSection: document.querySelector("#documentSection"),
   objectList: document.querySelector("#objectList"),
   selectedObjectPanel: document.querySelector("#selectedObjectPanel"),
   selectedObjectTitle: document.querySelector("#selectedObjectTitle"),
@@ -254,6 +268,8 @@ const state = {
   documentSessions: new Map(),
   documentViews: new Map(),
   pendingRelinkDocumentId: null,
+  // View-only browser and canvas filters. Never saved in the project file.
+  display: createDisplayState(),
 };
 
 let wheelPageAccumulator = 0;
@@ -264,6 +280,9 @@ let renderedPageMetrics = null;
 let spacePanActive = false;
 let panInteraction = null;
 let representationBoardGeneration = 0;
+// The object whose browser group was last opened and scrolled to. Selecting a different
+// object reveals it once; after that, the user may collapse its group again.
+let revealedObjectId = null;
 let pdfSearchInputTimer = null;
 const pdfSearchState = {
   generation: 0,
@@ -755,6 +774,10 @@ function renderDocumentList() {
     ? "Add PDFs directly, or import a project and relink its source files."
     : `${attachedCount} of ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"} attached locally.`;
 
+  if (state.documents.some((projectDocument) => !getDocumentSession(projectDocument.id))) {
+    elements.documentSection.open = true;
+  }
+
   for (const projectDocument of state.documents) {
     const item = document.createElement("li");
     const row = document.createElement("div");
@@ -1033,45 +1056,109 @@ function renderOccurrenceRows(container, occurrences) {
   }
 }
 
+function createObjectCard(object) {
+  const item = document.createElement("li");
+  const button = document.createElement("button");
+  const icon = document.createElement("span");
+  const label = document.createElement("span");
+  const title = document.createElement("strong");
+  const identity = document.createElement("small");
+  const count = document.createElement("span");
+  const occurrences = getObjectOccurrences(state.occurrences, object.id);
+
+  item.className = "object-card";
+  button.type = "button";
+  button.className = "object-card-button";
+  button.dataset.objectId = object.id;
+  button.setAttribute("aria-current", String(object.id === state.selectedObjectId));
+  button.title = `Select ${object.label} (${object.id})`;
+  icon.className = "object-icon";
+  icon.textContent = objectCategoryCode(object.category);
+  label.className = "object-label";
+  title.textContent = object.label;
+  identity.textContent = object.id;
+  label.append(title, identity);
+  count.className = "object-count";
+  count.textContent = `${occurrences.length} occ`;
+  count.setAttribute("aria-label", `${occurrences.length} occurrence${occurrences.length === 1 ? "" : "s"}`);
+  button.append(icon, label, count);
+  item.append(button);
+  return item;
+}
+
 function renderObjectList() {
+  const { display } = state;
+  const selectedObject = getObject(state.selectedObjectId);
+  const revealSelection = Boolean(selectedObject) && selectedObject.id !== revealedObjectId;
+  if (revealSelection) {
+    display.collapsedCategories.delete(selectedObject.category);
+  }
+  revealedObjectId = selectedObject?.id ?? null;
+
+  const searching = display.query.trim().length > 0;
+  const groups = groupObjectsForBrowser(state.objects, display.query);
   elements.objectList.replaceChildren();
   elements.noObjects.hidden = state.objects.length > 0;
+  elements.noObjectMatches.hidden = state.objects.length === 0 || groups.length > 0;
   elements.objectBadge.textContent = String(state.objects.length);
 
-  for (const object of state.objects) {
+  for (const group of groups) {
     const item = document.createElement("li");
-    const button = document.createElement("button");
-    const icon = document.createElement("span");
-    const label = document.createElement("span");
-    const title = document.createElement("strong");
-    const identity = document.createElement("small");
-    const count = document.createElement("span");
-    const occurrences = getObjectOccurrences(state.occurrences, object.id);
+    const header = document.createElement("div");
+    const toggle = document.createElement("button");
+    const name = document.createElement("span");
+    const count = document.createElement("small");
+    const visibility = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const list = document.createElement("ol");
+    const hiddenOnDrawing = display.hiddenCategories.has(group.category);
+    // A search shows every match, whatever was collapsed before.
+    const expanded = searching || !display.collapsedCategories.has(group.category);
 
-    item.className = "object-card";
-    button.type = "button";
-    button.className = "object-card-button";
-    button.dataset.objectId = object.id;
-    button.setAttribute("aria-current", String(object.id === state.selectedObjectId));
-    button.title = `Select ${object.label} (${object.id})`;
-    icon.className = "object-icon";
-    icon.textContent = objectCategoryCode(object.category);
-    label.className = "object-label";
-    title.textContent = object.label;
-    identity.textContent = `${objectCategoryLabel(object.category)} · ${object.id}`;
-    label.append(title, identity);
-    count.className = "object-count";
-    count.textContent = `${occurrences.length} occ`;
-    count.setAttribute("aria-label", `${occurrences.length} occurrence${occurrences.length === 1 ? "" : "s"}`);
-    button.append(icon, label, count);
-    item.append(button);
+    item.className = `object-group${hiddenOnDrawing ? " is-hidden-on-drawing" : ""}`;
+    header.className = "object-group-header";
+    toggle.type = "button";
+    toggle.className = "object-group-toggle";
+    toggle.dataset.categoryToggle = group.category;
+    toggle.setAttribute("aria-expanded", String(expanded));
+    name.textContent = group.label;
+    count.textContent = group.objects.length === group.total
+      ? String(group.total)
+      : `${group.objects.length} of ${group.total}`;
+    toggle.append(name, count);
+
+    visibility.className = "object-group-visibility";
+    visibility.title = `Show ${group.label} on the drawing`;
+    checkbox.type = "checkbox";
+    checkbox.checked = !hiddenOnDrawing;
+    checkbox.dataset.categoryVisibility = group.category;
+    checkbox.setAttribute("aria-label", `Show ${group.label} on the drawing`);
+    visibility.append(checkbox, document.createTextNode("Show"));
+    header.append(toggle, visibility);
+
+    list.className = "object-list";
+    list.hidden = !expanded;
+    for (const object of group.objects) {
+      list.append(createObjectCard(object));
+    }
+    item.append(header, list);
     elements.objectList.append(item);
+  }
+
+  if (revealSelection) {
+    elements.objectList
+      .querySelector(`button[data-object-id="${CSS.escape(selectedObject.id)}"]`)
+      ?.scrollIntoView({ block: "nearest" });
   }
 }
 
 function renderObjectComposer() {
   const selectedOccurrence = getOccurrence(state.selectedOccurrenceId);
   const isUnlinkedSelection = Boolean(selectedOccurrence && !selectedOccurrence.objectId);
+  const selectedObject = getObject(state.selectedObjectId);
+
+  elements.objectComposer.hidden = Boolean(selectedObject);
+  elements.propertiesEmpty.hidden = Boolean(selectedObject) || isUnlinkedSelection;
 
   elements.objectFormTitle.textContent = isUnlinkedSelection ? "Link this occurrence" : "Create object";
   elements.objectFormHint.textContent = !state.pdfDocument
@@ -1310,8 +1397,17 @@ function renderOverlay() {
   elements.overlay.replaceChildren();
   let selectedOccurrence = null;
 
+  const objectsById = new Map(state.objects.map((object) => [object.id, object]));
   for (const occurrence of getCurrentPageOccurrences()) {
+    const visibility = occurrenceVisibility(occurrence, objectsById, state.display, state.selectedObjectId);
+    // A filter never hides the mark being worked on.
+    if (visibility === "hidden" && occurrence.id !== state.selectedOccurrenceId) {
+      continue;
+    }
     const classes = ["occurrence-shape"];
+    if (visibility === "dimmed") {
+      classes.push("is-dimmed");
+    }
     if (!occurrence.objectId) {
       classes.push("is-unlinked");
     }
@@ -1679,6 +1775,50 @@ async function exportSelectedObjectForJoineryAi() {
     elements.exportObjectEvidence.disabled = !currentObject || !hasRepresentations;
     elements.exportObjectEvidenceZip.disabled = !currentObject || !hasRepresentations;
   }
+}
+
+// Drag or arrow keys move the line between the object browser and the properties pane.
+function setUpPaneSplitter() {
+  const minimum = 140;
+  const setBrowserSize = (pixels) => {
+    const total = elements.sidePanel.clientHeight - elements.paneSplitter.offsetHeight;
+    const clamped = Math.round(Math.min(Math.max(pixels, minimum), total - minimum));
+    elements.sidePanel.style.setProperty("--browser-pane-size", `${clamped}px`);
+    elements.paneSplitter.setAttribute("aria-valuenow", String(Math.round((clamped / total) * 100)));
+  };
+
+  elements.paneSplitter.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    const top = elements.sidePanel.getBoundingClientRect().top;
+    elements.paneSplitter.setPointerCapture(event.pointerId);
+    elements.paneSplitter.classList.add("is-dragging");
+    const move = (moveEvent) => setBrowserSize(moveEvent.clientY - top);
+    const end = () => {
+      elements.paneSplitter.classList.remove("is-dragging");
+      elements.paneSplitter.removeEventListener("pointermove", move);
+      elements.paneSplitter.removeEventListener("pointerup", end);
+      elements.paneSplitter.removeEventListener("pointercancel", end);
+    };
+    elements.paneSplitter.addEventListener("pointermove", move);
+    elements.paneSplitter.addEventListener("pointerup", end);
+    elements.paneSplitter.addEventListener("pointercancel", end);
+  });
+
+  elements.paneSplitter.addEventListener("keydown", (event) => {
+    const step = event.shiftKey ? 80 : 24;
+    const current = elements.browserPane.offsetHeight;
+    if (event.key === "ArrowUp") {
+      setBrowserSize(current - step);
+    } else if (event.key === "ArrowDown") {
+      setBrowserSize(current + step);
+    } else {
+      return;
+    }
+    event.preventDefault();
+  });
 }
 
 function refreshObjectUi() {
@@ -3494,11 +3634,39 @@ elements.categoryFilter.addEventListener("input", refreshCreateCategoryOptions);
 elements.objectLabel.addEventListener("input", () => elements.objectLabel.setCustomValidity(""));
 elements.linkExistingObject.addEventListener("click", linkSelectedOccurrenceToExistingObject);
 elements.objectList.addEventListener("click", async (event) => {
+  const groupToggle = event.target.closest("button[data-category-toggle]");
+  if (groupToggle) {
+    const { display } = state;
+    display.collapsedCategories = toggleSetMember(display.collapsedCategories, groupToggle.dataset.categoryToggle);
+    renderObjectList();
+    elements.objectList.querySelector(`button[data-category-toggle="${CSS.escape(groupToggle.dataset.categoryToggle)}"]`)?.focus();
+    return;
+  }
   const button = event.target.closest("button[data-object-id]");
   if (button) {
     await selectObjectAndNavigate(button.dataset.objectId);
   }
 });
+elements.objectList.addEventListener("change", (event) => {
+  const checkbox = event.target.closest("input[data-category-visibility]");
+  if (!checkbox) {
+    return;
+  }
+  const { display } = state;
+  display.hiddenCategories = toggleSetMember(display.hiddenCategories, checkbox.dataset.categoryVisibility);
+  renderOverlay();
+  renderObjectList();
+  elements.objectList.querySelector(`input[data-category-visibility="${CSS.escape(checkbox.dataset.categoryVisibility)}"]`)?.focus();
+});
+elements.objectSearch.addEventListener("input", () => {
+  state.display.query = elements.objectSearch.value;
+  renderObjectList();
+});
+elements.markFocus.addEventListener("change", () => {
+  state.display.markFocus = elements.markFocus.value;
+  renderOverlay();
+});
+setUpPaneSplitter();
 elements.saveObjectLabel.addEventListener("click", saveSelectedObjectLabel);
 elements.editObjectLabel.addEventListener("input", () => elements.editObjectLabel.setCustomValidity(""));
 elements.editObjectLabel.addEventListener("keydown", (event) => {

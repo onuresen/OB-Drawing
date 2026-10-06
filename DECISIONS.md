@@ -321,3 +321,19 @@
 **Revisit when:** the app needs to show or act on Revit identity.
 
 **Confidence:** med. Not yet built or run in Revit.
+
+## 2026-10-06 — Split the side panel into a browser and properties
+
+**Decision:** The side panel has two panes, like Revit's Project Browser over Properties. The top pane lists objects grouped by category, with search and display filters. The bottom pane shows the selected object, or the create form when nothing is selected. A splitter between them can be dragged or moved with the arrow keys.
+
+**Why:** After a Revit export with 89 objects, one long list made a selected object hard to find. The properties of one object were mixed in with the list of all of them.
+
+**Decision:** Display filters are view-only. Hiding a category, dimming others and showing the selected object only change the canvas and the list. They are not saved in the project file.
+
+**Why:** The project file records evidence. What someone chose to look at is not evidence.
+
+**Boundary:** The selected object's marks and unlinked marks are never hidden by a filter. You cannot lose sight of what you are working on, or of a mark that still needs an object.
+
+**Alternative:** Tabs instead of stacked panes. Rejected because selecting in the list and editing below it should be visible together.
+
+**Confidence:** high.

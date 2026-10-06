@@ -47,6 +47,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group X — active-PDF text search with `Ctrl+F`, session-only page indexing, exact result navigation, visible-page highlights, and no OCR or drawing-set index.
 - [x] Group Y — continuous pointer-anchored wheel zoom with immediate whole-page preview and one debounced high-quality PDF render.
 - [x] Group Z — calmer reader-first visual hierarchy with a compact brand bar, grouped controls, quiet canvas, and lighter object rail.
+- [x] Group AA — split side panel: object browser grouped by category over a properties pane, a draggable splitter, object search, per-category drawing visibility, and dim/isolate focus for the selected object. View-only; nothing is saved.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
 
 ## File map
@@ -58,6 +59,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `app.js` | PDF session, rendering, interaction state, and object/occurrence UI. |
 | `geometry.mjs` | Pure normalized-coordinate helpers. |
 | `object-model.mjs` | Pure category-neutral object identity, link, edit, and delete operations. |
+| `display-filter.mjs` | Pure view-only browser grouping, search, and mark visibility rules. Never touches project data. |
 | `category-catalog.mjs` | Stable grouped Object-Centric Drawing physical-model category catalogue and search helpers. |
 | `navigation.mjs` | Pure shortcut mapping, bounded zoom-step, and list-focus recovery rules. |
 | `project-documents.mjs` | Pure fingerprint matching, document occurrence counts, removal guards, and cross-document target selection. |

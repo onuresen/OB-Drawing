@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-02-text-selection">
+  <link rel="stylesheet" href="styles.css?v=2026-10-06-split-panel">
 </head>
 <body>
   <header class="app-header">
@@ -152,178 +152,198 @@
     </section>
 
     <aside class="side-panel" aria-label="Object session">
-      <div class="panel-heading">
-        <div>
-          <p class="eyebrow">Project objects</p>
-          <h2>Objects</h2>
-        </div>
-        <span id="objectBadge" class="count-badge">0</span>
-      </div>
-
-      <div class="concept-note">
-        <strong>A label is not identity.</strong>
-        <span>You create or choose the object. The app never merges marks because their visible labels match.</span>
-      </div>
-
-      <section class="document-section" aria-labelledby="projectDocumentsTitle">
-        <div class="section-heading">
-          <h3 id="projectDocumentsTitle">Drawing PDFs</h3>
-          <span id="documentBadge">0</span>
-        </div>
-        <p id="documentHelp" class="quiet-copy">Add PDFs directly, or import a project and relink its source files.</p>
-        <ol id="documentList" class="document-list"></ol>
-        <input id="relinkPdfFile" class="visually-hidden" type="file" accept="application/pdf,.pdf">
-      </section>
-
-      <section id="objectComposer" class="object-composer" aria-labelledby="objectFormTitle">
-        <p class="eyebrow">Explicit identity</p>
-        <h3 id="objectFormTitle">Create object</h3>
-        <p id="objectFormHint" class="quiet-copy">Open a PDF before creating objects.</p>
-
-        <form id="createObjectForm" class="create-object-form">
-          <label class="field-label" for="categoryFilter">Find category</label>
-          <input id="categoryFilter" class="text-input" type="search" placeholder="Search categories" autocomplete="off" disabled>
-          <label class="field-label" for="objectCategory">Category</label>
-          <select id="objectCategory" class="text-input" required disabled></select>
-          <label class="field-label" for="objectLabel">Object label</label>
-          <div class="form-row">
-            <input id="objectLabel" class="text-input" type="text" maxlength="80" placeholder="D-105" required autocomplete="off" disabled>
-            <button id="createObjectButton" class="button button-primary" type="submit" disabled>Create</button>
-          </div>
-        </form>
-
-        <div id="linkExistingBlock" class="link-existing" hidden>
-          <span class="choice-divider">or link to an existing object</span>
-          <div class="form-row">
-            <label class="visually-hidden" for="existingObjectSelect">Existing object</label>
-            <select id="existingObjectSelect" class="text-input" disabled></select>
-            <button id="linkExistingObject" class="button" type="button" disabled>Link</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="object-section" aria-labelledby="sessionObjects">
-        <div class="section-heading">
-          <h3 id="sessionObjects">Objects</h3>
-          <span>In memory</span>
-        </div>
-        <p id="noObjects" class="quiet-copy">No objects yet.</p>
-        <ol id="objectList" class="object-list"></ol>
-      </section>
-
-      <section id="selectedObjectPanel" class="selected-object-panel" aria-labelledby="selectedObjectTitle" hidden>
-        <div class="section-heading">
+      <div id="browserPane" class="panel-pane browser-pane" aria-label="Object browser" role="region">
+        <div class="panel-heading">
           <div>
-            <p class="eyebrow">Object Lens</p>
-            <h3 id="selectedObjectTitle">Object</h3>
+            <p class="eyebrow">Browser</p>
+            <h2>Objects</h2>
           </div>
-          <span id="selectedObjectIdentity"></span>
+          <span id="objectBadge" class="count-badge">0</span>
         </div>
 
-        <label class="field-label" for="editObjectCategory">Category</label>
-        <select id="editObjectCategory" class="text-input"></select>
-        <label class="field-label" for="editObjectLabel">Label</label>
-        <div class="form-row">
-          <input id="editObjectLabel" class="text-input" type="text" maxlength="80" required autocomplete="off">
-          <button id="saveObjectLabel" class="button" type="button">Save</button>
+        <div class="display-bar">
+          <label class="visually-hidden" for="objectSearch">Search objects</label>
+          <input id="objectSearch" class="text-input" type="search" placeholder="Search objects" autocomplete="off">
+          <label class="visually-hidden" for="markFocus">Marks on the drawing</label>
+          <select id="markFocus" class="text-input" title="Which marks the drawing shows when an object is selected">
+            <option value="all">All marks</option>
+            <option value="dim-others">Dim others</option>
+            <option value="selected-only">Selected only</option>
+          </select>
         </div>
 
-        <div class="panel-actions">
-          <button id="markForObject" class="button button-primary" type="button" aria-label="Mark another occurrence" title="Mark another occurrence" disabled>Mark</button>
-          <button id="deleteObject" class="button danger-button" type="button" aria-label="Delete selected object" title="Delete selected object">Delete</button>
+        <section class="object-section" aria-label="Objects by category">
+          <p id="noObjects" class="quiet-copy">No objects yet.</p>
+          <p id="noObjectMatches" class="quiet-copy" hidden>No objects match the search.</p>
+          <ol id="objectList" class="object-groups"></ol>
+        </section>
+
+        <section id="unlinkedSection" class="unlinked-section" aria-labelledby="unlinkedTitle" hidden>
+          <div class="section-heading">
+            <h3 id="unlinkedTitle">Unlinked marks</h3>
+            <span id="unlinkedCount">0</span>
+          </div>
+          <p class="quiet-copy">Select a mark, then create or choose its object.</p>
+          <ol id="unlinkedList" class="object-occurrence-list"></ol>
+        </section>
+
+        <details id="documentSection" class="document-section" open>
+          <summary class="section-heading section-summary">
+            <h3 id="projectDocumentsTitle">Drawing PDFs</h3>
+            <span id="documentBadge">0</span>
+          </summary>
+          <p id="documentHelp" class="quiet-copy">Add PDFs directly, or import a project and relink its source files.</p>
+          <ol id="documentList" class="document-list"></ol>
+          <input id="relinkPdfFile" class="visually-hidden" type="file" accept="application/pdf,.pdf">
+        </details>
+
+        <section class="sidecar-section" aria-labelledby="sidecarTitle">
+          <div class="section-heading">
+            <h3 id="sidecarTitle">Project file</h3>
+            <span id="saveState" class="save-state" role="status" aria-live="polite" data-dirty="false">No document</span>
+          </div>
+          <p class="quiet-copy">Export a versioned project beside its PDFs, or import a project first and relink its local source files.</p>
+          <div class="sidecar-actions">
+            <button id="exportSidecar" class="button button-primary" type="button" disabled>Export JSON</button>
+            <button id="chooseSidecar" class="button" type="button">Import JSON</button>
+            <input id="sidecarFile" class="visually-hidden" type="file" accept="application/json,.json">
+          </div>
+          <p id="sidecarStatus" class="sidecar-status" role="alert" hidden></p>
+        </section>
+      </div>
+
+      <div id="paneSplitter" class="pane-splitter" role="separator" tabindex="0"
+        aria-orientation="horizontal" aria-controls="browserPane propertiesPane"
+        aria-label="Resize the object browser" title="Drag to resize. Arrow keys also work."></div>
+
+      <div id="propertiesPane" class="panel-pane properties-pane" aria-label="Properties" role="region">
+        <div class="panel-heading">
+          <h2>Properties</h2>
         </div>
 
-        <div id="objectLensSummary" class="object-lens-summary" aria-live="polite"></div>
+        <div id="propertiesEmpty" class="concept-note">
+          <strong>A label is not identity.</strong>
+          <span>You create or choose the object. The app never merges marks because their visible labels match.</span>
+        </div>
 
-        <div class="evidence-export">
-          <details id="objectExportMenu" class="object-export-menu">
-            <summary class="button">Export</summary>
-            <div class="object-export-options">
-              <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral evidence JSON manifest" disabled>
-                <strong>Evidence JSON</strong>
-                <span>Portable manifest</span>
-              </button>
-              <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export evidence with marked preview images" disabled>
-                <strong>Evidence ZIP</strong>
-                <span>Manifest + marked previews</span>
-              </button>
-              <button id="exportJoineryAiPack" class="object-export-option" type="button" aria-label="Export selected object for Joinery Configurator AI" title="Export an AI-ready Joinery Configurator evidence pack" disabled>
-                <strong>Joinery AI pack</strong>
-                <span id="joineryAiHint">Door and Window objects</span>
-              </button>
+        <section id="objectComposer" class="object-composer" aria-labelledby="objectFormTitle">
+          <p class="eyebrow">Explicit identity</p>
+          <h3 id="objectFormTitle">Create object</h3>
+          <p id="objectFormHint" class="quiet-copy">Open a PDF before creating objects.</p>
+
+          <form id="createObjectForm" class="create-object-form">
+            <label class="field-label" for="categoryFilter">Find category</label>
+            <input id="categoryFilter" class="text-input" type="search" placeholder="Search categories" autocomplete="off" disabled>
+            <label class="field-label" for="objectCategory">Category</label>
+            <select id="objectCategory" class="text-input" required disabled></select>
+            <label class="field-label" for="objectLabel">Object label</label>
+            <div class="form-row">
+              <input id="objectLabel" class="text-input" type="text" maxlength="80" placeholder="D-105" required autocomplete="off" disabled>
+              <button id="createObjectButton" class="button button-primary" type="submit" disabled>Create</button>
+            </div>
+          </form>
+
+          <div id="linkExistingBlock" class="link-existing" hidden>
+            <span class="choice-divider">or link to an existing object</span>
+            <div class="form-row">
+              <label class="visually-hidden" for="existingObjectSelect">Existing object</label>
+              <select id="existingObjectSelect" class="text-input" disabled></select>
+              <button id="linkExistingObject" class="button" type="button" disabled>Link</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="selectedObjectPanel" class="selected-object-panel" aria-labelledby="selectedObjectTitle" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Object Lens</p>
+              <h3 id="selectedObjectTitle">Object</h3>
+            </div>
+            <span id="selectedObjectIdentity"></span>
+          </div>
+
+          <label class="field-label" for="editObjectCategory">Category</label>
+          <select id="editObjectCategory" class="text-input"></select>
+          <label class="field-label" for="editObjectLabel">Label</label>
+          <div class="form-row">
+            <input id="editObjectLabel" class="text-input" type="text" maxlength="80" required autocomplete="off">
+            <button id="saveObjectLabel" class="button" type="button">Save</button>
+          </div>
+
+          <div class="panel-actions">
+            <button id="markForObject" class="button button-primary" type="button" aria-label="Mark another occurrence" title="Mark another occurrence" disabled>Mark</button>
+            <button id="deleteObject" class="button danger-button" type="button" aria-label="Delete selected object" title="Delete selected object">Delete</button>
+          </div>
+
+          <div id="objectLensSummary" class="object-lens-summary" aria-live="polite"></div>
+
+          <div class="evidence-export">
+            <details id="objectExportMenu" class="object-export-menu">
+              <summary class="button">Export</summary>
+              <div class="object-export-options">
+                <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral evidence JSON manifest" disabled>
+                  <strong>Evidence JSON</strong>
+                  <span>Portable manifest</span>
+                </button>
+                <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export evidence with marked preview images" disabled>
+                  <strong>Evidence ZIP</strong>
+                  <span>Manifest + marked previews</span>
+                </button>
+                <button id="exportJoineryAiPack" class="object-export-option" type="button" aria-label="Export selected object for Joinery Configurator AI" title="Export an AI-ready Joinery Configurator evidence pack" disabled>
+                  <strong>Joinery AI pack</strong>
+                  <span id="joineryAiHint">Door and Window objects</span>
+                </button>
+              </div>
+            </details>
+            <p id="evidenceExportStatus" class="evidence-export-status" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <div class="subsection-heading">
+            <h4>Representations</h4>
+            <div class="subsection-actions">
+              <span id="selectedOccurrenceCount">0</span>
+              <button id="openRepresentationBoard" class="compact-action" type="button" aria-haspopup="dialog" aria-controls="representationBoard" disabled>Show all</button>
+            </div>
+          </div>
+          <p id="noObjectOccurrences" class="quiet-copy">This object has no linked representations yet.</p>
+
+          <details id="evidenceReviewPanel" class="evidence-review">
+            <summary class="evidence-review-summary">
+              <span>
+                <strong>Evidence notes</strong>
+                <small>Optional</small>
+              </span>
+              <span id="evidenceReviewCount" aria-live="polite">Optional</span>
+            </summary>
+            <div class="evidence-review-body">
+              <p class="evidence-review-intro">Add source-linked notes only when the PDF-object workflow needs them.</p>
+              <div id="evidenceConflictSummary" class="evidence-conflict-summary" role="status" aria-live="polite" hidden></div>
+              <form id="addEvidenceForm" class="evidence-form">
+                <label class="field-label" for="evidenceTopic">Topic</label>
+                <input id="evidenceTopic" class="text-input" type="text" maxlength="80" placeholder="e.g. Material, operation, condition" required autocomplete="off">
+                <label class="field-label" for="evidenceValue">Note</label>
+                <textarea id="evidenceValue" class="text-input evidence-value" maxlength="500" rows="3" placeholder="What the source shows, or what still needs confirmation" required></textarea>
+                <div class="evidence-form-grid">
+                  <label>
+                    <span class="field-label">Basis</span>
+                    <select id="evidenceKind" class="text-input">
+                      <option value="observation">Observed from source</option>
+                      <option value="assumption">Assumed / needs confirmation</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span class="field-label">Source</span>
+                    <select id="evidenceSource" class="text-input"></select>
+                  </label>
+                </div>
+                <button id="addEvidence" class="button" type="submit">Add note</button>
+              </form>
+              <p id="noEvidence" class="quiet-copy">No evidence notes saved for this object.</p>
+              <ol id="evidenceList" class="evidence-list"></ol>
             </div>
           </details>
-          <p id="evidenceExportStatus" class="evidence-export-status" role="status" aria-live="polite" hidden></p>
-        </div>
-
-        <div class="subsection-heading">
-          <h4>Representations</h4>
-          <div class="subsection-actions">
-            <span id="selectedOccurrenceCount">0</span>
-            <button id="openRepresentationBoard" class="compact-action" type="button" aria-haspopup="dialog" aria-controls="representationBoard" disabled>Show all</button>
-          </div>
-        </div>
-        <p id="noObjectOccurrences" class="quiet-copy">This object has no linked representations yet.</p>
-
-        <details id="evidenceReviewPanel" class="evidence-review">
-          <summary class="evidence-review-summary">
-            <span>
-              <strong>Evidence notes</strong>
-              <small>Optional</small>
-            </span>
-            <span id="evidenceReviewCount" aria-live="polite">Optional</span>
-          </summary>
-          <div class="evidence-review-body">
-            <p class="evidence-review-intro">Add source-linked notes only when the PDF-object workflow needs them.</p>
-            <div id="evidenceConflictSummary" class="evidence-conflict-summary" role="status" aria-live="polite" hidden></div>
-            <form id="addEvidenceForm" class="evidence-form">
-              <label class="field-label" for="evidenceTopic">Topic</label>
-              <input id="evidenceTopic" class="text-input" type="text" maxlength="80" placeholder="e.g. Material, operation, condition" required autocomplete="off">
-              <label class="field-label" for="evidenceValue">Note</label>
-              <textarea id="evidenceValue" class="text-input evidence-value" maxlength="500" rows="3" placeholder="What the source shows, or what still needs confirmation" required></textarea>
-              <div class="evidence-form-grid">
-                <label>
-                  <span class="field-label">Basis</span>
-                  <select id="evidenceKind" class="text-input">
-                    <option value="observation">Observed from source</option>
-                    <option value="assumption">Assumed / needs confirmation</option>
-                  </select>
-                </label>
-                <label>
-                  <span class="field-label">Source</span>
-                  <select id="evidenceSource" class="text-input"></select>
-                </label>
-              </div>
-              <button id="addEvidence" class="button" type="submit">Add note</button>
-            </form>
-            <p id="noEvidence" class="quiet-copy">No evidence notes saved for this object.</p>
-            <ol id="evidenceList" class="evidence-list"></ol>
-          </div>
-        </details>
-      </section>
-
-      <section id="unlinkedSection" class="unlinked-section" aria-labelledby="unlinkedTitle" hidden>
-        <div class="section-heading">
-          <h3 id="unlinkedTitle">Unlinked marks</h3>
-          <span id="unlinkedCount">0</span>
-        </div>
-        <p class="quiet-copy">Select a mark, then create or choose its object.</p>
-        <ol id="unlinkedList" class="object-occurrence-list"></ol>
-      </section>
-
-      <section class="sidecar-section" aria-labelledby="sidecarTitle">
-        <div class="section-heading">
-          <h3 id="sidecarTitle">Project file</h3>
-          <span id="saveState" class="save-state" role="status" aria-live="polite" data-dirty="false">No document</span>
-        </div>
-        <p class="quiet-copy">Export a versioned project beside its PDFs, or import a project first and relink its local source files.</p>
-        <div class="sidecar-actions">
-          <button id="exportSidecar" class="button button-primary" type="button" disabled>Export JSON</button>
-          <button id="chooseSidecar" class="button" type="button">Import JSON</button>
-          <input id="sidecarFile" class="visually-hidden" type="file" accept="application/json,.json">
-        </div>
-        <p id="sidecarStatus" class="sidecar-status" role="alert" hidden></p>
-      </section>
+        </section>
+      </div>
     </aside>
   </main>
 
