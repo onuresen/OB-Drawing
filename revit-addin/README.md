@@ -49,6 +49,7 @@ Test: export one sheet with a few doors. Open both files in the app. Check the r
 ## Build
 
 Same setup as the Joinery Configurator add-in: Revit 2026.5, .NET 10 SDK.
+Open `ObjectCentricDrawing.slnx` in Visual Studio 2022 (17.13+) or later.
 `dotnet build` copies the DLL and `.addin` to `%ProgramData%\Autodesk\REVIT\Addins\2026\`.
 No NuGet packages; JSON uses `System.Text.Json`.
 
