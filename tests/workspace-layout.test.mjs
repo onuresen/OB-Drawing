@@ -8,7 +8,7 @@ test("workspace surfaces retain explicit rows when PDF search is hidden", async 
   for (const [selector, row] of [
     [".toolbar", 1],
     [".pdf-search-bar", 2],
-    [".viewer-stage", 3],
+    [".viewer-row", 3],
     [".status-bar", 4],
   ]) {
     const escapedSelector = selector.replace(".", "\\.");
@@ -18,7 +18,7 @@ test("workspace surfaces retain explicit rows when PDF search is hidden", async 
 
 test("the application requests the current corrected stylesheet version", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /styles\.css\?v=2026-10-06-view-options/);
+  assert.match(html, /styles\.css\?v=2026-10-06-thumbnails/);
 });
 
 test("the application requests the complete text-selection module version", async () => {

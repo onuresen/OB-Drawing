@@ -7,11 +7,16 @@ import {
   meetsMinimumMarkSize,
   moveBounds,
   movePolygonPoints,
+  normalizeRotation,
   pointsAreEqual,
   polygonArea,
   pointFromClient,
   resizeBounds,
   resizePolygonPoints,
+  rotateBounds,
+  rotationTransform,
+  unrotatePoint,
+  unrotatedSize,
 } from "./geometry.mjs";
 import {
   createObject,
@@ -202,6 +207,10 @@ const elements = {
   currentPageOnly: document.querySelector("#currentPageOnly"),
   showLabels: document.querySelector("#showLabels"),
   markLabels: document.querySelector("#markLabels"),
+  toggleThumbnails: document.querySelector("#toggleThumbnails"),
+  rotateView: document.querySelector("#rotateView"),
+  thumbnailPanel: document.querySelector("#thumbnailPanel"),
+  thumbnailList: document.querySelector("#thumbnailList"),
   sidePanel: document.querySelector(".side-panel"),
   browserPane: document.querySelector("#browserPane"),
   paneSplitter: document.querySelector("#paneSplitter"),
@@ -264,6 +273,8 @@ const state = {
   pageNumber: 1,
   scale: 1,
   zoomMode: "fit-page",
+  // View rotation on top of the page's own. Saved geometry never rotates.
+  rotation: 0,
   markMode: false,
   markGeometryType: "rectangle",
   linkTargetObjectId: null,
@@ -690,8 +701,9 @@ function restoreObjectLayerSnapshot(snapshot) {
 }
 
 function focusSelectedOccurrenceRectangle() {
-  const focusedRectangle = Array.from(elements.overlay.children)
-    .find((element) => element.dataset?.occurrenceId === state.selectedOccurrenceId);
+  // Shapes sit inside the rotation group, so search the whole overlay, not its direct children.
+  const focusedRectangle = Array.from(elements.overlay.querySelectorAll("[data-occurrence-id]"))
+    .find((element) => element.dataset.occurrenceId === state.selectedOccurrenceId);
   focusedRectangle?.focus();
   return Boolean(focusedRectangle);
 }
@@ -726,6 +738,8 @@ function setDocumentControlsEnabled(enabled) {
     elements.actualSize,
     elements.fitWidth,
     elements.fitPage,
+    elements.rotateView,
+    elements.toggleThumbnails,
     elements.shapeTool,
     elements.markOccurrence,
     elements.openPdfSearch,
@@ -798,6 +812,7 @@ function saveActiveDocumentView() {
   view.pageNumber = state.pageNumber;
   view.scale = state.scale;
   view.zoomMode = state.zoomMode;
+  view.rotation = state.rotation;
   view.scrollLeft = elements.viewerStage.scrollLeft;
   view.scrollTop = elements.viewerStage.scrollTop;
 }
@@ -1448,8 +1463,17 @@ function renderSessionSummary() {
     : `${pdfLabel} · ${objectLabel} · ${occurrenceLabel}${evidenceLabel}`;
 }
 
+// Shapes are drawn in unrotated page coordinates inside one group that applies the view rotation.
+let overlayLayer = null;
+
 function renderOverlay() {
   elements.overlay.replaceChildren();
+  overlayLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  const transform = rotationTransform(state.rotation);
+  if (transform) {
+    overlayLayer.setAttribute("transform", transform);
+  }
+  elements.overlay.append(overlayLayer);
   let selectedOccurrence = null;
 
   const objectsById = new Map(state.objects.map((object) => [object.id, object]));
@@ -1492,7 +1516,7 @@ function renderOverlay() {
         ? `${object.label}, ${object.id}, ${occurrence.geometryType} occurrence on page ${occurrence.page}`
         : `Unlinked ${occurrence.geometryType} occurrence on page ${occurrence.page}`,
     );
-    elements.overlay.append(shape);
+    overlayLayer.append(shape);
   }
 
   if (selectedOccurrence) {
@@ -1501,13 +1525,13 @@ function renderOverlay() {
   renderMarkLabels(objectsById);
 
   if (state.interaction?.type === "draw") {
-    elements.overlay.append(makeSvgShape(state.markGeometryType, state.interaction.bounds, null, "draft-shape"));
+    overlayLayer.append(makeSvgShape(state.markGeometryType, state.interaction.bounds, null, "draft-shape"));
   } else if (state.interaction?.type === "polygon-draw") {
     const previewPoints = state.interaction.previewPoint
       ? [...state.interaction.points, state.interaction.previewPoint]
       : state.interaction.points;
     if (previewPoints.length > 0) {
-      elements.overlay.append(makeSvgShape("polygon", null, previewPoints, "draft-shape"));
+      overlayLayer.append(makeSvgShape("polygon", null, previewPoints, "draft-shape"));
     }
   }
 }
@@ -1535,8 +1559,9 @@ function renderMarkLabels(objectsById) {
       label.classList.add("is-dimmed");
     }
     label.textContent = object.label;
-    label.style.left = `${occurrence.bounds.x * 100}%`;
-    label.style.top = `${occurrence.bounds.y * 100}%`;
+    const onView = rotateBounds(occurrence.bounds, state.rotation);
+    label.style.left = `${onView.x * 100}%`;
+    label.style.top = `${onView.y * 100}%`;
     elements.markLabels.append(label);
   }
 }
@@ -1887,6 +1912,190 @@ function setShowLabels(show) {
   renderOverlay();
 }
 
+async function rotateView(direction) {
+  if (!state.pdfDocument) {
+    return;
+  }
+  state.rotation = normalizeRotation(state.rotation + (direction < 0 ? -90 : 90));
+  await renderPage();
+  saveActiveDocumentView();
+  setStatus(`View rotated to ${state.rotation}°. Marks are saved unrotated, so the project file does not change.`);
+}
+
+// Page thumbnails. Rendered lazily as they scroll into view, one at a time, and cached
+// per PDF, page and rotation for the session.
+const THUMBNAIL_WIDTH = 112;
+const thumbnailCache = new Map();
+let thumbnailListKey = "";
+let thumbnailObserver = null;
+let thumbnailQueue = [];
+let thumbnailQueueRunning = false;
+let thumbnailGeneration = 0;
+let lastThumbnailPage = null;
+
+function setThumbnailsOpen(open) {
+  state.display.showThumbnails = open;
+  elements.thumbnailPanel.hidden = !open;
+  elements.toggleThumbnails.setAttribute("aria-pressed", String(open));
+  saveDisplayPreferences();
+  lastThumbnailPage = null;
+  renderThumbnails();
+  // Fit modes depend on the space beside the panel.
+  if (state.pdfDocument && state.zoomMode !== "custom") {
+    renderPage();
+  }
+}
+
+function renderThumbnails() {
+  if (elements.thumbnailPanel.hidden || !state.pdfDocument || !state.activeDocumentId) {
+    return;
+  }
+  const listKey = `${state.activeDocumentId}|${state.rotation}|${state.pdfDocument.numPages}`;
+  if (listKey !== thumbnailListKey) {
+    buildThumbnailList(listKey);
+  }
+  updateThumbnailStates();
+}
+
+function buildThumbnailList(listKey) {
+  thumbnailListKey = listKey;
+  thumbnailGeneration += 1;
+  thumbnailQueue = [];
+  lastThumbnailPage = null;
+  thumbnailObserver?.disconnect();
+  elements.thumbnailList.replaceChildren();
+  thumbnailObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        thumbnailObserver.unobserve(entry.target);
+        enqueueThumbnail(Number(entry.target.dataset.thumbnailPage));
+      }
+    }
+  }, { root: elements.thumbnailPanel, rootMargin: "240px 0px" });
+
+  for (let page = 1; page <= state.pdfDocument.numPages; page += 1) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    const frame = document.createElement("span");
+    const number = document.createElement("span");
+    const badge = document.createElement("span");
+    button.type = "button";
+    button.className = "thumbnail-button";
+    button.dataset.thumbnailPage = String(page);
+    frame.className = "thumbnail-frame";
+    frame.dataset.thumbnailPage = String(page);
+    frame.style.minHeight = "80px";
+    number.textContent = String(page);
+    badge.className = "thumbnail-badge";
+    badge.hidden = true;
+    button.append(frame, number, badge);
+    item.append(button);
+    elements.thumbnailList.append(item);
+
+    const cached = thumbnailCache.get(`${state.activeDocumentId}|${page}|${state.rotation}`);
+    if (cached) {
+      showThumbnailImage(frame, cached);
+    } else {
+      thumbnailObserver.observe(frame);
+    }
+  }
+}
+
+function showThumbnailImage(frame, url) {
+  const image = document.createElement("img");
+  image.src = url;
+  image.alt = "";
+  frame.style.minHeight = "";
+  frame.replaceChildren(image);
+}
+
+function enqueueThumbnail(page) {
+  thumbnailQueue.push(page);
+  runThumbnailQueue();
+}
+
+async function runThumbnailQueue() {
+  if (thumbnailQueueRunning) {
+    return;
+  }
+  thumbnailQueueRunning = true;
+  try {
+    while (thumbnailQueue.length > 0) {
+      const page = thumbnailQueue.shift();
+      const generation = thumbnailGeneration;
+      const pdfDocument = state.pdfDocument;
+      const key = `${state.activeDocumentId}|${page}|${state.rotation}`;
+      let url = thumbnailCache.get(key);
+      if (!url) {
+        try {
+          url = await renderThumbnailImage(pdfDocument, page, state.rotation);
+        } catch (error) {
+          console.warn(`Thumbnail for page ${page} could not be rendered.`, error);
+          continue;
+        }
+        thumbnailCache.set(key, url);
+      }
+      if (generation !== thumbnailGeneration) {
+        continue;
+      }
+      const frame = elements.thumbnailList.querySelector(`.thumbnail-frame[data-thumbnail-page="${page}"]`);
+      if (frame && !frame.querySelector("img")) {
+        showThumbnailImage(frame, url);
+      }
+    }
+  } finally {
+    thumbnailQueueRunning = false;
+  }
+}
+
+async function renderThumbnailImage(pdfDocument, pageNumber, viewRotation) {
+  const page = await pdfDocument.getPage(pageNumber);
+  const rotation = normalizeRotation(page.rotate + viewRotation);
+  const base = page.getViewport({ scale: 1, rotation });
+  // Twice the shown width, so it stays sharp on high-density screens.
+  const viewport = page.getViewport({ scale: (THUMBNAIL_WIDTH * 2) / base.width, rotation });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
+// Current page, mark counts, and pages where the selected object appears.
+function updateThumbnailStates() {
+  const counts = new Map();
+  const selectedPages = new Set();
+  for (const occurrence of state.occurrences) {
+    if (occurrence.documentId !== state.activeDocumentId) {
+      continue;
+    }
+    counts.set(occurrence.page, (counts.get(occurrence.page) ?? 0) + 1);
+    if (occurrence.objectId && occurrence.objectId === state.selectedObjectId) {
+      selectedPages.add(occurrence.page);
+    }
+  }
+  for (const button of elements.thumbnailList.querySelectorAll("button[data-thumbnail-page]")) {
+    const page = Number(button.dataset.thumbnailPage);
+    const count = counts.get(page) ?? 0;
+    const badge = button.querySelector(".thumbnail-badge");
+    if (page === state.pageNumber) {
+      button.setAttribute("aria-current", "page");
+    } else {
+      button.removeAttribute("aria-current");
+    }
+    button.classList.toggle("has-selected", selectedPages.has(page));
+    badge.hidden = count === 0;
+    badge.textContent = String(count);
+    button.setAttribute("aria-label", `Page ${page}${count ? `, ${count} mark${count === 1 ? "" : "s"}` : ""}${selectedPages.has(page) ? ", has the selected object" : ""}`);
+  }
+  if (lastThumbnailPage !== state.pageNumber) {
+    lastThumbnailPage = state.pageNumber;
+    elements.thumbnailList
+      .querySelector(`button[data-thumbnail-page="${state.pageNumber}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }
+}
+
 // Drag or arrow keys move the line between the object browser and the properties pane.
 function setUpPaneSplitter() {
   const minimum = 140;
@@ -1932,6 +2141,7 @@ function setUpPaneSplitter() {
 }
 
 function refreshObjectUi() {
+  renderThumbnails();
   renderDocumentList();
   renderDrawingMap();
   renderObjectList();
@@ -2029,6 +2239,7 @@ async function activateDocument(documentId, targetPage = null) {
   state.pageNumber = clamp(targetPage ?? view.pageNumber, 1, session.pdfDocument.numPages);
   state.scale = view.scale;
   state.zoomMode = view.zoomMode;
+  state.rotation = normalizeRotation(view.rotation);
   elements.emptyState.hidden = true;
   elements.pageSurface.hidden = false;
   setDocumentControlsEnabled(true);
@@ -2086,11 +2297,12 @@ async function renderPage() {
       return;
     }
 
-    const baseViewport = page.getViewport({ scale: 1 });
+    const rotation = normalizeRotation(page.rotate + state.rotation);
+    const baseViewport = page.getViewport({ scale: 1, rotation });
     if (state.zoomMode !== "custom") {
       state.scale = calculateFitScale(baseViewport, state.zoomMode);
     }
-    const viewport = page.getViewport({ scale: state.scale });
+    const viewport = page.getViewport({ scale: state.scale, rotation });
     const outputScale = Math.max(globalThis.devicePixelRatio || 1, 1);
     const context = elements.pdfCanvas.getContext("2d", { alpha: false });
 
@@ -2128,6 +2340,7 @@ async function renderPage() {
     state.renderTask = null;
     updatePageControls();
     renderOverlay();
+    renderThumbnails();
     renderPdfSearchHighlights();
     setStatus(`Page ${state.pageNumber} rendered. ${getCurrentPageOccurrences().length} occurrence${getCurrentPageOccurrences().length === 1 ? "" : "s"} on this page.`);
   } catch (error) {
@@ -2293,7 +2506,7 @@ async function zoomBy(direction, clientX, clientY) {
 }
 
 function appendSelectionHandles(occurrence) {
-  const overlayBounds = elements.overlay.getBoundingClientRect();
+  const overlayBounds = unrotatedSize(elements.overlay.getBoundingClientRect(), state.rotation);
   if (!overlayBounds.width || !overlayBounds.height) {
     return;
   }
@@ -2318,7 +2531,7 @@ function appendSelectionHandles(occurrence) {
     handle.setAttribute("class", "selection-handle");
     handle.dataset.occurrenceId = occurrence.id;
     handle.dataset.resizeHandle = name;
-    elements.overlay.append(handle);
+    overlayLayer.append(handle);
   }
 
   if (occurrence.geometryType === "polygon") {
@@ -2331,7 +2544,7 @@ function appendSelectionHandles(occurrence) {
       vertex.setAttribute("class", "polygon-vertex");
       vertex.dataset.occurrenceId = occurrence.id;
       vertex.dataset.vertexIndex = String(index);
-      elements.overlay.append(vertex);
+      overlayLayer.append(vertex);
     });
   }
 }
@@ -2991,13 +3204,18 @@ function deleteOccurrenceById(occurrenceId) {
   return true;
 }
 
+// Screen point -> unrotated page point, the only coordinates that are ever saved.
+function pagePointFromClient(clientX, clientY, overlayBounds) {
+  return unrotatePoint(pointFromClient(clientX, clientY, overlayBounds), state.rotation);
+}
+
 function handleOverlayPointerDown(event) {
   if (!state.pdfDocument || event.button !== 0) {
     return;
   }
 
   const overlayBounds = elements.overlay.getBoundingClientRect();
-  const point = pointFromClient(event.clientX, event.clientY, overlayBounds);
+  const point = pagePointFromClient(event.clientX, event.clientY, overlayBounds);
 
   if (state.markMode && state.markGeometryType === "polygon") {
     return;
@@ -3054,7 +3272,7 @@ function handleOverlayPointerDown(event) {
 function handleOverlayPointerMove(event) {
   const interaction = state.interaction;
   if (interaction?.type === "polygon-draw") {
-    interaction.previewPoint = pointFromClient(
+    interaction.previewPoint = pagePointFromClient(
       event.clientX,
       event.clientY,
       elements.overlay.getBoundingClientRect(),
@@ -3067,7 +3285,7 @@ function handleOverlayPointerMove(event) {
   }
 
   const overlayBounds = elements.overlay.getBoundingClientRect();
-  const point = pointFromClient(event.clientX, event.clientY, overlayBounds);
+  const point = pagePointFromClient(event.clientX, event.clientY, overlayBounds);
 
   if (interaction.type === "draw") {
     interaction.bounds = boundsFromPoints(interaction.start, point);
@@ -3124,7 +3342,10 @@ function handleOverlayPointerUp(event) {
   }
 
   if (interaction.type === "draw") {
-    const pixelSize = boundsSizeInPixels(interaction.bounds, elements.overlay.getBoundingClientRect());
+    const pixelSize = boundsSizeInPixels(
+      interaction.bounds,
+      unrotatedSize(elements.overlay.getBoundingClientRect(), state.rotation),
+    );
     let completionMessage;
     if (meetsMinimumMarkSize(pixelSize, MINIMUM_MARK_SIZE)) {
       const linkedObject = getObject(state.linkTargetObjectId);
@@ -3261,7 +3482,7 @@ function handleOverlayClick(event) {
     return;
   }
   const overlayBounds = elements.overlay.getBoundingClientRect();
-  const point = pointFromClient(event.clientX, event.clientY, overlayBounds);
+  const point = pagePointFromClient(event.clientX, event.clientY, overlayBounds);
   if (!state.interaction || state.interaction.type !== "polygon-draw") {
     state.interaction = {
       type: "polygon-draw",
@@ -3642,6 +3863,15 @@ function handleDocumentKeyDown(event) {
     case "fit-width":
       fitWidth();
       break;
+    case "rotate-clockwise":
+      rotateView(1);
+      break;
+    case "rotate-counterclockwise":
+      rotateView(-1);
+      break;
+    case "toggle-thumbnails":
+      setThumbnailsOpen(elements.thumbnailPanel.hidden);
+      break;
     case "toggle-marks-hidden":
       toggleMarksHidden();
       break;
@@ -3866,6 +4096,19 @@ elements.currentPageOnly.addEventListener("change", () => {
 });
 elements.showLabels.addEventListener("change", () => setShowLabels(elements.showLabels.checked));
 syncDisplayControls();
+elements.thumbnailPanel.hidden = !state.display.showThumbnails;
+elements.toggleThumbnails.setAttribute("aria-pressed", String(state.display.showThumbnails));
+elements.toggleThumbnails.addEventListener("click", () => setThumbnailsOpen(elements.thumbnailPanel.hidden));
+elements.rotateView.addEventListener("click", (event) => rotateView(event.shiftKey ? -1 : 1));
+elements.thumbnailList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-thumbnail-page]");
+  if (!button || !state.pdfDocument) {
+    return;
+  }
+  const page = Number(button.dataset.thumbnailPage);
+  viewHistory.record(currentLocation(), { documentId: state.activeDocumentId, page });
+  await navigateToPage(page);
+});
 setUpPaneSplitter();
 elements.saveObjectLabel.addEventListener("click", saveSelectedObjectLabel);
 elements.editObjectLabel.addEventListener("input", () => elements.editObjectLabel.setCustomValidity(""));

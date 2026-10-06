@@ -361,3 +361,17 @@
 **Why:** Page turns would fill the history and make "back" a page-by-page walk.
 
 **Confidence:** high.
+
+## 2026-10-06 — Rotation is a view, never data
+
+**Decision:** Rotating the view (R, Shift+R) changes only how the page is drawn. Marks are always saved in the page's unrotated coordinates. Drawing, moving and resizing in a rotated view are converted back before saving.
+
+**Why:** A project file must mean the same thing whoever opens it and however they turned the page.
+
+**Alternative:** Store a rotation per document in the project. Rejected: it is a reading preference, not evidence.
+
+**Decision:** Thumbnails render lazily, one at a time, and are cached for the session per PDF, page and rotation.
+
+**Why:** Drawing sets can have hundreds of pages; rendering them all on open would stall the reader.
+
+**Confidence:** high. Checked in headless Chromium: a mark drawn on a 90° view is saved at the expected unrotated position.

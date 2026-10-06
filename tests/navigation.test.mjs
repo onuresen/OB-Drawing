@@ -15,6 +15,7 @@ test("newly attached PDFs start on page one in Fit Page view", () => {
     pageNumber: 1,
     scale: 1,
     zoomMode: "fit-page",
+    rotation: 0,
     scrollLeft: 0,
     scrollTop: 0,
   });
@@ -159,4 +160,11 @@ test("stepping through an object's representations follows PDF, page and reading
   assert.deepEqual(walk, ["o-0", "o-1", "o-2", "o-3", "o-0"]);
   assert.equal(stepObjectOccurrence(occurrences, "x", "o-0", -1, order).id, "o-3");
   assert.equal(stepObjectOccurrence(occurrences, "none", null, 1, order), null);
+});
+
+test("R rotates, Shift+R rotates back, T toggles thumbnails", () => {
+  assert.equal(keyboardShortcutAction({ key: "r" }), "rotate-clockwise");
+  assert.equal(keyboardShortcutAction({ key: "R", shiftKey: true }), "rotate-counterclockwise");
+  assert.equal(keyboardShortcutAction({ key: "t" }), "toggle-thumbnails");
+  assert.equal(keyboardShortcutAction({ key: "r", ctrlKey: true }), null, "Ctrl+R stays the browser's reload");
 });

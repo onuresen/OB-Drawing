@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-06-view-options">
+  <link rel="stylesheet" href="styles.css?v=2026-10-06-thumbnails">
 </head>
 <body>
   <header class="app-header">
@@ -29,6 +29,7 @@
 
         <div class="toolbar-navigation">
           <div class="control-group toolbar-cluster" aria-label="Page navigation">
+            <button id="toggleThumbnails" class="icon-button" type="button" aria-label="Page thumbnails" aria-pressed="false" aria-controls="thumbnailPanel" aria-keyshortcuts="T" title="Page thumbnails (T)" disabled>▦</button>
             <button id="previousPage" class="icon-button" type="button" aria-label="Previous page" aria-keyshortcuts="PageUp" title="Previous page (Page Up)" disabled>←</button>
             <label class="page-field">
               <span class="visually-hidden">Current page</span>
@@ -47,6 +48,7 @@
             <button id="actualSize" class="button button-quiet view-button" type="button" title="Actual size (100%)" disabled>100%</button>
             <button id="fitWidth" class="button button-quiet view-button" type="button" title="Fit page width" disabled>Width</button>
             <button id="fitPage" class="button button-quiet" type="button" aria-keyshortcuts="0 F" title="Fit page (0 or F)" disabled>Fit</button>
+            <button id="rotateView" class="icon-button" type="button" aria-label="Rotate view clockwise" aria-keyshortcuts="R Shift+R" title="Rotate view 90° (R; Shift+R the other way)" disabled>⟳</button>
           </div>
 
           <span class="toolbar-divider" aria-hidden="true"></span>
@@ -92,6 +94,8 @@
                 <div><dt><kbd>Shift</kbd> + wheel</dt><dd>Pan horizontally</dd></div>
                 <div><dt><kbd>Alt</kbd> + wheel</dt><dd>Previous / next page</dd></div>
                 <div><dt><kbd>W</kbd></dt><dd>Fit width</dd></div>
+                <div><dt><kbd>R</kbd> / <kbd>Shift</kbd> + <kbd>R</kbd></dt><dd>Rotate view clockwise / back</dd></div>
+                <div><dt><kbd>T</kbd></dt><dd>Page thumbnails</dd></div>
                 <div><dt><kbd>M</kbd></dt><dd>Toggle marking</dd></div>
                 <div><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next place of the selected object</dd></div>
                 <div><dt><kbd>Alt</kbd> + <kbd>←</kbd> <kbd>→</kbd></dt><dd>Back / forward through jumps</dd></div>
@@ -122,6 +126,11 @@
         <button id="closePdfSearch" class="icon-button" type="button" aria-label="Close PDF search" aria-keyshortcuts="Escape" title="Close search (Escape)">×</button>
       </form>
 
+      <div class="viewer-row">
+      <aside id="thumbnailPanel" class="thumbnail-panel" aria-label="Page thumbnails" hidden>
+        <ol id="thumbnailList" class="thumbnail-list"></ol>
+      </aside>
+
       <div id="viewerStage" class="viewer-stage">
         <div id="markingGuide" class="marking-guide" hidden>
           <span class="marking-pulse" aria-hidden="true"></span>
@@ -150,6 +159,7 @@
             <div id="renderingIndicator" class="rendering-indicator" hidden>Rendering…</div>
           </div>
         </div>
+      </div>
       </div>
 
       <footer class="status-bar">
