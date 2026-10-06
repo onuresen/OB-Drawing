@@ -16,9 +16,10 @@ test("the add-in writes the project format the app reads", () => {
 });
 
 test("every Revit category the add-in exports maps to an app category key", () => {
-  const keys = [...addin("ExportPdfCommand.cs").matchAll(/BuiltInCategory\.OST_\w+,\s*"([^"]+)"/g)]
+  const keys = [...addin("ExportCategories.cs").matchAll(/BuiltInCategory\.OST_\w+,\s*"([^"]+)"/g)]
     .map((m) => m[1]);
-  assert.ok(keys.length > 0, "CategoryKeys map not found");
+  assert.ok(keys.length > 0, "ExportCategories table not found");
+  assert.equal(new Set(keys).size, keys.length, "a category key is listed twice");
   for (const key of keys) {
     assert.ok(isObjectCategoryKey(key), `${key} is not in category-catalog.mjs`);
   }
@@ -53,4 +54,25 @@ test("every ribbon icon the add-in loads exists and is embedded", () => {
     assert.ok(existsSync(new URL(`../revit-addin/Resources/${name}`, import.meta.url)), `${name} missing`);
   }
   assert.match(addin("ObjectCentricDrawing.csproj"), /EmbeddedResource Include="Resources\\\*\.png"/);
+});
+
+test("doors and windows stay the default export", () => {
+  const defaults = [...addin("ExportCategories.cs").matchAll(/"([a-z-]+)",\s*"[^"]+",\s*true\)/g)].map((m) => m[1]);
+  assert.deepEqual(defaults.sort(), ["doors", "windows"]);
+});
+
+test("the export dialog counts and the export walk the sheets the same way", () => {
+  const source = addin("ExportPdfCommand.cs");
+  const askOptions = source.slice(source.indexOf("AskOptions(UIApplication"), source.indexOf("GetOrAdd(Dictionary"));
+  const build = source.slice(source.indexOf("BuildResult Build("), source.indexOf("UnsupportedReason(View"));
+  assert.match(askOptions, /Placements\(doc, sheets,/, "dialog does not use Placements");
+  assert.match(build, /Placements\(doc, sheets, options\.Categories,/, "export does not use Placements with the chosen categories");
+  // Only one place may create a FilteredElementCollector over a view's elements.
+  assert.equal((source.match(/new FilteredElementCollector\(doc, view\.Id\)/g) ?? []).length, 1);
+});
+
+test("the remembered export choice is stored by category key, not enum number", () => {
+  const source = addin("ExportOptions.cs");
+  assert.match(source, /Select\(c => c\.Key\)/);
+  assert.doesNotMatch(source, /\(int\)\s*c\.Category/);
 });

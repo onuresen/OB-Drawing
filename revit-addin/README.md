@@ -9,8 +9,11 @@ Status: **first spike. Built and run in Revit 2026 on 2026-10-06: one sheet, 89 
 One button: **OneMore ▸ Object-Centric Drawing ▸ Export PDF + Objects**.
 
 1. Open a sheet, or select sheets in the Project Browser.
-2. Pick where to save the PDF.
-3. Three files are written side by side:
+2. Choose what to export. The dialog lists each category with how many elements the sheets show.
+   Doors and windows are ticked by default. "Only elements with a Mark" skips unmarked ones
+   (rooms use their number). The dialog shows the total before you export, and remembers your choice.
+3. Pick where to save the PDF.
+4. Three files are written side by side:
 
 | File | Contents |
 |---|---|
@@ -28,7 +31,7 @@ The project core also stays free of Revit, as `DECISIONS.md` requires.
 
 ## v1 scope
 
-- Doors and windows only.
+- Categories: doors, windows, rooms, walls, stairs, furniture, casework, generic models, specialty equipment, plumbing, structural columns, mechanical and electrical equipment, electrical and lighting fixtures. Doors and windows are the default. Linear systems (pipes, ducts) are left out on purpose.
 - Plans, sections and elevations. Other views are skipped and listed.
 - Rectangles from the element's view bounding box. Rotated elements get loose boxes.
 - Clipped to the viewport box and the page.
@@ -50,7 +53,7 @@ Test: export one sheet with a few doors. Open both files in the app. Check the r
 
 From Onur's first real run (2026-10-06):
 
-- **Choose what to export.** Not everything: pick categories, maybe levels or marks, before exporting.
+- **Choose what to export.** Done: categories and a Mark filter. Levels are not offered yet.
 - **Exact shapes.** Rectangles work now. Later: project the element's real outline to a polygon. Riskier, no rush.
 
 ## Build
@@ -72,6 +75,7 @@ Each add-in keeps its own panel name and prefixes its button IDs.
 `tests/revit-addin.test.mjs` reads this folder's C# and fails if:
 
 - the project format string differs from `sidecar.mjs`;
-- an exported category is not a `category-catalog.mjs` key;
+- an exported category is not a `category-catalog.mjs` key, or the defaults stop being doors and windows;
+- the dialog counts and the export stop sharing one walk over the sheets;
 - the ID shapes change;
 - the panel leaves the OneMore tab.

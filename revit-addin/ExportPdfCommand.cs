@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -17,16 +18,10 @@ namespace ObjectCentricDrawing
     [Transaction(TransactionMode.Manual)]
     public class ExportPdfCommand : IExternalCommand
     {
-        // v1 scope: doors and windows. Values are category-catalog.mjs keys.
-        private static readonly Dictionary<BuiltInCategory, string> CategoryKeys = new()
-        {
-            { BuiltInCategory.OST_Doors, "doors" },
-            { BuiltInCategory.OST_Windows, "windows" },
-        };
-
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            UIApplication uiapp = commandData.Application;
+            UIDocument uidoc = uiapp.ActiveUIDocument;
             Document doc = uidoc.Document;
 
             List<ViewSheet> sheets = CollectSheets(uidoc);
@@ -35,6 +30,11 @@ namespace ObjectCentricDrawing
                 TaskDialog.Show("Export PDF + Objects", "Open a sheet, or select sheets in the Project Browser.");
                 return Result.Cancelled;
             }
+
+            // Ask what to export before asking where, so a cancel costs nothing.
+            ExportOptions? options = AskOptions(uiapp, doc, sheets);
+            if (options == null) return Result.Cancelled;
+            options.Save();
 
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
@@ -57,7 +57,7 @@ namespace ObjectCentricDrawing
                     return Result.Failed;
                 }
 
-                var result = Build(doc, sheets, pdfPath);
+                var result = Build(doc, sheets, pdfPath, options);
                 string projectPath = Path.Combine(folder, baseName + ".objdraw.json");
                 string refsPath = Path.Combine(folder, baseName + ".objdraw-revit.json");
                 File.WriteAllText(projectPath, JsonSerializer.Serialize(result.Project, ProjectFormat.Json));
@@ -71,6 +71,35 @@ namespace ObjectCentricDrawing
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        // Counts what each category would export on these sheets, then shows the choice.
+        private static ExportOptions? AskOptions(UIApplication uiapp, Document doc, List<ViewSheet> sheets)
+        {
+            var all = ExportCategories.All.Select(c => c.Category).ToList();
+            var seen = new Dictionary<BuiltInCategory, HashSet<string>>();
+            var marked = new Dictionary<BuiltInCategory, HashSet<string>>();
+            foreach (Placement p in Placements(doc, sheets, all, new List<SkippedView>()))
+            {
+                GetOrAdd(seen, p.Category).Add(p.Element.UniqueId);
+                if (Identifier(p.Element) != "") GetOrAdd(marked, p.Category).Add(p.Element.UniqueId);
+            }
+
+            var counts = ExportCategories.All
+                .Select(c => new CategoryCount(c,
+                    seen.TryGetValue(c.Category, out var s) ? s.Count : 0,
+                    marked.TryGetValue(c.Category, out var m) ? m.Count : 0))
+                .ToList();
+
+            var window = new ExportOptionsWindow(sheets.Count, counts, ExportOptions.Load());
+            new WindowInteropHelper(window).Owner = uiapp.MainWindowHandle;
+            return window.ShowDialog() == true ? window.Choice : null;
+        }
+
+        private static HashSet<string> GetOrAdd(Dictionary<BuiltInCategory, HashSet<string>> map, BuiltInCategory key)
+        {
+            if (!map.TryGetValue(key, out HashSet<string>? set)) map[key] = set = new HashSet<string>();
+            return set;
         }
 
         // Selected sheets win. Otherwise the active view, if it is a sheet.
@@ -106,24 +135,21 @@ namespace ObjectCentricDrawing
             HideUnreferencedViewTags = true,
         };
 
-        private sealed record BuildResult(Project Project, RevitRefs Refs);
+        // One element seen in one viewport, already projected to page coordinates.
+        private sealed record Placement(
+            int Page, ViewSheet Sheet, View View, Element Element, BuiltInCategory Category, Bounds Bounds);
 
-        private static BuildResult Build(Document doc, List<ViewSheet> sheets, string pdfPath)
+        // Walks every viewport on every sheet and yields the elements of the given categories
+        // that land on the page. Both the dialog counts and the export use this, so they agree.
+        private static IEnumerable<Placement> Placements(
+            Document doc, List<ViewSheet> sheets, ICollection<BuiltInCategory> categories, List<SkippedView> skipped)
         {
-            const string documentId = "document-001";
-            string exportedAt = DateTime.UtcNow.ToString("o");
-
-            var objects = new List<ProjectObject>();
-            var objectRefs = new List<RevitObjectRef>();
-            var objectIdByUniqueId = new Dictionary<string, string>();
-            var occurrences = new List<Occurrence>();
-            var occurrenceRefs = new List<RevitOccurrenceRef>();
-            var skipped = new List<SkippedView>();
+            if (categories.Count == 0) yield break;
+            var filter = new ElementMulticategoryFilter(categories);
 
             for (int i = 0; i < sheets.Count; i++)
             {
                 ViewSheet sheet = sheets[i];
-                int page = i + 1;
                 Rect2? paper = PaperRect(doc, sheet);
                 if (paper == null)
                 {
@@ -159,16 +185,16 @@ namespace ObjectCentricDrawing
                         box.MinimumPoint.X, box.MinimumPoint.Y, box.MaximumPoint.X, box.MaximumPoint.Y);
 
                     var collector = new FilteredElementCollector(doc, view.Id)
-                        .WherePasses(new ElementMulticategoryFilter(CategoryKeys.Keys.ToList()))
+                        .WherePasses(filter)
                         .WhereElementIsNotElementType();
 
                     foreach (Element element in collector)
                     {
                         // Shared nested families are FamilyInstances of the same category.
                         // Only the top-level instance is the physical object.
-                        if (element is not FamilyInstance instance || instance.SuperComponent != null) continue;
-                        if (element.Category?.BuiltInCategory is not BuiltInCategory bic
-                            || !CategoryKeys.TryGetValue(bic, out string? categoryKey)) continue;
+                        if (element is FamilyInstance { SuperComponent: not null }) continue;
+                        if (element.Category?.BuiltInCategory is not BuiltInCategory category) continue;
+                        if (ExportCategories.Find(category) == null) continue;
 
                         BoundingBoxXYZ? bbox = element.get_BoundingBox(view);
                         if (bbox == null) continue;
@@ -177,24 +203,48 @@ namespace ObjectCentricDrawing
                             SheetRect(bbox, modelToSheet).Intersect(viewportRect), paper.Value);
                         if (bounds == null) continue;
 
-                        if (!objectIdByUniqueId.TryGetValue(element.UniqueId, out string? objectId))
-                        {
-                            objectId = $"object-{objects.Count + 1:000}";
-                            objectIdByUniqueId[element.UniqueId] = objectId;
-                            string mark = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "";
-                            objects.Add(new ProjectObject(objectId, categoryKey, Label(instance, mark)));
-                            objectRefs.Add(new RevitObjectRef(
-                                objectId, element.UniqueId, element.Id.Value,
-                                instance.Symbol.FamilyName, instance.Symbol.Name, mark));
-                        }
-
-                        string occurrenceId = $"occurrence-{occurrences.Count + 1:000}";
-                        occurrences.Add(new Occurrence(
-                            occurrenceId, objectId, documentId, page, new Geometry("rectangle", bounds)));
-                        occurrenceRefs.Add(new RevitOccurrenceRef(
-                            occurrenceId, sheet.SheetNumber, sheet.Name, sheet.UniqueId, view.Name, view.UniqueId));
+                        yield return new Placement(i + 1, sheet, view, element, category, bounds);
                     }
                 }
+            }
+        }
+
+        private sealed record BuildResult(Project Project, RevitRefs Refs);
+
+        private static BuildResult Build(Document doc, List<ViewSheet> sheets, string pdfPath, ExportOptions options)
+        {
+            const string documentId = "document-001";
+            string exportedAt = DateTime.UtcNow.ToString("o");
+
+            var objects = new List<ProjectObject>();
+            var objectRefs = new List<RevitObjectRef>();
+            var objectIdByUniqueId = new Dictionary<string, string>();
+            var occurrences = new List<Occurrence>();
+            var occurrenceRefs = new List<RevitOccurrenceRef>();
+            var skipped = new List<SkippedView>();
+
+            foreach (Placement p in Placements(doc, sheets, options.Categories, skipped))
+            {
+                Element element = p.Element;
+                string identifier = Identifier(element);
+                if (options.RequireMark && identifier == "") continue;
+
+                if (!objectIdByUniqueId.TryGetValue(element.UniqueId, out string? objectId))
+                {
+                    objectId = $"object-{objects.Count + 1:000}";
+                    objectIdByUniqueId[element.UniqueId] = objectId;
+                    (string familyName, string typeName) = TypeNames(doc, element);
+                    objects.Add(new ProjectObject(
+                        objectId, ExportCategories.Find(p.Category)!.Key, Label(element, identifier, typeName)));
+                    objectRefs.Add(new RevitObjectRef(
+                        objectId, element.UniqueId, element.Id.Value, familyName, typeName, identifier));
+                }
+
+                string occurrenceId = $"occurrence-{occurrences.Count + 1:000}";
+                occurrences.Add(new Occurrence(
+                    occurrenceId, objectId, documentId, p.Page, new Geometry("rectangle", p.Bounds)));
+                occurrenceRefs.Add(new RevitOccurrenceRef(
+                    occurrenceId, p.Sheet.SheetNumber, p.Sheet.Name, p.Sheet.UniqueId, p.View.Name, p.View.UniqueId));
             }
 
             var pdf = new FileInfo(pdfPath);
@@ -231,7 +281,7 @@ namespace ObjectCentricDrawing
         }
 
         // The printed page is the title block. Fall back to the sheet outline.
-        // Unverified: confirm the title block box matches the PDF page on a real sheet.
+        // Verified on one sheet (2026-10-06): the title block box matches the PDF page.
         private static Rect2? PaperRect(Document doc, ViewSheet sheet)
         {
             Element? titleBlock = new FilteredElementCollector(doc, sheet.Id)
@@ -267,11 +317,36 @@ namespace ObjectCentricDrawing
             return new Rect2(minX, minY, maxX, maxY);
         }
 
-        // The mark is evidence, not identity. Identity is the UniqueId in the refs file.
-        private static string Label(FamilyInstance instance, string mark) =>
-            string.IsNullOrWhiteSpace(mark)
-                ? $"{instance.Symbol.Name} #{instance.Id.Value}"
-                : mark.Trim();
+        // The mark, or a room's number. Empty when the element has neither.
+        // It is evidence, not identity: identity is the UniqueId in the refs file.
+        private static string Identifier(Element element)
+        {
+            string mark = element.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "";
+            if (!string.IsNullOrWhiteSpace(mark)) return mark.Trim();
+            string number = element.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "";
+            return number.Trim();
+        }
+
+        private static string Label(Element element, string identifier, string typeName)
+        {
+            if (element is Autodesk.Revit.DB.Architecture.Room room)
+            {
+                string name = room.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
+                string label = $"{identifier} {name}".Trim();
+                if (label != "") return label;
+            }
+            if (identifier != "") return identifier;
+            return $"{(typeName == "" ? element.Name : typeName)} #{element.Id.Value}";
+        }
+
+        private static (string FamilyName, string TypeName) TypeNames(Document doc, Element element)
+        {
+            if (element is FamilyInstance instance)
+                return (instance.Symbol.FamilyName, instance.Symbol.Name);
+            if (doc.GetElement(element.GetTypeId()) is ElementType type)
+                return (type.FamilyName, type.Name);
+            return ("", "");
+        }
 
         private static string Sha256(string path)
         {
