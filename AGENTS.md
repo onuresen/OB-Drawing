@@ -50,9 +50,18 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AA — split side panel: object browser grouped by category over a properties pane, a draggable splitter, object search, per-category drawing visibility, and dim/isolate focus for the selected object. View-only; nothing is saved.
 - [x] Group AB — view options: group by category / page / none, natural label order, this-page-only filter, labels on marks (L), hide all marks (H), step through an object's places ([ ]), back/forward through jumps (Alt + arrows), object search (/), fit width (W), and Esc to clear the selection. Viewer preferences are remembered per browser.
 - [x] Group AC — view rotation (R / Shift+R, per PDF, saved geometry never rotates) and a lazily rendered page thumbnail strip (T) with mark counts, current page, and pages holding the selected object. The toolbar wraps by its own width.
+- [ ] Group AD — automated browser smoke checks using a stable PDF exported from the safe CDI playground Revit model; keep Revit out of the test runtime and repository, then cover rendering, embedded-text search, explicit object linking, project round-trip, geometry stability, project replacement, multi-document navigation, and responsive overflow in Chromium.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons, a level filter in the Revit export, and using `.objdraw-revit.json` IDs in the app.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
+
+### Next automation fixture
+
+- Use the safe CDI playground `.rvt` only as the manually controlled source for regenerating test material; do not make ordinary browser tests launch or require Revit, and do not add the model to this repository.
+- Export a deterministic small drawing set with embedded selectable text, repeated labels that remain explicitly linked rather than identity-matched, multiple sheets, predictable geometry, and preferably mixed page orientation or size. Add a second PDF only if needed to exercise cross-document behavior.
+- Record the Revit version, export settings, expected sheet/page order, searchable labels, and PDF SHA-256 fingerprint beside the fixture.
+- Before committing any exported PDF, obtain explicit approval and add only a narrow `.gitignore` exception for the named fixture; continue excluding unrelated PDFs and project sidecars.
+- Start with a small Chromium-only Playwright suite driven through `serve.py`. Prefer DOM, exported-data, and geometry assertions; keep screenshots limited to a few layout checks, and retain traces/screenshots only when a CI run fails.
 
 ## File map
 
