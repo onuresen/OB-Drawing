@@ -73,25 +73,23 @@ test("history deeply clones polygon vertices", () => {
   assert.equal(history.undo(snapshot()).snapshot.occurrences[0].points[0].x, 0.1);
 });
 
-test("history restores governed evidence and review state", () => {
+test("history restores editable notes", () => {
   const history = new ObjectLayerHistory();
   const before = snapshot();
-  before.observations.push({
-    id: "observation-001",
-    objectId: "door-001",
+  before.notes.push({
+    id: "note-001",
+    scope: "occurrence",
+    objectId: null,
     occurrenceId: "occurrence-001",
-    topic: "Width",
-    value: "900 mm",
-    evidenceKind: "observation",
-    reviewState: "unreviewed",
+    text: "Check the clear width.",
     createdAt: "2026-09-30T00:00:00.000Z",
     updatedAt: "2026-09-30T00:00:00.000Z",
   });
   const after = structuredClone(before);
-  after.observations[0].reviewState = "confirmed";
-  history.record(before, "review observation-001");
+  after.notes[0].text = "Clear width checked.";
+  history.record(before, "edit note-001");
   const restored = history.undo(after).snapshot;
-  assert.equal(restored.observations[0].reviewState, "unreviewed");
+  assert.equal(restored.notes[0].text, "Check the clear width.");
 });
 
 test("bounds equality detects a completed move", () => {

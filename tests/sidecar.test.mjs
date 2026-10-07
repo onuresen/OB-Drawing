@@ -9,9 +9,11 @@ import {
   migrateLegacySidecar,
   migrateProjectV2,
   migrateProjectV3,
+  migrateProjectV4,
   MULTI_DOCUMENT_PROJECT_FORMAT,
   nextDocumentId,
   PREVIOUS_PROJECT_FORMAT,
+  PROJECT_V3_FORMAT,
   RENAMED_PROJECT_FORMAT,
   PROJECT_FORMAT,
   sha256Hex,
@@ -96,7 +98,7 @@ test("SHA-256 fingerprints are stable", async () => {
   );
 });
 
-test("a v4 project keeps categorized objects linked across multiple documents", () => {
+test("a v5 project keeps categorized objects linked across multiple documents", () => {
   const project = validProject();
   assert.equal(project.format, PROJECT_FORMAT);
   assert.equal(project.format, SIDECAR_FORMAT);
@@ -141,7 +143,7 @@ test("runtime conversion retains document identity and typed geometry", () => {
   ]);
 });
 
-test("legacy v1 sidecars migrate to a single-document v4 project without changing IDs", () => {
+test("legacy v1 sidecars migrate to a single-document v5 project without changing IDs", () => {
   const migrated = migrateLegacySidecar(legacySidecar());
   assert.equal(migrated.format, PROJECT_FORMAT);
   assert.equal(migrated.activeDocumentId, DOCUMENT_ID);
@@ -152,22 +154,24 @@ test("legacy v1 sidecars migrate to a single-document v4 project without changin
   assert.deepEqual(validateSidecar(legacySidecar()), migrated);
 });
 
-test("v2 projects migrate to v4 with categories and an empty governed evidence layer", () => {
+test("v2 projects migrate to v5 with categories and an empty notes layer", () => {
   const previous = validProject();
   previous.format = MULTI_DOCUMENT_PROJECT_FORMAT;
   previous.objects = [{ id: "door-001", type: "Door", label: "D-105" }];
-  delete previous.observations;
+  delete previous.notes;
   const migrated = migrateProjectV2(previous);
   assert.equal(migrated.format, PROJECT_FORMAT);
   assert.deepEqual(migrated.objects[0], { id: "door-001", category: "doors", label: "D-105" });
-  assert.deepEqual(migrated.observations, []);
+  assert.deepEqual(migrated.notes, []);
   assert.deepEqual(validateSidecar(previous), migrated);
 });
 
-test("v3 projects migrate to v4 without changing object or evidence identity", () => {
+test("v3 projects migrate to v5 and convert evidence text into notes", () => {
   const previous = validProject();
-  previous.format = PREVIOUS_PROJECT_FORMAT;
+  previous.format = PROJECT_V3_FORMAT;
   previous.objects = [{ id: "door-001", type: "Door", label: "D-105" }];
+  delete previous.notes;
+  previous.observations = [];
   previous.observations.push({
     id: "observation-001",
     objectId: "door-001",
@@ -182,12 +186,23 @@ test("v3 projects migrate to v4 without changing object or evidence identity", (
   const migrated = migrateProjectV3(previous);
   assert.equal(migrated.format, PROJECT_FORMAT);
   assert.deepEqual(migrated.objects[0], { id: "door-001", category: "doors", label: "D-105" });
-  assert.equal(migrated.observations[0].id, "observation-001");
+  assert.deepEqual(migrated.notes[0], {
+    id: "note-001",
+    scope: "occurrence",
+    objectId: null,
+    occurrenceId: "occurrence-001",
+    text: "Clear width: 900 mm",
+    createdAt: "2026-09-30T00:00:00.000Z",
+    updatedAt: "2026-09-30T00:00:00.000Z",
+  });
   assert.deepEqual(validateSidecar(previous), migrated);
 });
 
-test("v4 observations retain exact object and source-occurrence identity", () => {
+test("v4 observations migrate into ordinary occurrence notes", () => {
   const project = validProject();
+  project.format = PREVIOUS_PROJECT_FORMAT;
+  delete project.notes;
+  project.observations = [];
   project.observations.push({
     id: "observation-001",
     objectId: "door-001",
@@ -199,11 +214,74 @@ test("v4 observations retain exact object and source-occurrence identity", () =>
     createdAt: "2026-09-30T00:00:00.000Z",
     updatedAt: "2026-09-30T01:00:00.000Z",
   });
-  assert.deepEqual(validateSidecar(project).observations, project.observations);
+  const migrated = migrateProjectV4(project);
+  assert.equal(migrated.notes[0].scope, "occurrence");
+  assert.equal(migrated.notes[0].occurrenceId, "occurrence-001");
+  assert.equal(migrated.notes[0].text, "Clear width: 900 mm");
+  assert.deepEqual(validateSidecar(project), migrated);
 });
 
-test("observations fail closed on unknown or mismatched source identity", () => {
+test("v5 validates project, object, and occurrence notes", () => {
+  const project = validProject();
+  project.notes.push({
+    id: "note-001",
+    scope: "project",
+    objectId: null,
+    occurrenceId: null,
+    text: "Check the issue date.",
+    createdAt: "2026-10-07T00:00:00.000Z",
+    updatedAt: "2026-10-07T00:00:00.000Z",
+  }, {
+    id: "note-002",
+    scope: "object",
+    objectId: "door-001",
+    occurrenceId: null,
+    text: "Confirm the fire rating.",
+    createdAt: "2026-10-07T00:00:00.000Z",
+    updatedAt: "2026-10-07T00:00:00.000Z",
+  }, {
+    id: "note-003",
+    scope: "occurrence",
+    objectId: null,
+    occurrenceId: "occurrence-003",
+    text: "This unlinked mark also accepts a note.",
+    createdAt: "2026-10-07T00:00:00.000Z",
+    updatedAt: "2026-10-07T00:00:00.000Z",
+  });
+  assert.deepEqual(validateSidecar(project).notes, project.notes);
+});
+
+test("v5 notes fail closed on invalid or mixed targets", () => {
+  const unknownObject = validProject();
+  unknownObject.notes.push({
+    id: "note-001",
+    scope: "object",
+    objectId: "object-999",
+    occurrenceId: null,
+    text: "Unknown target",
+    createdAt: "2026-10-07T00:00:00.000Z",
+    updatedAt: "2026-10-07T00:00:00.000Z",
+  });
+  assert.throws(() => validateSidecar(unknownObject), /unknown object/);
+
+  const mixedTarget = validProject();
+  mixedTarget.notes.push({
+    id: "note-001",
+    scope: "occurrence",
+    objectId: "door-001",
+    occurrenceId: "occurrence-001",
+    text: "Mixed target",
+    createdAt: "2026-10-07T00:00:00.000Z",
+    updatedAt: "2026-10-07T00:00:00.000Z",
+  });
+  assert.throws(() => validateSidecar(mixedTarget), /cannot also reference an object/);
+});
+
+test("legacy observations fail closed on unknown or mismatched source identity", () => {
   const unknownSource = validProject();
+  unknownSource.format = PREVIOUS_PROJECT_FORMAT;
+  delete unknownSource.notes;
+  unknownSource.observations = [];
   unknownSource.observations.push({
     id: "observation-001",
     objectId: "door-001",
@@ -218,6 +296,9 @@ test("observations fail closed on unknown or mismatched source identity", () => 
   assert.throws(() => validateSidecar(unknownSource), /unknown occurrence/);
 
   const objectLevelObservation = validProject();
+  objectLevelObservation.format = PREVIOUS_PROJECT_FORMAT;
+  delete objectLevelObservation.notes;
+  objectLevelObservation.observations = [];
   objectLevelObservation.observations.push({
     ...unknownSource.observations[0],
     occurrenceId: null,

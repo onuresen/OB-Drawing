@@ -1,9 +1,10 @@
-import { EVIDENCE_KINDS, REVIEW_STATES } from "./evidence-model.mjs";
+import { NOTE_SCOPES } from "./note-model.mjs";
 import { DEFAULT_OBJECT_CATEGORY, isObjectCategoryKey } from "./category-catalog.mjs";
 
-export const PROJECT_FORMAT = "objdraw-project-v4";
+export const PROJECT_FORMAT = "objdraw-project-v5";
+export const PREVIOUS_PROJECT_FORMAT = "objdraw-project-v4";
 export const RENAMED_PROJECT_FORMAT = "obd-project-v4";
-export const PREVIOUS_PROJECT_FORMAT = "obd-project-v3";
+export const PROJECT_V3_FORMAT = "obd-project-v3";
 export const MULTI_DOCUMENT_PROJECT_FORMAT = "obd-project-v2";
 export const LEGACY_SIDECAR_FORMAT = "obd-object-layer-v1";
 export const SIDECAR_FORMAT = PROJECT_FORMAT;
@@ -14,6 +15,7 @@ const DOCUMENT_ID_PATTERN = /^document-\d+$/;
 const LEGACY_DOOR_ID_PATTERN = /^door-\d+$/;
 const OBJECT_ID_PATTERN = /^(?:door|object)-\d+$/;
 const OCCURRENCE_ID_PATTERN = /^occurrence-\d+$/;
+const NOTE_ID_PATTERN = /^note-\d+$/;
 const OBSERVATION_ID_PATTERN = /^observation-\d+$/;
 const SUPPORTED_GEOMETRY_TYPES = new Set(["rectangle", "ellipse", "polygon"]);
 const BOUNDS_EPSILON = 1e-9;
@@ -157,7 +159,7 @@ function validateProject(value) {
   requireCondition(Array.isArray(value.documents) && value.documents.length > 0, "Documents must be a non-empty array.");
   requireCondition(Array.isArray(value.objects), "Objects must be an array.");
   requireCondition(Array.isArray(value.occurrences), "Occurrences must be an array.");
-  requireCondition(Array.isArray(value.observations), "Observations must be an array.");
+  requireCondition(Array.isArray(value.notes), "Notes must be an array.");
 
   const documentIds = validateUniqueIds(value.documents, DOCUMENT_ID_PATTERN, "document");
   const documentsById = new Map();
@@ -196,24 +198,21 @@ function validateProject(value) {
     occurrencesById.set(occurrence.id, occurrence);
   }
 
-  validateUniqueIds(value.observations, OBSERVATION_ID_PATTERN, "observation");
-  for (const observation of value.observations) {
-    requireCondition(objectIds.has(observation.objectId), `${observation.id} links to an unknown object.`);
-    requireCondition(typeof observation.topic === "string" && observation.topic.trim(), `${observation.id} requires a topic.`);
-    requireCondition(typeof observation.value === "string" && observation.value.trim(), `${observation.id} requires a value or note.`);
-    requireCondition(EVIDENCE_KINDS.includes(observation.evidenceKind), `${observation.id} has an unsupported evidence kind.`);
-    requireCondition(REVIEW_STATES.includes(observation.reviewState), `${observation.id} has an unsupported review state.`);
-    requireCondition(typeof observation.createdAt === "string" && !Number.isNaN(Date.parse(observation.createdAt)), `${observation.id} has an invalid createdAt timestamp.`);
-    requireCondition(typeof observation.updatedAt === "string" && !Number.isNaN(Date.parse(observation.updatedAt)), `${observation.id} has an invalid updatedAt timestamp.`);
-    requireCondition(Date.parse(observation.updatedAt) >= Date.parse(observation.createdAt), `${observation.id} updatedAt precedes createdAt.`);
-    if (observation.occurrenceId === null) {
-      requireCondition(observation.evidenceKind === "assumption", `${observation.id} observation requires an exact source occurrence.`);
+  validateUniqueIds(value.notes, NOTE_ID_PATTERN, "note");
+  for (const note of value.notes) {
+    requireCondition(NOTE_SCOPES.includes(note.scope), `${note.id} has an unsupported note scope.`);
+    requireCondition(typeof note.text === "string" && note.text.trim(), `${note.id} requires text.`);
+    requireCondition(typeof note.createdAt === "string" && !Number.isNaN(Date.parse(note.createdAt)), `${note.id} has an invalid createdAt timestamp.`);
+    requireCondition(typeof note.updatedAt === "string" && !Number.isNaN(Date.parse(note.updatedAt)), `${note.id} has an invalid updatedAt timestamp.`);
+    requireCondition(Date.parse(note.updatedAt) >= Date.parse(note.createdAt), `${note.id} updatedAt precedes createdAt.`);
+    if (note.scope === "project") {
+      requireCondition(note.objectId === null && note.occurrenceId === null, `${note.id} project note cannot reference an object or occurrence.`);
+    } else if (note.scope === "object") {
+      requireCondition(objectIds.has(note.objectId), `${note.id} links to an unknown object.`);
+      requireCondition(note.occurrenceId === null, `${note.id} object note cannot reference an occurrence.`);
     } else {
-      requireCondition(occurrenceIds.has(observation.occurrenceId), `${observation.id} links to an unknown occurrence.`);
-      requireCondition(
-        occurrencesById.get(observation.occurrenceId).objectId === observation.objectId,
-        `${observation.id} source occurrence belongs to a different object.`,
-      );
+      requireCondition(note.objectId === null, `${note.id} occurrence note cannot also reference an object.`);
+      requireCondition(occurrenceIds.has(note.occurrenceId), `${note.id} links to an unknown occurrence.`);
     }
   }
 
@@ -234,18 +233,50 @@ function validateProject(value) {
       page: occurrence.page,
       geometry: cloneGeometry(occurrence.geometry),
     })),
-    observations: value.observations.map((observation) => ({
-      id: observation.id,
-      objectId: observation.objectId,
-      occurrenceId: observation.occurrenceId,
-      topic: observation.topic.trim(),
-      value: observation.value.trim(),
-      evidenceKind: observation.evidenceKind,
-      reviewState: observation.reviewState,
-      createdAt: observation.createdAt,
-      updatedAt: observation.updatedAt,
+    notes: value.notes.map((note) => ({
+      id: note.id,
+      scope: note.scope,
+      objectId: note.objectId ?? null,
+      occurrenceId: note.occurrenceId ?? null,
+      text: note.text.trim(),
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
     })),
   };
+}
+
+function notesFromLegacyObservations(value) {
+  const observations = value.observations ?? [];
+  requireCondition(Array.isArray(observations), "Observations must be an array.");
+  const objectIds = new Set(value.objects.map((object) => object.id));
+  const occurrencesById = new Map(value.occurrences.map((occurrence) => [occurrence.id, occurrence]));
+  validateUniqueIds(observations, OBSERVATION_ID_PATTERN, "observation");
+  return observations.map((observation, index) => {
+    requireCondition(objectIds.has(observation.objectId), `${observation.id} links to an unknown object.`);
+    requireCondition(typeof observation.topic === "string" && observation.topic.trim(), `${observation.id} requires a topic.`);
+    requireCondition(typeof observation.value === "string" && observation.value.trim(), `${observation.id} requires a value or note.`);
+    requireCondition(["observation", "assumption"].includes(observation.evidenceKind), `${observation.id} has an unsupported evidence kind.`);
+    requireCondition(["unreviewed", "needs-confirmation", "confirmed", "rejected"].includes(observation.reviewState), `${observation.id} has an unsupported review state.`);
+    requireCondition(typeof observation.createdAt === "string" && !Number.isNaN(Date.parse(observation.createdAt)), `${observation.id} has an invalid createdAt timestamp.`);
+    requireCondition(typeof observation.updatedAt === "string" && !Number.isNaN(Date.parse(observation.updatedAt)), `${observation.id} has an invalid updatedAt timestamp.`);
+    requireCondition(Date.parse(observation.updatedAt) >= Date.parse(observation.createdAt), `${observation.id} updatedAt precedes createdAt.`);
+    if (observation.occurrenceId !== null) {
+      const occurrence = occurrencesById.get(observation.occurrenceId);
+      requireCondition(occurrence, `${observation.id} links to an unknown occurrence.`);
+      requireCondition(occurrence.objectId === observation.objectId, `${observation.id} source occurrence belongs to a different object.`);
+    } else {
+      requireCondition(observation.evidenceKind === "assumption", `${observation.id} observation requires an exact source occurrence.`);
+    }
+    return {
+      id: `note-${String(index + 1).padStart(3, "0")}`,
+      scope: observation.occurrenceId ? "occurrence" : "object",
+      objectId: observation.occurrenceId ? null : observation.objectId,
+      occurrenceId: observation.occurrenceId,
+      text: `${observation.topic.trim()}: ${observation.value.trim()}`,
+      createdAt: observation.createdAt,
+      updatedAt: observation.updatedAt,
+    };
+  });
 }
 
 export async function sha256Hex(data) {
@@ -290,7 +321,7 @@ export function migrateLegacySidecar(value) {
         bounds: { ...occurrence.bounds },
       },
     })),
-    observations: [],
+    notes: [],
   });
 }
 
@@ -305,13 +336,13 @@ export function migrateProjectV2(value) {
       category: DEFAULT_OBJECT_CATEGORY,
       label: object.label,
     })),
-    observations: [],
+    notes: [],
   });
 }
 
 export function migrateProjectV3(value) {
   requireCondition(isRecord(value), "The project root must be an object.");
-  requireCondition(value.format === PREVIOUS_PROJECT_FORMAT, `Expected ${PREVIOUS_PROJECT_FORMAT}.`);
+  requireCondition(value.format === PROJECT_V3_FORMAT, `Expected ${PROJECT_V3_FORMAT}.`);
   return validateProject({
     ...value,
     format: PROJECT_FORMAT,
@@ -320,6 +351,20 @@ export function migrateProjectV3(value) {
       category: DEFAULT_OBJECT_CATEGORY,
       label: object.label,
     })),
+    notes: notesFromLegacyObservations(value),
+  });
+}
+
+export function migrateProjectV4(value) {
+  requireCondition(isRecord(value), "The project root must be an object.");
+  requireCondition(
+    [PREVIOUS_PROJECT_FORMAT, RENAMED_PROJECT_FORMAT].includes(value.format),
+    `Expected ${PREVIOUS_PROJECT_FORMAT} or ${RENAMED_PROJECT_FORMAT}.`,
+  );
+  return validateProject({
+    ...value,
+    format: PROJECT_FORMAT,
+    notes: notesFromLegacyObservations(value),
   });
 }
 
@@ -329,7 +374,7 @@ export function createSidecar({
   document,
   objects,
   occurrences,
-  observations = [],
+  notes = [],
   exportedAt = new Date().toISOString(),
 }) {
   const projectDocuments = documents ?? (document ? [document] : []);
@@ -347,7 +392,7 @@ export function createSidecar({
       page: occurrence.page,
       geometry: geometryFromRuntimeOccurrence(occurrence),
     })),
-    observations: observations.map((observation) => ({ ...observation })),
+    notes: notes.map((note) => ({ ...note })),
   });
 }
 
@@ -356,10 +401,10 @@ export function validateSidecar(value) {
   if (value.format === LEGACY_SIDECAR_FORMAT) {
     return migrateLegacySidecar(value);
   }
-  if (value.format === RENAMED_PROJECT_FORMAT) {
-    return validateProject({ ...value, format: PROJECT_FORMAT });
+  if ([PREVIOUS_PROJECT_FORMAT, RENAMED_PROJECT_FORMAT].includes(value.format)) {
+    return migrateProjectV4(value);
   }
-  if (value.format === PREVIOUS_PROJECT_FORMAT) {
+  if (value.format === PROJECT_V3_FORMAT) {
     return migrateProjectV3(value);
   }
   if (value.format === MULTI_DOCUMENT_PROJECT_FORMAT) {

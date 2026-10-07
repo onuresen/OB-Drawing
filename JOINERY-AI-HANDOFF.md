@@ -4,7 +4,7 @@
 
 `objdraw-joinery-ai-handoff-v1` packages one selected Door or Window object for a user-controlled external AI workflow. It does not convert Object-Centric Drawing fields into a Joinery Configurator composition and does not call an AI service.
 
-The package replaces the manual work of taking and organizing screenshots one by one. Object-Centric Drawing already knows which plan, elevation, schedule, section, detail, and reviewed notes belong to the same physical object, so it exports that evidence for use with the current prompt and schema maintained by Joinery Configurator.
+The package replaces the manual work of taking and organizing screenshots one by one. Object-Centric Drawing already knows which plan, elevation, schedule, section, detail, and notes belong to the same physical object, so it exports that evidence for use with the current prompt and schema maintained by Joinery Configurator.
 
 ## Package layout
 
@@ -22,7 +22,7 @@ representations/
 
 - `AI-HANDOFF.md` tells the external AI to treat every image as evidence about one physical object and return one raw Configurator JSON object.
 - `handoff.json` maps every image back to its exact Object-Centric Drawing occurrence, source document, and page.
-- `manifest.objdraw-evidence.json` retains the selected subject, document fingerprints, typed geometry, and governed observations.
+- `manifest.objdraw-evidence.json` retains the selected subject, document fingerprints, typed geometry, and relevant object or occurrence notes.
 - `handoff.json` names the expected prompt file and records that it is not included. Obtain `JoineryConfigurator_Photo_to_JSON_Prompt.md` from the Joinery Configurator repository so its schema remains under one authority.
 - `contact-sheet.png` gives an AI one marked overview of all available representations.
 - `clean/` preserves unobstructed source crops for visual interpretation.

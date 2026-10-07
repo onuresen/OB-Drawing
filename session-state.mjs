@@ -27,23 +27,21 @@ export function objectLayerSignature(source) {
       points: occurrence.points.map((point) => ({ x: point.x, y: point.y })),
     } : {}),
   }));
-  const observations = (source.observations ?? []).map((observation) => ({
-    id: observation.id,
-    objectId: observation.objectId,
-    occurrenceId: observation.occurrenceId ?? null,
-    topic: observation.topic,
-    value: observation.value,
-    evidenceKind: observation.evidenceKind,
-    reviewState: observation.reviewState,
-    createdAt: observation.createdAt,
-    updatedAt: observation.updatedAt,
+  const notes = (source.notes ?? []).map((note) => ({
+    id: note.id,
+    scope: note.scope,
+    objectId: note.objectId ?? null,
+    occurrenceId: note.occurrenceId ?? null,
+    text: note.text,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
   }));
 
   return JSON.stringify({
     documents,
     objects,
     occurrences,
-    observations,
+    notes,
   });
 }
 

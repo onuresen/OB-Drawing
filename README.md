@@ -11,8 +11,9 @@ Object-Centric Drawing is a local-first browser prototype for navigating archite
 - Links occurrences to explicit category-neutral objects; matching labels never merge identity automatically.
 - Navigates an object's representations across PDFs through Object Lens, Representation Board, and Drawing Set Map views.
 - Separates an object browser from a properties pane. The browser groups by category, page or not at all, filters to the current page, and searches. The drawing can show labels, hide categories, dim or hide other objects, or hide all marks.
+- Keeps editable notes with the whole project, one object, or one exact occurrence.
 - Keyboard: step through one object's places with `[` `]`, go back and forward through jumps with Alt + arrows, search objects with `/`. Press `?` for the full list.
-- Saves the object and evidence layer as portable versioned JSON beside the unchanged PDFs.
+- Saves the object and note layer as portable versioned JSON beside the unchanged PDFs.
 - Exports target-neutral evidence packages and an optional Door/Window Joinery AI handoff pack.
 
 The mechanics have passed a bounded round-trip test. The product-value hypothesis still needs validation on a coordinated drawing set with owner-confirmed object identities; see [ACCEPTANCE-2026-09-29.md](ACCEPTANCE-2026-09-29.md).
@@ -49,7 +50,7 @@ The supplied server binds only to loopback and provides the JavaScript-module MI
 
 ## Save and restore
 
-Export an `.objdraw.json` project beside its source PDFs. It stores fingerprints, document metadata, objects, occurrences, geometry, and governed evidence—not PDF bytes. A project can be imported before or after its PDFs are selected; identical renamed files can be matched by fingerprint.
+Export an `.objdraw.json` project beside its source PDFs. It stores fingerprints, document metadata, objects, occurrences, geometry, and notes—not PDF bytes. A project can be imported before or after its PDFs are selected; identical renamed files can be matched by fingerprint.
 
 ## Development
 

@@ -28,12 +28,10 @@ export function canCreateJoineryAiHandoff(subject) {
 
 export function createJoineryAiInstructions({ evidencePackage, handoffIndex }) {
   const subject = evidencePackage.subjects[0];
-  const observations = evidencePackage.observations ?? [];
-  const observationLines = observations.length
-    ? observations.map((entry) => (
-      `- ${entry.topic}: ${entry.value} [${entry.evidenceKind}; ${entry.reviewState}; source ${entry.occurrenceId ?? "whole object"}]`
-    ))
-    : ["- No reviewed notes were recorded in Object-Centric Drawing. Use only visible drawing evidence and state uncertainty conservatively."];
+  const notes = evidencePackage.notes ?? [];
+  const noteLines = notes.length
+    ? notes.map((entry) => `- ${entry.text} [${entry.scope}; ${entry.occurrenceId ?? "whole object"}]`)
+    : ["- No notes were recorded in Object-Centric Drawing. Use only visible drawing evidence and state uncertainty conservatively."];
   const representationLines = handoffIndex.representations.items.map((item) => (
     `- ${item.occurrenceId}: ${item.documentName}, page ${item.page}; marked ${item.markedPath}; clean ${item.cleanPath}`
   ));
@@ -55,7 +53,7 @@ Create one Joinery Configurator JSON composition for the single physical object 
 2. Treat every representation below as evidence about the same physical object. Do not create one JSON per image.
 3. Use the marked images to locate the object and the clean images to inspect its geometry, dimensions, schedule text, operation, panels, frame, and other visible properties.
 4. Cross-check plan, elevation, schedule, section, detail, and notes. Prefer explicit dimensions and labels over visual estimation.
-5. Treat Object-Centric Drawing observations and assumptions according to their recorded kind and review state. Rejected evidence must not become a target value.
+5. Treat Object-Centric Drawing notes as human context, not verified target values. Check each note against the visible representations.
 6. Do not invent hidden geometry or manufacturer/Revit family mappings. When evidence is insufficient, use the most conservative schema-valid representation and leave optional values empty or null where the schema permits.
 7. Return exactly one raw JSON object that can be imported into Joinery Configurator. Do not wrap the JSON in Markdown fences.
 
@@ -65,9 +63,9 @@ ${representationLines.join("\n")}
 
 The combined marked overview is \`${handoffIndex.representations.contactSheetPath}\`.
 
-## Object-Centric Drawing evidence notes
+## Object-Centric Drawing notes
 
-${observationLines.join("\n")}
+${noteLines.join("\n")}
 
 ## Provenance
 
@@ -81,7 +79,7 @@ export function createJoineryAiHandoffIndex({
   unavailableRepresentations = [],
   exportedAt = new Date().toISOString(),
 }) {
-  requireCondition(evidencePackage?.format === "objdraw-object-evidence-v1", "A valid Object-Centric Drawing evidence package is required.");
+  requireCondition(evidencePackage?.format === "objdraw-object-evidence-v2", "A valid Object-Centric Drawing evidence package is required.");
   requireCondition(Array.isArray(evidencePackage.subjects) && evidencePackage.subjects.length === 1, "A Joinery AI handoff requires exactly one subject.");
   const subject = evidencePackage.subjects[0];
   const openingType = joineryOpeningType(subject.category);

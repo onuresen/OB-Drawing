@@ -31,7 +31,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group Q — Drawing Set Map with expandable PDF groups, page density, selected-Door coverage, missing-source state, and exact page navigation.
 - [x] Group R0 — portable Object Evidence Package contract, physical-instance/configuration separation, explicit relationships, and fail-closed validation.
 - [x] Group R1 — user-facing Export Set with validated JSON manifests, optional marked PNG previews, portable ZIP packaging, and missing-source accounting.
-- [x] Group R2 — source-linked observations, review states, assumptions, and unresolved conflicts.
+- [x] Group R2 — historical governed-evidence experiment, superseded and removed by Group AE.
 - [x] Group R3 — sorted large-format Representation Board, exact marked-page navigation, and compact brand/action polish.
 - [x] Group R4 — category-neutral objects, searchable grouped physical-model catalogue, and lossless v1/v2/v3-to-v4 migration.
 - [ ] Group S — deferred; AI-assisted interpretation is outside the current PDF-object proof.
@@ -41,7 +41,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [ ] Group U — deferred until a concrete CDI exchange workflow is selected.
 - [ ] Group V — deferred until the core PDF-object workflow is proven on a coordinated drawing set.
 - [x] Cleanup A — on-demand Drawing Set Map, one Representation Board gallery, consolidated object exports, and pruned speculative roadmap.
-- [x] Cleanup B — optional collapsed Evidence notes preserving governed v4 data without occupying the primary object workflow.
+- [x] Cleanup B — historical Evidence-notes presentation cleanup, superseded and removed by Group AE.
 - [x] Cleanup C — representation SVG, thumbnail, evidence-preview, and Joinery contact-sheet rendering extracted from the application controller without changing behavior or data contracts.
 - [x] Group W — PDF.js selectable text layer with standard copy selection, render cancellation, zoom alignment, and explicit marking-mode priority; OCR remains out of scope.
 - [x] Group X — active-PDF text search with `Ctrl+F`, session-only page indexing, exact result navigation, visible-page highlights, and no OCR or drawing-set index.
@@ -51,6 +51,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AB — view options: group by category / page / none, natural label order, this-page-only filter, labels on marks (L), hide all marks (H), step through an object's places ([ ]), back/forward through jumps (Alt + arrows), object search (/), fit width (W), and Esc to clear the selection. Viewer preferences are remembered per browser.
 - [x] Group AC — view rotation (R / Shift+R, per PDF, saved geometry never rotates) and a lazily rendered page thumbnail strip (T) with mark counts, current page, and pages holding the selected object. The toolbar wraps by its own width.
 - [ ] Group AD — automated browser smoke checks using a stable PDF exported from the safe CDI playground Revit model; keep Revit out of the test runtime and repository, then cover rendering, embedded-text search, explicit object linking, project round-trip, geometry stability, project replacement, multi-document navigation, and responsive overflow in Chromium.
+- [x] Group AE — one flexible Notes system with editable project, object, and occurrence scopes; `objdraw-project-v5`, undo/redo and dirty tracking, note-aware object packages and Joinery handoff, and v3/v4 evidence-text migration. The earlier observation/assumption, review-state, and conflict model was removed rather than kept beside Notes.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons, a level filter in the Revit export, and using `.objdraw-revit.json` IDs in the app.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -82,7 +83,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `pdf-search.mjs` | Pure page-text indexing, case-insensitive match mapping back to PDF.js text divs, and wrapped result navigation. |
 | `drawing-map.mjs` | Pure drawing-set page grouping, occurrence-density, object-coverage, and summary helpers. |
 | `object-evidence-package.mjs` | Pure portable evidence-package selection, physical-instance/configuration relationships, cloning, and validation. |
-| `evidence-model.mjs` | Pure governed observation creation, review transitions, removal, conflict derivation, and summaries. |
+| `note-model.mjs` | Pure project, object, and occurrence note creation, editing, removal, and stable identity. |
 | `evidence-export.mjs` | Pure evidence filename and companion preview-asset index helpers. |
 | `joinery-ai-handoff.mjs` | Pure Joinery AI eligibility, handoff index, provenance, and AI instruction builder. |
 | `zip-store.mjs` | Minimal dependency-free stored-ZIP writer for portable evidence bundles. |
@@ -99,7 +100,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `tests/pdf-search.test.mjs` | Node tests for multi-page extraction, cross-span phrases, ordered matches, progress, and result wrapping. |
 | `tests/drawing-map.test.mjs` | Node tests for page grouping, density levels, selected-object coverage, and source summaries. |
 | `tests/object-evidence-package.test.mjs` | Node tests for explicit export selection, identity separation, configuration links, and fail-closed source validation. |
-| `tests/evidence-model.test.mjs` | Node tests for source requirements, immutable content, review transitions, removal, and conflict derivation. |
+| `tests/note-model.test.mjs` | Node tests for note identity, scope requirements, editable text, and removal. |
 | `tests/evidence-export.test.mjs` | Node tests for safe export names and included/unavailable asset accounting. |
 | `tests/joinery-ai-handoff.test.mjs` | Node tests for eligibility, exact provenance, fail-closed packaging, instructions, and prompt drift. |
 | `tests/zip-store.test.mjs` | Node tests for CRC-32, stored-ZIP structure, and safe archive paths. |
@@ -110,7 +111,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `serve.py` | Loopback-only static server with explicit JavaScript-module MIME types. |
 | `start-server.cmd` | Local HTTP launcher on port `8765`. |
 | `DATA-MODEL.md` | Intended object-layer contract. |
-| `OBJECT-EVIDENCE-PACKAGE.md` | Portable `objdraw-object-evidence-v1` contract and ecosystem adapter boundary. |
+| `OBJECT-EVIDENCE-PACKAGE.md` | Portable `objdraw-object-evidence-v2` contract and ecosystem adapter boundary. |
 | `JOINERY-AI-HANDOFF.md` | Joinery AI bundle layout, use flow, prompt-version, and trust boundary. |
 | `DECISIONS.md` | Durable product and architecture decisions. |
 | `ACCEPTANCE-2026-09-29.md` | Runtime five-Door evidence, fixes, limitations, and remaining proof. |
@@ -131,8 +132,8 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - New objects use `object-*`; imported `door-*` identities remain valid and are never rewritten during migration.
 - A visible mark is not identity. Marks remain unlinked until an explicit create/link action.
 - “Mark another occurrence” is an explicit link intent and may assign the selected object automatically.
-- Deleting an object preserves its shapes as unlinked occurrences. Deleting an occurrence does not delete its object. Either deletion is blocked while governed evidence references its target.
-- New project files use `objdraw-project-v4`; legacy `obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, and `obd-project-v4` files migrate in memory and remain importable.
+- Deleting an object preserves its shapes as unlinked occurrences. Deleting an occurrence does not delete its object. Either deletion is blocked while a note directly references its target.
+- New project files use `objdraw-project-v5`; legacy `obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, `obd-project-v4`, and `objdraw-project-v4` files migrate in memory and remain importable.
 - Categories use stable neutral Object-Centric Drawing keys from `category-catalog.mjs`; familiar Revit-style grouping does not make Autodesk API identifiers part of the contract.
 - A project has a non-empty `documents[]` manifest and one valid `activeDocumentId`. Duplicate document IDs and exact duplicate fingerprints are rejected.
 - Every occurrence retains `documentId` at runtime and must reference a page within that document's own page count.
@@ -141,7 +142,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - Project JSON can be imported before its PDFs. Missing files remain visible and can be batch-matched or explicitly relinked by fingerprint.
 - Local PDF sessions and per-document page/zoom/scroll views stay in memory; they are not persisted project content.
 - Switching the active document is view state: it neither enters undo history nor makes the saved project dirty.
-- Detaching a PDF preserves its manifest entry and all evidence. Removing a document is disabled while occurrences reference it.
+- Detaching a PDF preserves its manifest entry, occurrences, and notes. Removing a document is disabled while occurrences reference it.
 - A failed validation or fingerprint comparison must not mutate the active object layer.
 - Direct page entry must work with Enter as well as change/blur.
 - SVG occurrence shapes are keyboard-focusable; Enter or Space selects the occurrence and its Door.
@@ -190,7 +191,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - Drawing Set Map is an on-demand dialog and read-only projection of the governed document and occurrence model. It does not infer object identity or persist map state.
 - Map groups expose every document page, occurrence density, current-page state, selected-Door coverage, and attached or missing source state. Activating a page uses its exact document and page identity.
 - Expanded drawing-map groups are view-only browser state and do not enter history or make the project dirty.
-- `objdraw-project-v4` remains Object-Centric Drawing's editable project source of truth; `objdraw-object-evidence-v1` is a selected, target-neutral export package rather than a replacement project format.
+- `objdraw-project-v5` remains Object-Centric Drawing's editable project source of truth; `objdraw-object-evidence-v2` is a selected, target-neutral export package rather than a replacement project format.
 - Current Object-Centric Drawing objects are physical instances. Reusable configurations remain separate and connect only through an explicit `instanceOf` relationship; duplicate labels never imply that relationship.
 - Evidence packages retain exact source document fingerprints, page identities, and typed geometry, include only referenced documents, and fail closed on unknown or unrepresented subjects.
 - Joinery Configurator and CDI remain downstream adapters. Target-specific fields, AI drafts, and adapter output do not silently enter the neutral project or evidence contract.
@@ -199,15 +200,15 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - `JoineryConfigurator_Photo_to_JSON_Prompt.md` is authoritative in the Joinery Configurator repository. Object-Centric Drawing must not duplicate or silently synchronize it.
 - Handoff export is read-only. It never calls AI, infers Joinery fields, changes project content, enters history, marks the project saved, or stores the downstream response.
 - The selected object's compact Export menu keeps target-neutral JSON, preview ZIP, and eligible adapter packs together without making adapters part of the main workflow.
-- Evidence JSON is available only for a selected object with linked source occurrences and downloads one validated `.objdraw-evidence.json` manifest.
-- Evidence ZIP downloads a stored `.objdraw-evidence.zip` containing `manifest.objdraw-evidence.json`, `assets.json`, and `previews/<occurrence-id>.png` for each attached source that renders successfully.
+- Object JSON is available only for a selected object with linked source occurrences and downloads one validated `.objdraw-evidence.json` manifest.
+- Object ZIP downloads a stored `.objdraw-evidence.zip` containing `manifest.objdraw-evidence.json`, `assets.json`, and `previews/<occurrence-id>.png` for each attached source that renders successfully.
 - Exported previews use the same page-bounded Object Lens framing and add the exact rectangle, ellipse, or polygon mark. Missing or failed sources remain listed in the asset index rather than being hidden.
 - Evidence export is a read-only projection. It does not mark the project saved, enter undo history, persist its preview option, or change attachment/view state.
-- Governed evidence belongs to one exact Door. An `observation` requires one of that Door's exact occurrences; an `assumption` may instead apply to the whole Door.
-- Evidence content and source are immutable after creation. Review state may move among `unreviewed`, `needs-confirmation`, `confirmed`, and `rejected`; explicit removal and review changes are undoable project mutations.
-- Conflicts are derived when non-rejected entries for one Door share a normalized topic but disagree on value. Rejected entries remain traceable and do not contribute to conflicts.
-- Evidence notes are optional and collapsed by default for each newly selected object. The full source/review controls remain available only inside that disclosure, and switching objects closes it.
-- Cleanup B changes presentation only: existing v4 observations, conflict derivation, deletion guards, history, evidence-package output, and legacy migrations remain lossless.
+- Notes use exactly three scopes: project, object, or occurrence. Project notes have no target; object notes use one exact `objectId`; occurrence notes use one exact `occurrenceId` and may target linked or unlinked marks.
+- Notes contain editable free text and timestamps. Add, edit, and delete enter history and saved-state comparison; there are no review states, derived conflicts, assignments, threads, or automatic promotion to governed evidence.
+- The Notes dialog chooses occurrence, object, or project as the initial scope from the current selection, but the user explicitly controls the saved scope.
+- Object deletion is blocked by its object notes. Occurrence deletion is blocked by its occurrence notes. Occurrence notes survive object unlinking because they follow the mark rather than its current object relationship.
+- Import converts v3/v4 observations and assumptions into ordinary notes, retaining their human topic/value text and source scope while intentionally discarding the superseded review/conflict semantics.
 - Source PDFs and object data must not be committed unless the user explicitly approves them.
 
 ## Storage keys
@@ -247,8 +248,8 @@ Then run `start-server.cmd` and check:
 11. Renaming a Door preserves its ID and occurrence links.
 12. Deleting a Door leaves its former occurrences in the unlinked list.
 13. Deleting one occurrence does not delete its Door or sibling occurrences.
-14. Export produces valid `objdraw-project-v4` JSON with categorized objects, `documents[]`, `activeDocumentId`, typed geometry, and governed observations.
-15. Import of a matching v4 project or migrated v1/v2/v3 file restores all IDs, categories, labels, document links, pages, bounds, and available evidence.
+14. Export produces valid `objdraw-project-v5` JSON with categorized objects, `documents[]`, `activeDocumentId`, typed geometry, and notes.
+15. Import of a matching v5 project or migrated v1/v2/v3/v4 file restores all IDs, categories, labels, document links, pages, bounds, and notes.
 16. Import of malformed JSON or an invalid model is rejected without changing the session.
 17. Relinking with a different or revised PDF shows a warning and leaves the project document unattached.
 18. Typing a valid page number and pressing Enter navigates directly to that page.
@@ -278,16 +279,16 @@ Then run `start-server.cmd` and check:
 42. An undersized drag creates no history entry or occurrence, reports retry/zoom guidance, and leaves the original mark target active.
 43. A valid retry creates exactly one occurrence and exits marking mode; `Escape` exits without creating one.
 44. Deleting a middle, last, or only occurrence leaves keyboard focus on the nearest useful surviving control.
-45. Deleting a Door focuses the unlinked-occurrence workflow when evidence was preserved, or the nearest remaining Door when none was linked.
+45. Deleting a Door focuses the unlinked-occurrence workflow when marks were preserved, or the nearest remaining Door when none was linked.
 46. Cross-page Door and occurrence selection announces the chosen identity and destination page after rendering completes.
 47. Undo/redo announces its action and resulting Door/occurrence counts, while canvas focus is restored when the selected rectangle still exists on the page.
 48. Page, fit, history, marking, help, and rectangle-activation controls expose their supported shortcuts through `aria-keyshortcuts`.
 49. `Space` + drag and middle-button drag pan both axes without moving selected occurrences.
 50. `Shift` + wheel pans horizontally, while thresholded `Alt` + wheel changes exactly one page per deliberate gesture.
 51. Fit Width, Fit Page, and 100% render cleanly and show the resulting scale in the toolbar.
-52. V1 migration produces a valid single-document v4 project without changing object or occurrence IDs; v1 and v2 migration initialize an empty observation collection.
+52. V1 migration produces a valid single-document v5 project without changing object or occurrence IDs; v1 and v2 migration initialize an empty note collection.
 53. Multi-document validation accepts one Door across PDFs and rejects duplicate fingerprints, missing document references, and per-document page overflow.
-54. Importing a valid multi-document project restores all evidence before PDFs are attached and reports every missing source.
+54. Importing a valid multi-document project restores all objects, occurrences, and notes before PDFs are attached and reports every missing source.
 55. Batch-added PDFs match imported manifest entries by fingerprint; renamed identical files are accepted and duplicates are not added twice.
 56. Switching documents restores each PDF's page, zoom mode, and scroll position for the current browser session.
 57. Selecting an occurrence on another PDF activates its document and page, or shows a relink state without losing selection when that PDF is missing.
@@ -311,20 +312,20 @@ Then run `start-server.cmd` and check:
 75. Two physical subjects with the same label remain distinct and acquire no implicit configuration relationship.
 76. A configuration enters the package only through an explicit, category-compatible `instanceOf` relationship.
 77. Unknown or unrepresented subjects, invalid relationship targets, invalid pages, and invalid geometry fail closed.
-78. Creating or validating an evidence package does not change `objdraw-project-v4`, local PDF attachment state, browser storage, or object history.
+78. Creating or validating an evidence package does not change `objdraw-project-v5`, local PDF attachment state, browser storage, or object history.
 79. Selecting an object with linked representations enables its compact Export menu options; an object without representations cannot be exported.
-80. Evidence JSON produces a valid `objdraw-object-evidence-v1` document containing only the selected physical subject and its referenced evidence.
+80. Evidence JSON produces a valid `objdraw-object-evidence-v2` document containing only the selected physical subject, referenced drawing evidence, and relevant object or occurrence notes.
 81. Evidence ZIP produces a readable archive containing the identical manifest, one asset index, and one PNG per successfully rendered attached occurrence.
 82. Rectangle, ellipse, and polygon preview assets retain page context and show the exact selected evidence geometry.
 83. Missing PDFs and render failures remain explicit in `assets.json` without blocking export of the manifest or other previews.
 84. Evidence export leaves project dirty state, undo/redo history, current document/page, selection, and attachments unchanged.
-85. Creating an `observation` requires an exact linked occurrence, while an `assumption` can be created for the whole selected Door.
-86. Adding, reviewing, rejecting, or explicitly removing evidence updates saved state and can be undone and redone without changing immutable entry content.
-87. Different active values under the same normalized topic show an unresolved conflict; rejecting one conflicting entry removes it from the derived conflict without deleting it.
-88. Door and occurrence deletion are blocked while governed evidence references them, preventing silent provenance loss.
-89. V1 and v2 files migrate to valid v4 projects with empty observations, while v3 migration preserves every evidence ID, source, state, and timestamp.
-90. A selected-subject evidence package contains only that subject's governed evidence and translates project `objectId` to package `subjectId` without changing source occurrence identity.
-91. The Evidence & review controls stack without horizontal overflow in the compact object panel.
+85. Notes can be created for the project, selected object, or selected occurrence, including an unlinked mark.
+86. Adding, editing, or deleting a note updates saved state and can be undone and redone.
+87. Project notes have no target, object notes reference one valid object, and occurrence notes reference one valid occurrence without duplicating object identity.
+88. Object and occurrence deletion are blocked while notes directly reference them, preventing silent note loss.
+89. V1 and v2 files migrate to valid v5 projects with empty notes, while v3/v4 evidence text becomes ordinary object or occurrence notes.
+90. A selected-subject evidence package contains only that subject's object and occurrence notes and translates project `objectId` to package `subjectId` without changing occurrence identity.
+91. The Notes dialog remains usable without horizontal overflow at compact viewport sizes.
 92. A selected object with representations enables `Show all` and opens a large Representation Board containing every linked occurrence.
 93. Representation Board cards are ordered by project PDF order, then page, then occurrence identity, independently of creation order.
 94. Activating a board card closes the board, opens its exact PDF/page, and selects the marked occurrence.
@@ -332,10 +333,10 @@ Then run `start-server.cmd` and check:
 96. The `Object-Centric Drawing` header and short Mark, Delete, Export, and Create actions remain legible without horizontal clipping at supported widths.
 97. The creation form searches a grouped catalogue of at least 70 stable physical-model categories and preserves category selection when possible.
 98. New objects receive neutral `object-*` identities while legacy `door-*` identities remain valid after import.
-99. Changing an object's category or label preserves its identity, occurrences, and governed evidence links.
+99. Changing an object's category or label preserves its identity, occurrences, and object-note links.
 100. Duplicate labels remain separate identities even when the objects use the same category.
 101. V1, v2, and v3 projects migrate to v4 with legacy Doors assigned `category: "doors"` and no ID rewriting.
-102. Object lists, marking guidance, evidence review, export, and status announcements use category-neutral language.
+102. Object lists, marking guidance, notes, export, and status announcements use category-neutral language.
 103. A Door or Window with at least one linked representation enables `AI pack`; other categories remain explicitly unsupported without acquiring guessed Joinery meaning.
 104. The Joinery AI ZIP contains `AI-HANDOFF.md`, `handoff.json`, the validated Object-Centric Drawing manifest, clean and marked images, and a combined contact sheet; the index references the separate Configurator prompt authority.
 105. Every image in the handoff index retains exact occurrence, document, page, and subject provenance; every unavailable occurrence retains a bounded reason.
@@ -345,11 +346,11 @@ Then run `start-server.cmd` and check:
 109. Creating a Joinery AI pack leaves project data, saved state, history, attachments, view state, and source PDFs unchanged.
 110. The narrow object rail contains no representation thumbnails or permanent Drawing Set Map; both open in their dedicated dialogs.
 111. The Drawing Set Map dialog closes after exact page navigation and remains usable without changing project state.
-112. The compact Export menu exposes Evidence JSON, Evidence ZIP, and the eligible Joinery AI pack without duplicating export controls.
-113. Linked occurrences remain deletable from the Representation Board after removal of the inline gallery, subject to the existing evidence-provenance guard.
-114. Evidence notes occupy one collapsed summary row by default and do not expose the advanced form until the user opens it.
-115. Switching selected objects closes Evidence notes and updates its compact saved/conflict count for the new object.
-116. Existing v4 observations remain editable, reviewable, exportable, and losslessly round-trippable without a schema migration.
+112. The compact Export menu exposes Object JSON, Object ZIP, and the eligible Joinery AI pack without duplicating export controls.
+113. Linked occurrences remain deletable from the Representation Board after removal of the inline gallery, subject to the note-reference guard.
+114. Notes open from one toolbar action rather than occupying the object properties pane.
+115. Opening Notes chooses occurrence, object, or project scope from the current selection and still allows an explicit scope change.
+116. Existing v3/v4 observation and assumption text imports as editable ordinary notes; the superseded review and conflict model does not remain in the runtime or new project format.
 117. Canvas occurrences, Representation Board thumbnails, evidence previews, and Joinery contact sheets render through `representation-rendering.mjs` without changing geometry, source identity, or project state.
 118. Cleanup C introduces no storage key, schema, UI, or interaction change; the single `app.js` module entry continues to load the extracted renderer transitively.
 119. A digitally generated PDF page exposes aligned selectable text that can be copied with standard browser commands at Fit, Fit Width, 100%, and stepped zoom levels.

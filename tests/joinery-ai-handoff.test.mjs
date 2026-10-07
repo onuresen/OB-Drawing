@@ -9,18 +9,16 @@ import {
 } from "../joinery-ai-handoff.mjs";
 
 const evidencePackage = {
-  format: "objdraw-object-evidence-v1",
+  format: "objdraw-object-evidence-v2",
   subjects: [{ id: "door-001", kind: "physical-instance", category: "doors", label: "D-105" }],
   documents: [{ id: "document-001", name: "doors.pdf" }],
   occurrences: [{ id: "occurrence-001", subjectId: "door-001", documentId: "document-001", page: 4 }],
-  observations: [{
-    id: "observation-001",
+  notes: [{
+    id: "note-001",
+    scope: "occurrence",
     subjectId: "door-001",
     occurrenceId: "occurrence-001",
-    topic: "Operation",
-    value: "Single leaf",
-    evidenceKind: "observation",
-    reviewState: "confirmed",
+    text: "Operation: Single leaf",
   }],
 };
 
@@ -62,12 +60,12 @@ test("handoff index preserves exact subject and representation provenance", () =
   });
 });
 
-test("AI instructions treat all representations as one object and retain evidence state", () => {
+test("AI instructions treat all representations as one object and include human notes", () => {
   const handoffIndex = createJoineryAiHandoffIndex({ evidencePackage, renderedRepresentations: rendered });
   const instructions = createJoineryAiInstructions({ evidencePackage, handoffIndex });
   assert.match(instructions, /same physical object/);
   assert.match(instructions, /Return exactly one raw JSON object/);
-  assert.match(instructions, /Operation: Single leaf \[observation; confirmed; source occurrence-001\]/);
+  assert.match(instructions, /Operation: Single leaf \[occurrence; occurrence-001\]/);
   assert.match(instructions, /doors\.pdf, page 4/);
 });
 

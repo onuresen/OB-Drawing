@@ -1,5 +1,5 @@
 {
-  "format": "objdraw-project-v4",
+  "format": "objdraw-project-v5",
   "exportedAt": "2026-10-06T09:00:00.0000000Z",
   "activeDocumentId": "document-001",
   "documents": [
@@ -97,5 +97,5 @@
       }
     }
   ],
-  "observations": []
+  "notes": []
 }

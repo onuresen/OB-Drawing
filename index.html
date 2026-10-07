@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-07-responsive-fix">
+  <link rel="stylesheet" href="styles.css?v=2026-10-07-notes">
 </head>
 <body>
   <header class="app-header">
@@ -73,6 +73,7 @@
           </button>
           <button id="openPdfSearch" class="button button-quiet" type="button" aria-keyshortcuts="Control+F Meta+F" aria-controls="pdfSearchBar" title="Find in current PDF (Ctrl+F)" disabled>Find</button>
           <button id="openDrawingMap" class="button button-quiet" type="button" aria-haspopup="dialog" aria-controls="drawingMapDialog" title="Open drawing set map">Map</button>
+          <button id="openNotes" class="button button-quiet" type="button" aria-haspopup="dialog" aria-controls="notesDialog" title="Open project, object, and occurrence notes" disabled>Notes</button>
           <div class="shortcut-help">
             <button id="shortcutHelp" class="icon-button help-button" type="button" aria-label="Keyboard and mouse shortcuts" aria-keyshortcuts="?" aria-expanded="false" aria-controls="shortcutPanel" title="Shortcuts (?)">?</button>
             <section id="shortcutPanel" class="shortcut-panel" aria-labelledby="shortcutTitle" hidden>
@@ -315,12 +316,12 @@
             <details id="objectExportMenu" class="object-export-menu">
               <summary class="button">Export</summary>
               <div class="object-export-options">
-                <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral evidence JSON manifest" disabled>
-                  <strong>Evidence JSON</strong>
+                <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral object JSON manifest" disabled>
+                  <strong>Object JSON</strong>
                   <span>Portable manifest</span>
                 </button>
-                <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export evidence with marked preview images" disabled>
-                  <strong>Evidence ZIP</strong>
+                <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export the object with marked preview images" disabled>
+                  <strong>Object ZIP</strong>
                   <span>Manifest + marked previews</span>
                 </button>
                 <button id="exportJoineryAiPack" class="object-export-option" type="button" aria-label="Export selected object for Joinery Configurator AI" title="Export an AI-ready Joinery Configurator evidence pack" disabled>
@@ -341,45 +342,43 @@
           </div>
           <p id="noObjectOccurrences" class="quiet-copy">This object has no linked representations yet.</p>
 
-          <details id="evidenceReviewPanel" class="evidence-review">
-            <summary class="evidence-review-summary">
-              <span>
-                <strong>Evidence notes</strong>
-                <small>Optional</small>
-              </span>
-              <span id="evidenceReviewCount" aria-live="polite">Optional</span>
-            </summary>
-            <div class="evidence-review-body">
-              <p class="evidence-review-intro">Add source-linked notes only when the PDF-object workflow needs them.</p>
-              <div id="evidenceConflictSummary" class="evidence-conflict-summary" role="status" aria-live="polite" hidden></div>
-              <form id="addEvidenceForm" class="evidence-form">
-                <label class="field-label" for="evidenceTopic">Topic</label>
-                <input id="evidenceTopic" class="text-input" type="text" maxlength="80" placeholder="e.g. Material, operation, condition" required autocomplete="off">
-                <label class="field-label" for="evidenceValue">Note</label>
-                <textarea id="evidenceValue" class="text-input evidence-value" maxlength="500" rows="3" placeholder="What the source shows, or what still needs confirmation" required></textarea>
-                <div class="evidence-form-grid">
-                  <label>
-                    <span class="field-label">Basis</span>
-                    <select id="evidenceKind" class="text-input">
-                      <option value="observation">Observed from source</option>
-                      <option value="assumption">Assumed / needs confirmation</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span class="field-label">Source</span>
-                    <select id="evidenceSource" class="text-input"></select>
-                  </label>
-                </div>
-                <button id="addEvidence" class="button" type="submit">Add note</button>
-              </form>
-              <p id="noEvidence" class="quiet-copy">No evidence notes saved for this object.</p>
-              <ol id="evidenceList" class="evidence-list"></ol>
-            </div>
-          </details>
         </section>
       </div>
     </aside>
   </main>
+
+  <dialog id="notesDialog" class="notes-dialog" aria-labelledby="notesTitle" aria-describedby="notesHelp">
+    <div class="notes-dialog-shell">
+      <header class="notes-dialog-header">
+        <div>
+          <p class="eyebrow">Drawing set</p>
+          <h2 id="notesTitle">Notes</h2>
+          <p id="notesHelp" class="quiet-copy">Keep a note with the project, an object, or one exact mark.</p>
+        </div>
+        <div class="notes-dialog-actions">
+          <span id="notesBadge">0</span>
+          <button id="closeNotes" class="icon-button" type="button" aria-label="Close notes" title="Close (Escape)">×</button>
+        </div>
+      </header>
+      <form id="addNoteForm" class="note-form">
+        <label>
+          <span class="field-label">Attach to</span>
+          <select id="noteScope" class="text-input">
+            <option value="project">Project</option>
+            <option value="object">Selected object</option>
+            <option value="occurrence">Selected occurrence</option>
+          </select>
+        </label>
+        <label>
+          <span class="field-label">Note</span>
+          <textarea id="noteText" class="text-input note-text" maxlength="1000" rows="4" placeholder="What should be remembered or checked?" required></textarea>
+        </label>
+        <button id="addNote" class="button button-primary" type="submit">Add note</button>
+      </form>
+      <p id="noNotes" class="quiet-copy">No notes yet.</p>
+      <ol id="notesList" class="notes-list"></ol>
+    </div>
+  </dialog>
 
   <dialog id="drawingMapDialog" class="drawing-map-dialog" aria-labelledby="drawingMapTitle" aria-describedby="drawingMapHelp">
     <div class="drawing-map-dialog-shell">

@@ -153,25 +153,21 @@ test("source page and geometry validation remain part of the portable boundary",
   assert.throws(() => validateObjectEvidencePackage(invalidGeometry), /past the page width/);
 });
 
-test("selected subject exports include its reviewed source-linked evidence", () => {
-  const observations = [{
-    id: "observation-001",
+test("selected subject exports include its object and occurrence notes", () => {
+  const notes = [{
+    id: "note-001",
+    scope: "occurrence",
     objectId: "door-001",
     occurrenceId: "occurrence-001",
-    topic: "Clear width",
-    value: "900 mm",
-    evidenceKind: "observation",
-    reviewState: "confirmed",
+    text: "Clear width: 900 mm",
     createdAt: "2026-09-30T00:00:00.000Z",
     updatedAt: "2026-09-30T01:00:00.000Z",
   }, {
-    id: "observation-002",
+    id: "note-002",
+    scope: "object",
     objectId: "door-002",
-    occurrenceId: "occurrence-003",
-    topic: "Material",
-    value: "Steel",
-    evidenceKind: "observation",
-    reviewState: "unreviewed",
+    occurrenceId: null,
+    text: "Material: Steel",
     createdAt: "2026-09-30T00:00:00.000Z",
     updatedAt: "2026-09-30T00:00:00.000Z",
   }];
@@ -179,10 +175,10 @@ test("selected subject exports include its reviewed source-linked evidence", () 
     documents,
     objects,
     occurrences,
-    observations,
+    notes,
     selectedObjectIds: ["door-001"],
   });
-  assert.equal(result.producer.projectFormat, "objdraw-project-v4");
-  assert.deepEqual(result.observations.map((entry) => entry.id), ["observation-001"]);
-  assert.equal(result.observations[0].subjectId, "door-001");
+  assert.equal(result.producer.projectFormat, "objdraw-project-v5");
+  assert.deepEqual(result.notes.map((entry) => entry.id), ["note-001"]);
+  assert.equal(result.notes[0].subjectId, "door-001");
 });

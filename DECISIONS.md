@@ -375,3 +375,21 @@
 **Why:** Drawing sets can have hundreds of pages; rendering them all on open would stall the reader.
 
 **Confidence:** high. Checked in headless Chromium: a mark drawn on a 90° view is saved at the expected unrotated position.
+
+## 2026-10-07 — Replace governed evidence entries with flexible Notes
+
+**Decision:** `objdraw-project-v5` has one `notes[]` collection with three explicit scopes: project, object, and occurrence. Notes are editable free text with stable IDs and timestamps. Add, edit, and delete are undoable project mutations.
+
+**Why:** Hands-on review found the observation/assumption, topic/value, review-state, and conflict model confusing and unnecessary for the current drawing workflow. Project, object, and occurrence notes match the practical jobs directly and are easier to explain and maintain.
+
+**Replacement:** The former Evidence-notes UI, evidence model, review states, and conflict derivation are removed rather than kept beside Notes. V3 and v4 imports convert human topic/value content into ordinary notes: occurrence-sourced entries become occurrence notes and whole-object assumptions become object notes. The old governance metadata is intentionally not carried into the new runtime.
+
+**Deletion behavior:** An object cannot be deleted while an object note references it, and an occurrence cannot be deleted while an occurrence note references it. Occurrence notes follow the mark if it becomes unlinked. Project notes have no target.
+
+**Portable exports:** `objdraw-object-evidence-v2` includes relevant object and occurrence notes for selected subjects. Project notes stay in the project because they do not belong to one exported subject. Joinery instructions treat notes as human context to check against visible representations, not verified target values.
+
+**Revit boundary:** This does not authorize write-back. The Revit adapter now emits the v5 project envelope with an empty note collection, while Revit review import remains a later explicit decision.
+
+**Alternative:** Keep Evidence as an advanced panel beside Notes. Rejected because two overlapping systems would preserve the confusing mental model and increase maintenance.
+
+**Confidence:** high for the product direction; browser interaction still needs the planned automated fixture and later owner smoke test.

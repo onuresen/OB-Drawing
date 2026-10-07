@@ -1,4 +1,4 @@
-export const OBJECT_EVIDENCE_FORMAT = "objdraw-object-evidence-v1";
+export const OBJECT_EVIDENCE_FORMAT = "objdraw-object-evidence-v2";
 export const PHYSICAL_INSTANCE_KIND = "physical-instance";
 export const INSTANCE_OF_RELATIONSHIP = "instanceOf";
 
@@ -88,7 +88,7 @@ export function validateObjectEvidencePackage(value) {
   requireCondition(isRecord(value.producer), "The evidence package requires producer metadata.");
   requireCondition(value.producer.name === "Object-Centric Drawing", "The producer name must be Object-Centric Drawing.");
   requireCondition(
-    ["obd-project-v2", "obd-project-v3", "obd-project-v4", "objdraw-project-v4"].includes(value.producer.projectFormat),
+    ["obd-project-v2", "obd-project-v3", "obd-project-v4", "objdraw-project-v4", "objdraw-project-v5"].includes(value.producer.projectFormat),
     "The producer project format must be a supported Object-Centric Drawing project version.",
   );
   requireCondition(Array.isArray(value.subjects) && value.subjects.length > 0, "Subjects must be a non-empty array.");
@@ -96,8 +96,8 @@ export function validateObjectEvidencePackage(value) {
   requireCondition(Array.isArray(value.relationships), "Relationships must be an array.");
   requireCondition(Array.isArray(value.documents) && value.documents.length > 0, "Documents must be a non-empty array.");
   requireCondition(Array.isArray(value.occurrences) && value.occurrences.length > 0, "Occurrences must be a non-empty array.");
-  const observations = value.observations ?? [];
-  requireCondition(Array.isArray(observations), "Observations must be an array.");
+  const notes = value.notes ?? [];
+  requireCondition(Array.isArray(notes), "Notes must be an array.");
 
   const subjectIds = validateUniqueIds(value.subjects, "subject");
   const subjectsById = new Map();
@@ -119,7 +119,7 @@ export function validateObjectEvidencePackage(value) {
   const linkedSubjects = new Set();
   for (const relationship of value.relationships) {
     requireCondition(isRecord(relationship), "Every relationship must be an object.");
-    requireCondition(relationship.kind === INSTANCE_OF_RELATIONSHIP, "Only explicit instanceOf relationships are supported in v1.");
+    requireCondition(relationship.kind === INSTANCE_OF_RELATIONSHIP, "Only explicit instanceOf relationships are supported in v2.");
     requireCondition(subjectIds.has(relationship.subjectId), `${relationship.subjectId ?? "Missing subject"} is not an exported subject.`);
     requireCondition(configurationIds.has(relationship.configurationId), `${relationship.configurationId ?? "Missing configuration"} is not an exported configuration.`);
     requireCondition(!linkedSubjects.has(relationship.subjectId), `${relationship.subjectId} has more than one configuration relationship.`);
@@ -157,22 +157,20 @@ export function validateObjectEvidencePackage(value) {
     requireCondition(representedSubjects.has(subjectId), `${subjectId} has no exported source occurrence.`);
   }
 
-  validateUniqueIds(observations, "observation");
-  for (const observation of observations) {
-    requireCondition(subjectIds.has(observation.subjectId), `${observation.id} links to an unknown subject.`);
-    if (observation.occurrenceId !== null) {
-      const sourceOccurrence = value.occurrences.find((occurrence) => occurrence.id === observation.occurrenceId);
-      requireCondition(sourceOccurrence, `${observation.id} links to an unknown occurrence.`);
-      requireCondition(sourceOccurrence.subjectId === observation.subjectId, `${observation.id} source occurrence belongs to a different subject.`);
+  validateUniqueIds(notes, "note");
+  for (const note of notes) {
+    requireCondition(["object", "occurrence"].includes(note.scope), `${note.id} has an unsupported exported note scope.`);
+    requireCondition(subjectIds.has(note.subjectId), `${note.id} links to an unknown subject.`);
+    if (note.scope === "occurrence") {
+      const sourceOccurrence = value.occurrences.find((occurrence) => occurrence.id === note.occurrenceId);
+      requireCondition(sourceOccurrence, `${note.id} links to an unknown occurrence.`);
+      requireCondition(sourceOccurrence.subjectId === note.subjectId, `${note.id} occurrence belongs to a different subject.`);
     } else {
-      requireCondition(observation.evidenceKind === "assumption", `${observation.id} observation requires an exact source occurrence.`);
+      requireCondition(note.occurrenceId === null, `${note.id} object note cannot reference an occurrence.`);
     }
-    requireText(observation.topic, `${observation.id} requires a topic.`);
-    requireText(observation.value, `${observation.id} requires a value or note.`);
-    requireCondition(["observation", "assumption"].includes(observation.evidenceKind), `${observation.id} has an unsupported evidence kind.`);
-    requireCondition(["unreviewed", "needs-confirmation", "confirmed", "rejected"].includes(observation.reviewState), `${observation.id} has an unsupported review state.`);
-    requireCondition(typeof observation.createdAt === "string" && !Number.isNaN(Date.parse(observation.createdAt)), `${observation.id} has an invalid createdAt timestamp.`);
-    requireCondition(typeof observation.updatedAt === "string" && !Number.isNaN(Date.parse(observation.updatedAt)), `${observation.id} has an invalid updatedAt timestamp.`);
+    requireText(note.text, `${note.id} requires text.`);
+    requireCondition(typeof note.createdAt === "string" && !Number.isNaN(Date.parse(note.createdAt)), `${note.id} has an invalid createdAt timestamp.`);
+    requireCondition(typeof note.updatedAt === "string" && !Number.isNaN(Date.parse(note.updatedAt)), `${note.id} has an invalid updatedAt timestamp.`);
   }
 
   return {
@@ -203,16 +201,14 @@ export function validateObjectEvidencePackage(value) {
       page: occurrence.page,
       geometry: cloneGeometry(occurrence.geometry),
     })),
-    observations: observations.map((observation) => ({
-      id: observation.id,
-      subjectId: observation.subjectId,
-      occurrenceId: observation.occurrenceId,
-      topic: observation.topic.trim(),
-      value: observation.value.trim(),
-      evidenceKind: observation.evidenceKind,
-      reviewState: observation.reviewState,
-      createdAt: observation.createdAt,
-      updatedAt: observation.updatedAt,
+    notes: notes.map((note) => ({
+      id: note.id,
+      scope: note.scope,
+      subjectId: note.subjectId,
+      occurrenceId: note.occurrenceId ?? null,
+      text: note.text.trim(),
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
     })),
   };
 }
@@ -221,7 +217,7 @@ export function createObjectEvidencePackage({
   documents,
   objects,
   occurrences,
-  observations = [],
+  notes = [],
   selectedObjectIds,
   configurations = [],
   relationships = [],
@@ -249,7 +245,7 @@ export function createObjectEvidencePackage({
   return validateObjectEvidencePackage({
     format: OBJECT_EVIDENCE_FORMAT,
     exportedAt,
-    producer: { name: "Object-Centric Drawing", projectFormat: "objdraw-project-v4" },
+    producer: { name: "Object-Centric Drawing", projectFormat: "objdraw-project-v5" },
     subjects: selectedObjectIds.map((objectId) => {
       const object = objectsById.get(objectId);
       return {
@@ -273,18 +269,28 @@ export function createObjectEvidencePackage({
           : { type: occurrence.geometryType ?? "rectangle", bounds: occurrence.bounds }
       ),
     })),
-    observations: observations
-      .filter((observation) => selectedIds.has(observation.objectId))
-      .map((observation) => ({
-        id: observation.id,
-        subjectId: observation.objectId,
-        occurrenceId: observation.occurrenceId,
-        topic: observation.topic,
-        value: observation.value,
-        evidenceKind: observation.evidenceKind,
-        reviewState: observation.reviewState,
-        createdAt: observation.createdAt,
-        updatedAt: observation.updatedAt,
+    notes: notes
+      .map((note) => {
+        if (note.scope === "object" && selectedIds.has(note.objectId)) {
+          return { ...note, subjectId: note.objectId };
+        }
+        if (note.scope === "occurrence") {
+          const occurrence = selectedOccurrences.find((entry) => entry.id === note.occurrenceId);
+          if (occurrence) {
+            return { ...note, subjectId: occurrence.objectId };
+          }
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .map((note) => ({
+        id: note.id,
+        scope: note.scope,
+        subjectId: note.subjectId,
+        occurrenceId: note.occurrenceId,
+        text: note.text,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
       })),
   });
 }

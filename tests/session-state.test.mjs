@@ -62,24 +62,22 @@ test("object and occurrence mutations are detected", () => {
   assert.equal(saveState.isDirty(layer("D-101", 0.25)), true);
 });
 
-test("evidence additions and review decisions are saved content", () => {
+test("note additions and edits are saved content", () => {
   const original = layer();
-  const withEvidence = structuredClone(original);
-  withEvidence.observations = [{
-    id: "observation-001",
-    objectId: "door-001",
+  const withNote = structuredClone(original);
+  withNote.notes = [{
+    id: "note-001",
+    scope: "occurrence",
+    objectId: null,
     occurrenceId: "occurrence-001",
-    topic: "Width",
-    value: "900 mm",
-    evidenceKind: "observation",
-    reviewState: "unreviewed",
+    text: "Check the clear width.",
     createdAt: "2026-09-30T00:00:00.000Z",
     updatedAt: "2026-09-30T00:00:00.000Z",
   }];
-  assert.notEqual(objectLayerSignature(original), objectLayerSignature(withEvidence));
-  const reviewed = structuredClone(withEvidence);
-  reviewed.observations[0].reviewState = "confirmed";
-  assert.notEqual(objectLayerSignature(withEvidence), objectLayerSignature(reviewed));
+  assert.notEqual(objectLayerSignature(original), objectLayerSignature(withNote));
+  const edited = structuredClone(withNote);
+  edited.notes[0].text = "Clear width checked.";
+  assert.notEqual(objectLayerSignature(withNote), objectLayerSignature(edited));
 });
 
 test("polygon vertex edits are detected as saved content", () => {

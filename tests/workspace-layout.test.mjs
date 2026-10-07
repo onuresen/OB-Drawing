@@ -18,7 +18,7 @@ test("workspace surfaces retain explicit rows when PDF search is hidden", async 
 
 test("the application requests the current corrected stylesheet version", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /styles\.css\?v=2026-10-07-responsive-fix/);
+  assert.match(html, /styles\.css\?v=2026-10-07-notes/);
 });
 
 test("the application requests the complete text-selection module version", async () => {
@@ -45,6 +45,17 @@ test("the side panel keeps a browser pane, a splitter and a properties pane", as
 test("hidden side-panel blocks stay hidden whatever display they set", async () => {
   const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
   assert.match(css, /\.side-panel \[hidden\]\s*\{\s*display:\s*none !important;/);
+});
+
+test("one Notes dialog replaces the former evidence form", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  for (const id of ["openNotes", "notesDialog", "noteScope", "noteText", "notesList"]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.doesNotMatch(html, /Evidence notes|evidenceKind|evidenceTopic|evidenceValue/);
+  for (const scope of ["project", "object", "occurrence"]) {
+    assert.match(html, new RegExp(`<option value="${scope}"`));
+  }
 });
 
 test("the narrow toolbar lets each control cluster shrink and wrap", async () => {

@@ -6,7 +6,7 @@ function cloneSnapshot(snapshot) {
       bounds: { ...occurrence.bounds },
       ...(occurrence.points ? { points: occurrence.points.map((point) => ({ ...point })) } : {}),
     })),
-    observations: snapshot.observations.map((observation) => ({ ...observation })),
+    notes: snapshot.notes.map((note) => ({ ...note })),
     selectedObjectId: snapshot.selectedObjectId ?? null,
     selectedOccurrenceId: snapshot.selectedOccurrenceId ?? null,
   };
@@ -16,7 +16,7 @@ export function createObjectLayerSnapshot(source) {
   return cloneSnapshot({
     objects: source.objects ?? [],
     occurrences: source.occurrences ?? [],
-    observations: source.observations ?? [],
+    notes: source.notes ?? [],
     selectedObjectId: source.selectedObjectId,
     selectedOccurrenceId: source.selectedOccurrenceId,
   });

@@ -110,12 +110,10 @@ import {
 } from "./joinery-ai-handoff.mjs";
 import { createStoredZip } from "./zip-store.mjs";
 import {
-  conflictsForObject,
-  createObservation,
-  evidenceSummary,
-  removeObservation,
-  updateObservationReviewState,
-} from "./evidence-model.mjs";
+  createNote,
+  removeNote,
+  updateNote,
+} from "./note-model.mjs";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.mjs";
 
@@ -158,6 +156,16 @@ const elements = {
   nextPdfSearchMatch: document.querySelector("#nextPdfSearchMatch"),
   closePdfSearch: document.querySelector("#closePdfSearch"),
   openDrawingMap: document.querySelector("#openDrawingMap"),
+  openNotes: document.querySelector("#openNotes"),
+  notesDialog: document.querySelector("#notesDialog"),
+  closeNotes: document.querySelector("#closeNotes"),
+  notesBadge: document.querySelector("#notesBadge"),
+  addNoteForm: document.querySelector("#addNoteForm"),
+  noteScope: document.querySelector("#noteScope"),
+  noteText: document.querySelector("#noteText"),
+  addNote: document.querySelector("#addNote"),
+  noNotes: document.querySelector("#noNotes"),
+  notesList: document.querySelector("#notesList"),
   drawingMapDialog: document.querySelector("#drawingMapDialog"),
   closeDrawingMap: document.querySelector("#closeDrawingMap"),
   shortcutHelp: document.querySelector("#shortcutHelp"),
@@ -228,17 +236,6 @@ const elements = {
   exportJoineryAiPack: document.querySelector("#exportJoineryAiPack"),
   joineryAiHint: document.querySelector("#joineryAiHint"),
   evidenceExportStatus: document.querySelector("#evidenceExportStatus"),
-  evidenceReviewPanel: document.querySelector("#evidenceReviewPanel"),
-  evidenceReviewCount: document.querySelector("#evidenceReviewCount"),
-  evidenceConflictSummary: document.querySelector("#evidenceConflictSummary"),
-  addEvidenceForm: document.querySelector("#addEvidenceForm"),
-  evidenceTopic: document.querySelector("#evidenceTopic"),
-  evidenceValue: document.querySelector("#evidenceValue"),
-  evidenceKind: document.querySelector("#evidenceKind"),
-  evidenceSource: document.querySelector("#evidenceSource"),
-  addEvidence: document.querySelector("#addEvidence"),
-  noEvidence: document.querySelector("#noEvidence"),
-  evidenceList: document.querySelector("#evidenceList"),
   editObjectLabel: document.querySelector("#editObjectLabel"),
   editObjectCategory: document.querySelector("#editObjectCategory"),
   saveObjectLabel: document.querySelector("#saveObjectLabel"),
@@ -281,7 +278,7 @@ const state = {
   linkTargetObjectId: null,
   objects: [],
   occurrences: [],
-  observations: [],
+  notes: [],
   selectedObjectId: null,
   selectedOccurrenceId: null,
   interaction: null,
@@ -693,7 +690,7 @@ function recordObjectMutation(label, snapshot = currentObjectLayerSnapshot()) {
 function restoreObjectLayerSnapshot(snapshot) {
   state.objects = snapshot.objects;
   state.occurrences = snapshot.occurrences;
-  state.observations = snapshot.observations;
+  state.notes = snapshot.notes;
   state.selectedObjectId = snapshot.selectedObjectId;
   state.selectedOccurrenceId = snapshot.selectedOccurrenceId;
   state.interaction = null;
@@ -725,8 +722,8 @@ function applyHistory(direction) {
   }
   const objectLabel = `${state.objects.length} object${state.objects.length === 1 ? "" : "s"}`;
   const occurrenceLabel = `${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}`;
-  const evidenceLabel = `${state.observations.length} evidence entr${state.observations.length === 1 ? "y" : "ies"}`;
-  setStatus(`${direction === "undo" ? "Undid" : "Redid"} ${result.label}. ${objectLabel}, ${occurrenceLabel}, ${evidenceLabel}.`);
+  const noteLabel = `${state.notes.length} note${state.notes.length === 1 ? "" : "s"}`;
+  setStatus(`${direction === "undo" ? "Undid" : "Redid"} ${result.label}. ${objectLabel}, ${occurrenceLabel}, ${noteLabel}.`);
 }
 
 function setDocumentControlsEnabled(enabled) {
@@ -744,6 +741,7 @@ function setDocumentControlsEnabled(enabled) {
     elements.shapeTool,
     elements.markOccurrence,
     elements.openPdfSearch,
+    elements.openNotes,
     elements.categoryFilter,
     elements.objectCategory,
     elements.objectLabel,
@@ -761,6 +759,7 @@ function setDocumentControlsEnabled(enabled) {
   elements.deleteObject.disabled = !hasProject;
   elements.markForObject.disabled = !enabled || !state.selectedObjectId;
   elements.exportSidecar.disabled = !hasProject;
+  elements.openNotes.disabled = !hasProject;
   elements.chooseSidecar.disabled = false;
   updateHistoryControls();
   updateSaveState();
@@ -1095,10 +1094,10 @@ function renderOccurrenceRows(container, occurrences) {
     deleteButton.dataset.action = "delete-occurrence";
     deleteButton.dataset.occurrenceId = occurrence.id;
     deleteButton.setAttribute("aria-label", `Delete ${occurrence.id}`);
-    const occurrenceEvidenceCount = state.observations.filter((observation) => observation.occurrenceId === occurrence.id).length;
-    deleteButton.disabled = occurrenceEvidenceCount > 0;
-    deleteButton.title = occurrenceEvidenceCount > 0
-      ? `Remove ${occurrenceEvidenceCount} linked evidence entr${occurrenceEvidenceCount === 1 ? "y" : "ies"} before deleting this occurrence`
+    const occurrenceNoteCount = state.notes.filter((note) => note.occurrenceId === occurrence.id).length;
+    deleteButton.disabled = occurrenceNoteCount > 0;
+    deleteButton.title = occurrenceNoteCount > 0
+      ? `Remove ${occurrenceNoteCount} linked note${occurrenceNoteCount === 1 ? "" : "s"} before deleting this occurrence`
       : `Delete occurrence ${occurrenceDisplayNumber(occurrence)}`;
     deleteButton.textContent = "×";
 
@@ -1269,23 +1268,14 @@ function renderSelectedObjectPanel() {
     elements.objectExportMenu.open = false;
     elements.evidenceExportStatus.hidden = true;
     delete elements.evidenceExportStatus.dataset.subjectId;
-    elements.evidenceReviewPanel.open = false;
-    delete elements.evidenceReviewPanel.dataset.subjectId;
-    elements.evidenceReviewCount.textContent = "Optional";
-    elements.evidenceConflictSummary.hidden = true;
-    elements.evidenceList.replaceChildren();
     return;
   }
 
   const occurrences = getObjectOccurrences(state.occurrences, object.id);
-  if (elements.evidenceReviewPanel.dataset.subjectId !== object.id) {
-    elements.evidenceReviewPanel.open = false;
-    elements.evidenceReviewPanel.dataset.subjectId = object.id;
-  }
   if (dialogIsOpen(elements.representationBoard) && elements.representationBoard.dataset.objectId !== object.id) {
     closeRepresentationBoard();
   }
-  const relatedEvidence = state.observations.filter((observation) => observation.objectId === object.id);
+  const relatedNotes = state.notes.filter((note) => note.scope === "object" && note.objectId === object.id);
   const summary = summarizeObjectLens(occurrences, attachedDocumentIds());
   elements.selectedObjectTitle.textContent = object.label;
   elements.selectedObjectIdentity.textContent = object.id;
@@ -1306,15 +1296,15 @@ function renderSelectedObjectPanel() {
     ? "Joinery AI handoff is available for Door and Window objects"
     : occurrences.length === 0
       ? "Add a linked representation before exporting"
-      : "Export all representations and evidence for Joinery Configurator";
+      : "Export all representations and notes for Joinery Configurator";
   elements.joineryAiHint.textContent = !joineryEligible
     ? "Available for Door and Window objects"
     : occurrences.length === 0
       ? "Add a representation first"
-      : "All representations + evidence manifest";
-  elements.deleteObject.disabled = relatedEvidence.length > 0;
-  elements.deleteObject.title = relatedEvidence.length > 0
-    ? "Remove this object's evidence entries before deleting the object"
+      : "All representations + notes manifest";
+  elements.deleteObject.disabled = relatedNotes.length > 0;
+  elements.deleteObject.title = relatedNotes.length > 0
+    ? "Remove this object's notes before deleting the object"
     : `Delete ${object.label}`;
   if (elements.evidenceExportStatus.dataset.subjectId !== object.id) {
     elements.objectExportMenu.open = false;
@@ -1333,114 +1323,82 @@ function renderSelectedObjectPanel() {
     missing.textContent = `${summary.missingDocumentCount} source PDF${summary.missingDocumentCount === 1 ? "" : "s"} missing`;
     elements.objectLensSummary.append(missing);
   }
-  renderEvidenceReview(object, occurrences);
 }
 
-function reviewStateLabel(reviewState) {
-  return {
-    "unreviewed": "Unreviewed",
-    "needs-confirmation": "Needs confirmation",
-    "confirmed": "Confirmed",
-    "rejected": "Rejected",
-  }[reviewState] ?? reviewState;
-}
-
-function evidenceSourceLabel(observation) {
-  if (!observation.occurrenceId) {
-    return "Whole object";
+function noteTargetLabel(note) {
+  if (note.scope === "project") {
+    return "Project";
   }
-  const occurrence = getOccurrence(observation.occurrenceId);
+  if (note.scope === "object") {
+    const object = getObject(note.objectId);
+    return object ? `${object.label} · ${object.id}` : note.objectId;
+  }
+  const occurrence = getOccurrence(note.occurrenceId);
   const projectDocument = occurrence ? getProjectDocument(occurrence.documentId) : null;
   return occurrence
     ? `${projectDocument?.name ?? occurrence.documentId} · page ${occurrence.page} · ${occurrence.id}`
-    : observation.occurrenceId;
+    : note.occurrenceId;
 }
 
-function renderEvidenceReview(object, occurrences) {
-  const relevant = state.observations.filter((observation) => observation.objectId === object.id);
-  const conflicts = conflictsForObject(relevant, object.id);
-  const summary = evidenceSummary(relevant, object.id);
-  const conflictingIds = new Set(conflicts.flatMap((conflict) => conflict.observationIds));
-  elements.evidenceReviewCount.textContent = summary.total === 0
-    ? "Optional"
-    : conflicts.length > 0
-      ? `${summary.total} saved · ${conflicts.length} conflict${conflicts.length === 1 ? "" : "s"}`
-      : `${summary.total} saved`;
-  elements.noEvidence.hidden = relevant.length > 0;
-  elements.evidenceConflictSummary.hidden = conflicts.length === 0;
-  elements.evidenceConflictSummary.textContent = conflicts.length
-    ? `${conflicts.length} unresolved conflict${conflicts.length === 1 ? "" : "s"}: ${conflicts.map((conflict) => conflict.topic).join(", ")}`
-    : "";
-
-  const previousSource = elements.evidenceSource.value;
-  elements.evidenceSource.replaceChildren();
-  const wholeObjectOption = document.createElement("option");
-  wholeObjectOption.value = "";
-  wholeObjectOption.textContent = "Whole object (assumption only)";
-  elements.evidenceSource.append(wholeObjectOption);
-  for (const occurrence of occurrences) {
-    const option = document.createElement("option");
-    const projectDocument = getProjectDocument(occurrence.documentId);
-    option.value = occurrence.id;
-    option.textContent = `${projectDocument?.name ?? occurrence.documentId} · p${occurrence.page} · ${occurrence.id}`;
-    elements.evidenceSource.append(option);
+function renderNotes() {
+  const selectedObject = getObject(state.selectedObjectId);
+  const selectedOccurrence = getOccurrence(state.selectedOccurrenceId);
+  const objectOption = elements.noteScope.querySelector('option[value="object"]');
+  const occurrenceOption = elements.noteScope.querySelector('option[value="occurrence"]');
+  objectOption.disabled = !selectedObject;
+  objectOption.textContent = selectedObject ? `Object · ${selectedObject.label}` : "Selected object";
+  occurrenceOption.disabled = !selectedOccurrence;
+  occurrenceOption.textContent = selectedOccurrence ? `Occurrence · ${selectedOccurrence.id}` : "Selected occurrence";
+  if (elements.noteScope.selectedOptions[0]?.disabled) {
+    elements.noteScope.value = selectedOccurrence ? "occurrence" : selectedObject ? "object" : "project";
   }
-  const preferredSource = occurrences.some((occurrence) => occurrence.id === previousSource)
-    ? previousSource
-    : occurrences.some((occurrence) => occurrence.id === state.selectedOccurrenceId)
-      ? state.selectedOccurrenceId
-      : occurrences[0]?.id ?? "";
-  elements.evidenceSource.value = elements.evidenceKind.value === "observation" ? preferredSource : previousSource;
 
-  elements.evidenceList.replaceChildren();
-  for (const observation of relevant) {
+  elements.notesBadge.textContent = String(state.notes.length);
+  elements.noNotes.hidden = state.notes.length > 0;
+  elements.notesList.replaceChildren();
+  for (const note of [...state.notes].reverse()) {
     const item = document.createElement("li");
     const heading = document.createElement("div");
-    const topic = document.createElement("strong");
-    const kind = document.createElement("span");
-    const value = document.createElement("p");
-    const source = document.createElement(observation.occurrenceId ? "button" : "span");
-    const controls = document.createElement("div");
-    const review = document.createElement("select");
+    const scope = document.createElement("span");
+    const target = document.createElement(note.scope === "project" ? "span" : "button");
+    const text = document.createElement("textarea");
+    const actions = document.createElement("div");
+    const save = document.createElement("button");
     const remove = document.createElement("button");
 
-    item.className = `evidence-card state-${observation.reviewState}${conflictingIds.has(observation.id) ? " has-conflict" : ""}`;
-    item.dataset.observationId = observation.id;
-    heading.className = "evidence-card-heading";
-    topic.textContent = observation.topic;
-    kind.className = `evidence-kind kind-${observation.evidenceKind}`;
-    kind.textContent = observation.evidenceKind;
-    heading.append(topic, kind);
-    value.className = "evidence-card-value";
-    value.textContent = observation.value;
-    source.className = "evidence-source-link";
-    source.textContent = evidenceSourceLabel(observation);
-    if (observation.occurrenceId) {
-      source.type = "button";
-      source.dataset.action = "view-evidence-source";
-      source.dataset.occurrenceId = observation.occurrenceId;
+    item.className = "note-card";
+    item.dataset.noteId = note.id;
+    heading.className = "note-card-heading";
+    scope.className = "note-scope-label";
+    scope.textContent = `${note.scope[0].toUpperCase()}${note.scope.slice(1)} note · ${note.id}`;
+    target.className = "note-target";
+    target.textContent = noteTargetLabel(note);
+    if (note.scope !== "project") {
+      target.type = "button";
+      target.dataset.action = "view-note-target";
+      target.dataset.noteId = note.id;
     }
-    controls.className = "evidence-card-controls";
-    review.className = "text-input evidence-review-state";
-    review.dataset.action = "set-evidence-review";
-    review.dataset.observationId = observation.id;
-    review.setAttribute("aria-label", `Review state for ${observation.topic}`);
-    for (const reviewState of ["unreviewed", "needs-confirmation", "confirmed", "rejected"]) {
-      const option = document.createElement("option");
-      option.value = reviewState;
-      option.textContent = reviewStateLabel(reviewState);
-      option.selected = observation.reviewState === reviewState;
-      review.append(option);
-    }
+    heading.append(scope, target);
+    text.className = "text-input";
+    text.value = note.text;
+    text.maxLength = 1000;
+    text.rows = 3;
+    text.dataset.noteText = note.id;
+    text.setAttribute("aria-label", `Text for ${note.id}`);
+    actions.className = "note-card-actions";
+    save.type = "button";
+    save.className = "button";
+    save.dataset.action = "save-note";
+    save.dataset.noteId = note.id;
+    save.textContent = "Save";
     remove.type = "button";
-    remove.className = "evidence-remove";
-    remove.dataset.action = "remove-evidence";
-    remove.dataset.observationId = observation.id;
-    remove.textContent = "Remove";
-    remove.setAttribute("aria-label", `Remove evidence ${observation.topic}`);
-    controls.append(review, remove);
-    item.append(heading, value, source, controls);
-    elements.evidenceList.append(item);
+    remove.className = "button danger-button";
+    remove.dataset.action = "remove-note";
+    remove.dataset.noteId = note.id;
+    remove.textContent = "Delete";
+    actions.append(save, remove);
+    item.append(heading, text, actions);
+    elements.notesList.append(item);
   }
 }
 
@@ -1456,12 +1414,12 @@ function renderSessionSummary() {
   const objectLabel = `${state.objects.length} object${state.objects.length === 1 ? "" : "s"}`;
   const occurrenceLabel = `${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}`;
   const pdfLabel = `${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}`;
-  const evidenceLabel = state.observations.length
-    ? ` · ${state.observations.length} evidence entr${state.observations.length === 1 ? "y" : "ies"}`
+  const noteLabel = state.notes.length
+    ? ` · ${state.notes.length} note${state.notes.length === 1 ? "" : "s"}`
     : "";
   elements.documentSummary.textContent = unlinkedCount
-    ? `${pdfLabel} · ${objectLabel} · ${occurrenceLabel}${evidenceLabel} · ${unlinkedCount} unlinked`
-    : `${pdfLabel} · ${objectLabel} · ${occurrenceLabel}${evidenceLabel}`;
+    ? `${pdfLabel} · ${objectLabel} · ${occurrenceLabel}${noteLabel} · ${unlinkedCount} unlinked`
+    : `${pdfLabel} · ${objectLabel} · ${occurrenceLabel}${noteLabel}`;
 }
 
 // Shapes are drawn in unrotated page coordinates inside one group that applies the view rotation.
@@ -1616,10 +1574,10 @@ function createRepresentationCard(occurrence, { isCurrent }) {
   deleteButton.dataset.action = "delete-occurrence";
   deleteButton.dataset.occurrenceId = occurrence.id;
   deleteButton.setAttribute("aria-label", `Delete ${occurrence.id}`);
-  const occurrenceEvidenceCount = state.observations.filter((observation) => observation.occurrenceId === occurrence.id).length;
-  deleteButton.disabled = occurrenceEvidenceCount > 0;
-  deleteButton.title = occurrenceEvidenceCount > 0
-    ? `Remove ${occurrenceEvidenceCount} linked evidence entr${occurrenceEvidenceCount === 1 ? "y" : "ies"} before deleting ${occurrence.id}`
+  const occurrenceNoteCount = state.notes.filter((note) => note.occurrenceId === occurrence.id).length;
+  deleteButton.disabled = occurrenceNoteCount > 0;
+  deleteButton.title = occurrenceNoteCount > 0
+    ? `Remove ${occurrenceNoteCount} linked note${occurrenceNoteCount === 1 ? "" : "s"} before deleting ${occurrence.id}`
     : `Delete ${occurrence.id}`;
   deleteButton.textContent = "×";
   item.append(navigateButton, deleteButton);
@@ -1631,6 +1589,25 @@ function createRepresentationCard(occurrence, { isCurrent }) {
 
 function closeRepresentationBoard() {
   hideDialog(elements.representationBoard);
+}
+
+function openNotes() {
+  if (state.documents.length === 0) {
+    return;
+  }
+  elements.noteScope.value = state.selectedOccurrenceId
+    ? "occurrence"
+    : state.selectedObjectId
+      ? "object"
+      : "project";
+  renderNotes();
+  showDialog(elements.notesDialog);
+  elements.noteText.focus();
+}
+
+function closeNotes() {
+  hideDialog(elements.notesDialog);
+  elements.openNotes.focus();
 }
 
 function openDrawingMap() {
@@ -1723,7 +1700,7 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
       documents: state.documents,
       objects: state.objects,
       occurrences: state.occurrences,
-      observations: state.observations,
+      notes: state.notes,
       selectedObjectIds: [object.id],
       exportedAt,
     });
@@ -1813,7 +1790,7 @@ async function exportSelectedObjectForJoineryAi() {
       documents: state.documents,
       objects: state.objects,
       occurrences: state.occurrences,
-      observations: state.observations,
+      notes: state.notes,
       selectedObjectIds: [object.id],
       exportedAt,
     });
@@ -2165,6 +2142,7 @@ function refreshObjectUi() {
   renderObjectComposer();
   renderSelectedObjectPanel();
   renderUnlinkedOccurrences();
+  renderNotes();
   renderSessionSummary();
   updateSaveState();
 }
@@ -2972,7 +2950,7 @@ function exportSidecar() {
       activeDocumentId: state.activeDocumentId,
       objects: state.objects,
       occurrences: state.occurrences,
-      observations: state.observations,
+      notes: state.notes,
     });
     const blob = new Blob([`${JSON.stringify(sidecar, null, 2)}\n`], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -2983,7 +2961,7 @@ function exportSidecar() {
     setTimeout(() => URL.revokeObjectURL(url), 0);
     markObjectLayerSaved();
     setSidecarMessage(`Exported ${anchor.download}.`);
-    setStatus(`Project exported with ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, ${state.observations.length} evidence entr${state.observations.length === 1 ? "y" : "ies"}, and ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}.`);
+    setStatus(`Project exported with ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, ${state.notes.length} note${state.notes.length === 1 ? "" : "s"}, and ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}.`);
   } catch (error) {
     console.error(error);
     setSidecarMessage(`Export failed: ${error.message}`, true);
@@ -3049,7 +3027,7 @@ async function importSidecar(file) {
     state.documentViews = nextViews;
     state.objects = sidecar.objects;
     state.occurrences = toRuntimeOccurrences(sidecar.occurrences);
-    state.observations = sidecar.observations;
+    state.notes = sidecar.notes;
     state.selectedObjectId = null;
     state.selectedOccurrenceId = null;
     state.interaction = null;
@@ -3065,12 +3043,12 @@ async function importSidecar(file) {
         ? " and migrated from v2"
         : parsed.format === "obd-project-v3"
           ? " and migrated from v3"
-          : parsed.format === "obd-project-v4"
-            ? " and updated from the old OBD format"
+          : ["obd-project-v4", "objdraw-project-v4"].includes(parsed.format)
+            ? " and migrated from v4; prior evidence text is now ordinary notes"
             : "";
     setSidecarMessage(`Imported ${file.name}${migrationNote}.`);
     const missingCount = state.documents.length - state.documentSessions.size;
-    setStatus(`Restored ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}, ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, and ${state.observations.length} evidence entr${state.observations.length === 1 ? "y" : "ies"}.${missingCount ? ` ${missingCount} PDF${missingCount === 1 ? " needs" : "s need"} relinking.` : ""}`);
+    setStatus(`Restored ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}, ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, and ${state.notes.length} note${state.notes.length === 1 ? "" : "s"}.${missingCount ? ` ${missingCount} PDF${missingCount === 1 ? " needs" : "s need"} relinking.` : ""}`);
   } catch (error) {
     console.error(error);
     setSidecarMessage(`Import failed: ${error.message}. The current session was not changed.`, true);
@@ -3209,9 +3187,9 @@ function deleteOccurrenceById(occurrenceId) {
   if (!occurrence) {
     return false;
   }
-  const evidenceCount = state.observations.filter((observation) => observation.occurrenceId === occurrenceId).length;
-  if (evidenceCount > 0) {
-    setStatus(`Remove ${evidenceCount} evidence entr${evidenceCount === 1 ? "y" : "ies"} linked to ${occurrence.id} before deleting the source occurrence.`);
+  const noteCount = state.notes.filter((note) => note.occurrenceId === occurrenceId).length;
+  if (noteCount > 0) {
+    setStatus(`Remove ${noteCount} note${noteCount === 1 ? "" : "s"} linked to ${occurrence.id} before deleting the occurrence.`);
     return false;
   }
 
@@ -3633,9 +3611,9 @@ function deleteSelectedObject() {
     return;
   }
 
-  const evidenceCount = state.observations.filter((observation) => observation.objectId === object.id).length;
-  if (evidenceCount > 0) {
-    setStatus(`Remove ${evidenceCount} evidence entr${evidenceCount === 1 ? "y" : "ies"} before deleting ${object.label} (${object.id}).`);
+  const noteCount = state.notes.filter((note) => note.scope === "object" && note.objectId === object.id).length;
+  if (noteCount > 0) {
+    setStatus(`Remove ${noteCount} object note${noteCount === 1 ? "" : "s"} before deleting ${object.label} (${object.id}).`);
     return;
   }
 
@@ -3669,82 +3647,76 @@ function deleteSelectedObject() {
   setStatus(`${object.label} (${object.id}) deleted. Its occurrences were preserved as unlinked marks.`);
 }
 
-function addEvidenceFromForm(event) {
+function addNoteFromForm(event) {
   event.preventDefault();
-  const object = getObject(state.selectedObjectId);
-  if (!object) {
-    return;
-  }
-  const occurrenceId = elements.evidenceSource.value || null;
-  const sourceOccurrence = occurrenceId ? getOccurrence(occurrenceId) : null;
-  elements.evidenceSource.setCustomValidity("");
-  if (elements.evidenceKind.value === "observation" && !sourceOccurrence) {
-    elements.evidenceSource.setCustomValidity("Choose the exact source representation for an observation.");
-    elements.evidenceSource.reportValidity();
-    return;
-  }
-  if (sourceOccurrence && sourceOccurrence.objectId !== object.id) {
-    elements.evidenceSource.setCustomValidity("The source representation must belong to the selected object.");
-    elements.evidenceSource.reportValidity();
-    return;
-  }
-
   try {
-    const observation = createObservation(state.observations, {
-      objectId: object.id,
-      occurrenceId,
-      topic: elements.evidenceTopic.value,
-      value: elements.evidenceValue.value,
-      evidenceKind: elements.evidenceKind.value,
+    const scope = elements.noteScope.value;
+    const note = createNote(state.notes, {
+      scope,
+      objectId: scope === "object" ? state.selectedObjectId : null,
+      occurrenceId: scope === "occurrence" ? state.selectedOccurrenceId : null,
+      text: elements.noteText.value,
     });
-    recordObjectMutation(`add ${observation.id}`);
-    state.observations.push(observation);
-    elements.evidenceTopic.value = "";
-    elements.evidenceValue.value = "";
+    recordObjectMutation(`add ${note.id}`);
+    state.notes.push(note);
+    elements.noteText.value = "";
     refreshUi();
-    elements.evidenceTopic.focus();
-    setStatus(`${observation.evidenceKind === "observation" ? "Observation" : "Assumption"} ${observation.id} added to ${object.label} as unreviewed evidence.`);
+    elements.noteText.focus();
+    setStatus(`${note.id} added as a ${note.scope} note.`);
   } catch (error) {
     setStatus(error.message);
+    elements.noteText.setCustomValidity(error.message);
+    elements.noteText.reportValidity();
+    elements.noteText.setCustomValidity("");
   }
 }
 
-function updateEvidenceReview(event) {
-  const select = event.target.closest("select[data-action='set-evidence-review']");
-  if (!select) {
-    return;
-  }
-  const observation = state.observations.find((entry) => entry.id === select.dataset.observationId);
-  if (!observation || observation.reviewState === select.value) {
-    return;
-  }
-  recordObjectMutation(`review ${observation.id}`);
-  state.observations = updateObservationReviewState(state.observations, observation.id, select.value);
-  refreshUi();
-  setStatus(`${observation.id} marked ${reviewStateLabel(select.value).toLocaleLowerCase()}.`);
-}
-
-async function handleEvidenceAction(event) {
+async function handleNoteAction(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
     return;
   }
-  if (button.dataset.action === "view-evidence-source") {
-    await selectOccurrenceAndNavigate(button.dataset.occurrenceId);
+  const note = state.notes.find((entry) => entry.id === button.dataset.noteId);
+  if (!note) {
     return;
   }
-  if (button.dataset.action !== "remove-evidence") {
+  if (button.dataset.action === "view-note-target") {
+    closeNotes();
+    if (note.scope === "occurrence") {
+      await selectOccurrenceAndNavigate(note.occurrenceId);
+    } else if (note.scope === "object") {
+      await selectObjectAndNavigate(note.objectId);
+    }
     return;
   }
-  const observation = state.observations.find((entry) => entry.id === button.dataset.observationId);
-  if (!observation || !globalThis.confirm(`Remove ${observation.id}: ${observation.topic}?\n\nUndo can restore it during this session.`)) {
+  if (button.dataset.action === "save-note") {
+    const text = elements.notesList.querySelector(`textarea[data-note-text="${CSS.escape(note.id)}"]`);
+    try {
+      if (text?.value.trim() === note.text) {
+        setStatus(`${note.id} is unchanged.`);
+        return;
+      }
+      recordObjectMutation(`edit ${note.id}`);
+      state.notes = updateNote(state.notes, note.id, text?.value);
+      refreshUi();
+      setStatus(`${note.id} updated.`);
+    } catch (error) {
+      setStatus(error.message);
+      text?.focus();
+    }
     return;
   }
-  recordObjectMutation(`remove ${observation.id}`);
-  state.observations = removeObservation(state.observations, observation.id);
+  if (button.dataset.action !== "remove-note") {
+    return;
+  }
+  if (!globalThis.confirm(`Delete ${note.id}?\n\nUndo can restore it during this session.`)) {
+    return;
+  }
+  recordObjectMutation(`delete ${note.id}`);
+  state.notes = removeNote(state.notes, note.id);
   refreshUi();
-  elements.addEvidence.focus();
-  setStatus(`${observation.id} was removed. Its source occurrence was preserved.`);
+  elements.addNote.focus();
+  setStatus(`${note.id} deleted. Its target was preserved.`);
 }
 
 async function handleOccurrenceListAction(event) {
@@ -3983,16 +3955,20 @@ elements.exportSidecar.addEventListener("click", exportSidecar);
 elements.exportObjectEvidence.addEventListener("click", () => exportSelectedObjectEvidence(false));
 elements.exportObjectEvidenceZip.addEventListener("click", () => exportSelectedObjectEvidence(true));
 elements.exportJoineryAiPack.addEventListener("click", exportSelectedObjectForJoineryAi);
-elements.addEvidenceForm.addEventListener("submit", addEvidenceFromForm);
-elements.evidenceList.addEventListener("change", updateEvidenceReview);
-elements.evidenceList.addEventListener("click", handleEvidenceAction);
-elements.evidenceKind.addEventListener("change", () => {
-  elements.evidenceSource.setCustomValidity("");
-  if (elements.evidenceKind.value === "observation" && !elements.evidenceSource.value) {
-    const firstOccurrence = getObjectOccurrences(state.occurrences, state.selectedObjectId)[0];
-    elements.evidenceSource.value = firstOccurrence?.id ?? "";
+elements.openNotes.addEventListener("click", openNotes);
+elements.closeNotes.addEventListener("click", closeNotes);
+elements.notesDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeNotes();
+});
+elements.notesDialog.addEventListener("click", (event) => {
+  if (event.target === elements.notesDialog) {
+    closeNotes();
   }
 });
+elements.addNoteForm.addEventListener("submit", addNoteFromForm);
+elements.noteText.addEventListener("input", () => elements.noteText.setCustomValidity(""));
+elements.notesList.addEventListener("click", handleNoteAction);
 elements.chooseSidecar.addEventListener("click", () => elements.sidecarFile.click());
 elements.sidecarFile.addEventListener("change", (event) => importSidecar(event.target.files?.[0]));
 elements.previousPage.addEventListener("click", () => navigateToPage(state.pageNumber - 1));

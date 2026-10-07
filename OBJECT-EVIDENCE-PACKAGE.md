@@ -2,9 +2,9 @@
 
 ## Purpose
 
-`objdraw-object-evidence-v1` is a portable, target-neutral package for carrying one or more explicitly selected physical subjects and their exact drawing evidence out of an Object-Centric Drawing project.
+`objdraw-object-evidence-v2` is a portable, target-neutral package for carrying one or more explicitly selected physical subjects and their exact drawing evidence out of an Object-Centric Drawing project.
 
-It is not a replacement for `objdraw-project-v4`. The project file remains the editable Object-Centric Drawing source of truth. An evidence package is a bounded export assembled from that project for review, exchange, or translation by a separate adapter.
+It is not a replacement for `objdraw-project-v5`. The project file remains the editable Object-Centric Drawing source of truth. An evidence package is a bounded export assembled from that project for review, exchange, or translation by a separate adapter.
 
 ## Semantic boundary
 
@@ -14,15 +14,15 @@ A reusable type or configuration is a separate entity. An instance belongs to a 
 
 This distinction allows a future Joinery Configurator adapter to translate reviewed configuration evidence without redefining the identity of the physical objects that supplied it.
 
-## Version 1 envelope
+## Version 2 envelope
 
 ```json
 {
-  "format": "objdraw-object-evidence-v1",
+  "format": "objdraw-object-evidence-v2",
   "exportedAt": "2026-09-30T00:00:00.000Z",
   "producer": {
     "name": "Object-Centric Drawing",
-    "projectFormat": "objdraw-project-v4"
+    "projectFormat": "objdraw-project-v5"
   },
   "subjects": [
     {
@@ -67,15 +67,13 @@ This distinction allows a future Joinery Configurator adapter to translate revie
       }
     }
   ],
-  "observations": [
+  "notes": [
     {
-      "id": "observation-001",
+      "id": "note-001",
+      "scope": "occurrence",
       "subjectId": "door-001",
       "occurrenceId": "occurrence-001",
-      "evidenceKind": "observation",
-      "topic": "fire-rating",
-      "value": "60 minutes",
-      "reviewState": "confirmed",
+      "text": "Confirm the fire rating shown for this representation.",
       "createdAt": "2026-09-30T08:10:00.000Z",
       "updatedAt": "2026-09-30T08:15:00.000Z"
     }
@@ -89,12 +87,12 @@ This distinction allows a future Joinery Configurator adapter to translate revie
 - Every exported subject must retain at least one source occurrence.
 - Only documents referenced by those occurrences are included.
 - Subject IDs, occurrence IDs, document IDs, geometry, page numbers, filenames, sizes, page counts, and SHA-256 fingerprints are preserved.
-- Only governed observations belonging to the selected subjects are included; project `objectId` becomes package `subjectId`.
-- Every exported `observation` kind retains an exact exported occurrence source. An `assumption` may be occurrence-linked or apply to the whole subject.
-- Review states and timestamps are preserved. Rejected entries remain explicit rather than disappearing from the export.
+- Object notes belonging to selected subjects and occurrence notes belonging to their exported occurrences are included; project `objectId` becomes package `subjectId`.
+- Project notes are not included because the package contains only selected subjects.
+- Note text, scope, target, and timestamps are preserved.
 - Duplicate visible labels remain separate subjects.
 - A configuration is included only when an explicit exported relationship references it.
-- Version 1 allows at most one configuration relationship per physical subject and requires matching categories.
+- Version 2 allows at most one configuration relationship per physical subject and requires matching categories.
 - Unknown subjects, documents, configurations, invalid pages, and invalid geometry fail closed.
 - The package contains no local paths, PDF bytes, credentials, inferred links, or target-system records.
 
@@ -107,7 +105,7 @@ Later groups may add separately governed sections or companion assets for:
 - domain-profile declarations;
 - adapter results.
 
-Human observations, assumptions, review decisions, and derived unresolved conflicts are governed by `objdraw-project-v4`. Conflicts are recalculated from active values rather than serialized as a second source of truth.
+Human project, object, and occurrence notes are governed by `objdraw-project-v5`. They remain editable working context rather than reviewed claims.
 
 AI output must remain distinguishable from captured facts and human-reviewed values. Target-specific Joinery Configurator or CDI records should be produced by adapters and must not silently become part of the neutral Object-Centric Drawing project model.
 
@@ -137,15 +135,15 @@ Each PNG uses the existing Object Lens context crop and draws the exact rectangl
 ## Planned flow
 
 ```text
-objdraw-project-v4
+objdraw-project-v5
   -> explicit subject selection
-  -> objdraw-object-evidence-v1
+  -> objdraw-object-evidence-v2
   -> optional reviewed interpretation
   -> target adapter
   -> Joinery Configurator, CDI, or another consumer
 ```
 
-R0 provides the pure package builder and validator. R1 adds the selected-object Export Set control and optional companion assets. R2 adds governed human observations, assumptions, review states, and conflict visibility to the project and selected-subject package. AI interpretation and target-adapter fields remain outside these groups.
+R0 provides the pure package builder and validator. R1 adds the selected-object Export Set control and optional companion assets. Group AE replaces the earlier governed observation model with straightforward object and occurrence notes. AI interpretation and target-adapter fields remain outside these groups.
 
 ## T1 Joinery AI handoff
 

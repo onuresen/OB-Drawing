@@ -8,7 +8,7 @@ An object can have occurrences in several PDFs. Each occurrence explicitly names
 
 ```json
 {
-  "format": "objdraw-project-v4",
+  "format": "objdraw-project-v5",
   "exportedAt": "2026-09-30T08:00:00.000Z",
   "activeDocumentId": "document-001",
   "documents": [
@@ -56,15 +56,13 @@ An object can have occurrences in several PDFs. Each occurrence explicitly names
       }
     }
   ],
-  "observations": [
+  "notes": [
     {
-      "id": "observation-001",
-      "objectId": "door-001",
+      "id": "note-001",
+      "scope": "occurrence",
+      "objectId": null,
       "occurrenceId": "occurrence-001",
-      "evidenceKind": "observation",
-      "topic": "fire-rating",
-      "value": "60 minutes",
-      "reviewState": "confirmed",
+      "text": "Confirm the fire rating shown for this representation.",
       "createdAt": "2026-09-30T08:10:00.000Z",
       "updatedAt": "2026-09-30T08:15:00.000Z"
     }
@@ -88,7 +86,7 @@ New objects use neutral `object-*` identities. Imported `door-*` identities rema
 
 The user explicitly creates or confirms every cross-page and cross-document object link. Matching text, geometry, or labels must not silently merge objects.
 
-Deleting an occurrence normally removes only that occurrence. Deleting an object normally preserves its occurrences and sets their `objectId` to `null`. If governed evidence references the occurrence or object, deletion is blocked until the user explicitly removes that evidence; evidence removal is itself undoable. This prevents provenance from disappearing as a side effect of object editing.
+Deleting an occurrence normally removes only that occurrence. Deleting an object normally preserves its occurrences and sets their `objectId` to `null`. If a note directly references the occurrence or object, deletion is blocked until the user explicitly removes that note; note removal is itself undoable. Occurrence notes continue to follow their mark if its object link changes.
 
 ## Physical instance and reusable configuration
 
@@ -96,18 +94,17 @@ An Object-Centric Drawing object currently identifies one physical building-obje
 
 Portable evidence exports may introduce configuration records and explicit `instanceOf` relationships. No configuration relationship may be inferred from matching labels, categories, shapes, or AI output. This keeps instance identity stable while allowing reviewed configuration evidence to be translated to systems such as Joinery Configurator.
 
-The `objdraw-project-v4` editing contract adds stable object categories without changing physical-instance identity. The separate `objdraw-object-evidence-v1` package extracts selected physical subjects, exact document/page/geometry evidence, and their governed observations for downstream review or adapters. See [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md).
+The `objdraw-project-v5` editing contract adds flexible project, object, and occurrence notes without changing physical-instance identity. The separate `objdraw-object-evidence-v2` package extracts selected physical subjects, exact document/page/geometry evidence, and their relevant object or occurrence notes for downstream review or adapters. See [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md).
 
-## Governed evidence rules
+## Note rules
 
-An evidence entry belongs to exactly one existing object. Its `evidenceKind` is either:
+Notes are ordinary editable working notes. Their `scope` is one of:
 
-- `observation`: a claim read from or visibly supported by one exact occurrence; `occurrenceId` is required and must belong to the same object;
-- `assumption`: an explicit human interpretation that may refer to one occurrence or to the whole object with `occurrenceId: null`.
+- `project`: applies to the drawing set and has no object or occurrence reference;
+- `object`: applies to one exact object through `objectId`;
+- `occurrence`: applies to one exact mark through `occurrenceId`, whether that mark is linked or unlinked.
 
-`topic` and `value` are required human-entered strings. Entry IDs, content, kind, object, source occurrence, and creation time are immutable after creation. The only in-place change is the review state: `unreviewed`, `needs-confirmation`, `confirmed`, or `rejected`. A review-state change advances `updatedAt`; explicit removal remains available as a separate undoable action.
-
-Conflicts are derived rather than stored. Two or more non-rejected entries for the same object and normalized topic conflict when they contain different normalized values. Rejected entries remain in the record for traceability but do not contribute to conflicts.
+Every note has a stable `note-*` ID, non-empty `text`, and valid creation/update timestamps. Text can be edited in place and advances `updatedAt`; add, edit, and delete are undoable project mutations. Notes have no review states, conflict derivation, assignment, threads, or inferred identity.
 
 ## Occurrence and geometry rules
 
@@ -141,7 +138,7 @@ All values are normalized from `0` to `1` against the referenced page width and 
 
 ## Compatibility rule
 
-`obd-object-layer-v1`, `obd-project-v2`, and `obd-project-v3` remain importable. A successful legacy migration:
+`obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, `obd-project-v4`, and `objdraw-project-v4` remain importable. A successful legacy migration:
 
 - wraps its single `document` in `documents[]`;
 - sets that ID as `activeDocumentId`;
@@ -149,11 +146,11 @@ All values are normalized from `0` to `1` against the referenced page width and 
 - keeps every occurrence's `documentId`;
 - wraps legacy `bounds` in `geometry: { type: "rectangle", bounds }`;
 - assigns legacy Door objects the stable `doors` category;
-- initializes `observations` as an empty collection when the source format predates evidence.
+- initializes `notes` as an empty collection when the source format predates notes.
 
-A successful v3 migration additionally preserves governed observations and their exact source links while replacing legacy `type: "Door"` with `category: "doors"`.
+A v3 or v4 observation/assumption is converted to one ordinary note while importing. Its topic and value become `<topic>: <value>`; an entry with an occurrence becomes an occurrence note, while a whole-object assumption becomes an object note. The old review and conflict model is intentionally not retained.
 
-All migrated data is validated as `objdraw-project-v4` before it can enter runtime state. New exports use only `objdraw-project-v4`; migration is one-way and does not rewrite the user's original file.
+All migrated data is validated as `objdraw-project-v5` before it can enter runtime state. New exports use only `objdraw-project-v5`; migration is one-way and does not rewrite the user's original file.
 
 The interface can import this project before its PDFs are available. Local files are then attached by exact fingerprint, either in a multi-file batch or through a document-specific Relink action. Attachment state and per-document view state stay in memory and are not project content. A missing PDF never removes its manifest entry, objects, or occurrences.
 
