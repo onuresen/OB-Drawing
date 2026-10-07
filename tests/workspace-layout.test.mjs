@@ -46,3 +46,12 @@ test("hidden side-panel blocks stay hidden whatever display they set", async () 
   const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
   assert.match(css, /\.side-panel \[hidden\]\s*\{\s*display:\s*none !important;/);
 });
+
+test("the narrow toolbar lets each control cluster shrink and wrap", async () => {
+  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+  const narrowRules = css.slice(css.indexOf("@media (max-width: 420px)"));
+  assert.match(
+    narrowRules,
+    /\.toolbar-navigation\s*>\s*\.control-group\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*flex-wrap:\s*wrap;/s,
+  );
+});

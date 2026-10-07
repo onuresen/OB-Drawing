@@ -142,6 +142,22 @@ test("view history keeps only its limit", () => {
   assert.deepEqual(history.backStack.map((entry) => entry.page), [4, 5]);
 });
 
+test("view history clears both directions when the project identity changes", () => {
+  const history = new ViewHistory();
+  const a = { documentId: "old-document", page: 1 };
+  const b = { documentId: "old-document", page: 5 };
+  history.record(a, b);
+  assert.deepEqual(history.back(b), a);
+  assert.equal(history.canGoForward, true);
+
+  history.clear();
+
+  assert.equal(history.canGoBack, false);
+  assert.equal(history.canGoForward, false);
+  assert.equal(history.back(b), null);
+  assert.equal(history.forward(a), null);
+});
+
 test("stepping through an object's representations follows PDF, page and reading order, and wraps", () => {
   const occurrences = [
     { id: "o-3", objectId: "x", documentId: "d2", page: 1, bounds: { x: 0.1, y: 0.1 } },

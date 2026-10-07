@@ -2748,8 +2748,15 @@ button.evidence-source-link {
     grid-template-columns: 1fr;
   }
 
-  .control-group {
+  .toolbar-navigation > .control-group {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
     justify-content: space-between;
+  }
+
+  .toolbar-navigation > .history-controls {
+    justify-content: center;
   }
 
   .side-panel {

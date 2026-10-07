@@ -67,6 +67,7 @@ import {
 import {
   canRemoveDocument,
   chooseObjectOccurrence,
+  documentThumbnailCacheKey,
   findDocumentByFingerprint,
   occurrenceCountForDocument,
 } from "./project-documents.mjs";
@@ -1933,6 +1934,17 @@ let thumbnailQueueRunning = false;
 let thumbnailGeneration = 0;
 let lastThumbnailPage = null;
 
+function resetThumbnailCache() {
+  thumbnailGeneration += 1;
+  thumbnailQueue = [];
+  thumbnailListKey = "";
+  lastThumbnailPage = null;
+  thumbnailObserver?.disconnect();
+  thumbnailObserver = null;
+  thumbnailCache.clear();
+  elements.thumbnailList.replaceChildren();
+}
+
 function setThumbnailsOpen(open) {
   state.display.showThumbnails = open;
   elements.thumbnailPanel.hidden = !open;
@@ -1950,7 +1962,8 @@ function renderThumbnails() {
   if (elements.thumbnailPanel.hidden || !state.pdfDocument || !state.activeDocumentId) {
     return;
   }
-  const listKey = `${state.activeDocumentId}|${state.rotation}|${state.pdfDocument.numPages}`;
+  const projectDocument = getProjectDocument(state.activeDocumentId);
+  const listKey = documentThumbnailCacheKey(projectDocument, 0, state.rotation);
   if (listKey !== thumbnailListKey) {
     buildThumbnailList(listKey);
   }
@@ -1992,7 +2005,9 @@ function buildThumbnailList(listKey) {
     item.append(button);
     elements.thumbnailList.append(item);
 
-    const cached = thumbnailCache.get(`${state.activeDocumentId}|${page}|${state.rotation}`);
+    const cached = thumbnailCache.get(documentThumbnailCacheKey(
+      getProjectDocument(state.activeDocumentId), page, state.rotation,
+    ));
     if (cached) {
       showThumbnailImage(frame, cached);
     } else {
@@ -2024,20 +2039,22 @@ async function runThumbnailQueue() {
       const page = thumbnailQueue.shift();
       const generation = thumbnailGeneration;
       const pdfDocument = state.pdfDocument;
-      const key = `${state.activeDocumentId}|${page}|${state.rotation}`;
+      const projectDocument = getProjectDocument(state.activeDocumentId);
+      const viewRotation = state.rotation;
+      const key = documentThumbnailCacheKey(projectDocument, page, viewRotation);
       let url = thumbnailCache.get(key);
       if (!url) {
         try {
-          url = await renderThumbnailImage(pdfDocument, page, state.rotation);
+          url = await renderThumbnailImage(pdfDocument, page, viewRotation);
         } catch (error) {
           console.warn(`Thumbnail for page ${page} could not be rendered.`, error);
           continue;
         }
-        thumbnailCache.set(key, url);
       }
       if (generation !== thumbnailGeneration) {
         continue;
       }
+      thumbnailCache.set(key, url);
       const frame = elements.thumbnailList.querySelector(`.thumbnail-frame[data-thumbnail-page="${page}"]`);
       if (frame && !frame.querySelector("img")) {
         showThumbnailImage(frame, url);
@@ -2907,6 +2924,8 @@ async function removeDocument(documentId) {
   state.documentViews.delete(documentId);
   state.documents = state.documents.filter((document) => document.id !== documentId);
   resetObjectHistory();
+  viewHistory.clear();
+  resetThumbnailCache();
   const removedActiveDocument = state.activeDocumentId === documentId;
   if (removedActiveDocument) {
     state.activeDocumentId = null;
@@ -3036,6 +3055,8 @@ async function importSidecar(file) {
     state.interaction = null;
     setMarkMode(false);
     resetObjectHistory();
+    viewHistory.clear();
+    resetThumbnailCache();
     await activateDocument(importedActiveDocumentId);
     markObjectLayerSaved();
     const migrationNote = parsed.format === "obd-object-layer-v1"

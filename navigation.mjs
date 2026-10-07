@@ -211,6 +211,11 @@ export class ViewHistory {
     return target;
   }
 
+  clear() {
+    this.backStack = [];
+    this.forwardStack = [];
+  }
+
   get canGoBack() {
     return this.backStack.length > 0;
   }

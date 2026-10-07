@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   canRemoveDocument,
   chooseObjectOccurrence,
+  documentThumbnailCacheKey,
   findDocumentByFingerprint,
   fingerprintsMatch,
   occurrenceCountForDocument,
@@ -30,6 +31,25 @@ test("documents with occurrences cannot be removed from the manifest", () => {
   assert.equal(occurrenceCountForDocument(occurrences, "document-002"), 2);
   assert.equal(canRemoveDocument(occurrences, "document-002"), false);
   assert.equal(canRemoveDocument(occurrences, "document-003"), true);
+});
+
+test("thumbnail cache identity follows the PDF fingerprint rather than a reused document ID", () => {
+  const first = documents[0];
+  const replacement = { ...first, sha256: "c".repeat(64) };
+  const renamed = { ...first, name: "renamed.pdf", id: "another-id" };
+
+  assert.notEqual(
+    documentThumbnailCacheKey(first, 1, 0),
+    documentThumbnailCacheKey(replacement, 1, 0),
+  );
+  assert.equal(
+    documentThumbnailCacheKey(first, 1, 90),
+    documentThumbnailCacheKey(renamed, 1, 90),
+  );
+  assert.notEqual(
+    documentThumbnailCacheKey(first, 1, 0),
+    documentThumbnailCacheKey(first, 2, 0),
+  );
 });
 
 test("object navigation prefers the visible page, then attached documents", () => {

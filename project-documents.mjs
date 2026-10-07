@@ -20,6 +20,15 @@ export function canRemoveDocument(occurrences, documentId) {
   return occurrenceCountForDocument(occurrences, documentId) === 0;
 }
 
+// Thumbnail identity follows the source PDF fingerprint, not the project-local document ID.
+// Different imported projects commonly reuse IDs such as "document-001".
+export function documentThumbnailCacheKey(document, page, rotation) {
+  if (!document) {
+    return null;
+  }
+  return `${document.sha256}:${document.size}:${document.pageCount}|${page}|${rotation}`;
+}
+
 export function chooseObjectOccurrence({
   occurrences,
   objectId,
