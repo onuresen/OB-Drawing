@@ -18,7 +18,7 @@ test("workspace surfaces retain explicit rows when PDF search is hidden", async 
 
 test("the application requests the current corrected stylesheet version", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /styles\.css\?v=2026-10-06-thumbnails/);
+  assert.match(html, /styles\.css\?v=2026-10-07-responsive-fix/);
 });
 
 test("the application requests the complete text-selection module version", async () => {
