@@ -114,6 +114,12 @@ import {
   removeNote,
   updateNote,
 } from "./note-model.mjs";
+import {
+  LEGACY_REVIT_DATA_FORMAT,
+  REVIT_DATA_FORMAT,
+  revitObjectData,
+  validateRevitData,
+} from "./revit-data.mjs";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = "./vendor/pdfjs/pdf.worker.mjs";
 
@@ -230,6 +236,15 @@ const elements = {
   selectedObjectTitle: document.querySelector("#selectedObjectTitle"),
   selectedObjectIdentity: document.querySelector("#selectedObjectIdentity"),
   objectLensSummary: document.querySelector("#objectLensSummary"),
+  revitProperties: document.querySelector("#revitProperties"),
+  revitPropertyCount: document.querySelector("#revitPropertyCount"),
+  revitIdentity: document.querySelector("#revitIdentity"),
+  revitPropertySearch: document.querySelector("#revitPropertySearch"),
+  noRevitProperties: document.querySelector("#noRevitProperties"),
+  revitInstanceCount: document.querySelector("#revitInstanceCount"),
+  revitInstanceProperties: document.querySelector("#revitInstanceProperties"),
+  revitTypeCount: document.querySelector("#revitTypeCount"),
+  revitTypeProperties: document.querySelector("#revitTypeProperties"),
   objectExportMenu: document.querySelector("#objectExportMenu"),
   exportObjectEvidence: document.querySelector("#exportObjectEvidence"),
   exportObjectEvidenceZip: document.querySelector("#exportObjectEvidenceZip"),
@@ -279,6 +294,8 @@ const state = {
   objects: [],
   occurrences: [],
   notes: [],
+  // Optional read-only adapter data. It is never saved in the neutral project.
+  revitData: null,
   selectedObjectId: null,
   selectedOccurrenceId: null,
   interaction: null,
@@ -1250,11 +1267,73 @@ function renderObjectComposer() {
   }
 }
 
+function renderRevitParameterList(container, parameters) {
+  container.replaceChildren();
+  for (const parameter of parameters) {
+    const name = document.createElement("dt");
+    const value = document.createElement("dd");
+    name.textContent = parameter.name;
+    name.title = parameter.sourceKey;
+    value.textContent = parameter.displayValue;
+    if (parameter.rawValue !== parameter.displayValue) {
+      value.title = `Raw value: ${parameter.rawValue}`;
+    }
+    container.append(name, value);
+  }
+}
+
+function renderRevitProperties(object) {
+  const source = object ? revitObjectData(state.revitData, object.id) : null;
+  elements.revitProperties.hidden = !source;
+  if (!source) {
+    elements.revitInstanceProperties.replaceChildren();
+    elements.revitTypeProperties.replaceChildren();
+    return;
+  }
+
+  const familyAndType = [source.familyName, source.typeName].filter(Boolean).join(" · ");
+  elements.revitIdentity.textContent = [
+    state.revitData.revitDocument,
+    `Element ${source.elementId}`,
+    familyAndType,
+  ].filter(Boolean).join(" · ");
+  elements.revitIdentity.title = `Revit UniqueId: ${source.uniqueId}\nExported ${state.revitData.exportedAt}`;
+
+  const query = elements.revitPropertySearch.value.trim().toLocaleLowerCase();
+  const matches = (parameter) => !query || [
+    parameter.name,
+    parameter.displayValue,
+    parameter.rawValue,
+  ].some((value) => value.toLocaleLowerCase().includes(query));
+  const instanceParameters = source.instanceParameters.filter(matches);
+  const typeParameters = source.typeParameters.filter(matches);
+  const total = source.instanceParameters.length + source.typeParameters.length;
+  const visible = instanceParameters.length + typeParameters.length;
+
+  elements.revitPropertyCount.textContent = String(total);
+  elements.revitPropertyCount.title = `${total} populated parameter${total === 1 ? "" : "s"} in this Revit snapshot`;
+  elements.revitInstanceCount.textContent = query
+    ? `${instanceParameters.length} of ${source.instanceParameters.length}`
+    : String(source.instanceParameters.length);
+  elements.revitTypeCount.textContent = query
+    ? `${typeParameters.length} of ${source.typeParameters.length}`
+    : String(source.typeParameters.length);
+  elements.revitInstanceProperties.closest("details").hidden = instanceParameters.length === 0;
+  elements.revitTypeProperties.closest("details").hidden = typeParameters.length === 0;
+  elements.noRevitProperties.hidden = visible > 0;
+  elements.noRevitProperties.textContent = total === 0
+    ? "This Revit companion contains identity only; parameters were not included."
+    : "No properties match this search.";
+  renderRevitParameterList(elements.revitInstanceProperties, instanceParameters);
+  renderRevitParameterList(elements.revitTypeProperties, typeParameters);
+}
+
 function renderSelectedObjectPanel() {
   const object = getObject(state.selectedObjectId);
   elements.selectedObjectPanel.hidden = !object;
   elements.markForObject.disabled = !object || !state.pdfDocument;
   if (!object) {
+    renderRevitProperties(null);
     elements.objectLensSummary.hidden = true;
     elements.objectLensSummary.replaceChildren();
     elements.openRepresentationBoard.disabled = true;
@@ -1323,6 +1402,7 @@ function renderSelectedObjectPanel() {
     missing.textContent = `${summary.missingDocumentCount} source PDF${summary.missingDocumentCount === 1 ? "" : "s"} missing`;
     elements.objectLensSummary.append(missing);
   }
+  renderRevitProperties(object);
 }
 
 function noteTargetLabel(note) {
@@ -2968,13 +3048,12 @@ function exportSidecar() {
   }
 }
 
-async function importSidecar(file) {
+async function importSidecar(file, parsed) {
   if (!file) {
     return;
   }
 
   try {
-    const parsed = JSON.parse(await file.text());
     const sidecar = validateSidecar(parsed);
     if (hasUnsavedObjectLayerChanges()) {
       const confirmed = globalThis.confirm(
@@ -3028,6 +3107,7 @@ async function importSidecar(file) {
     state.objects = sidecar.objects;
     state.occurrences = toRuntimeOccurrences(sidecar.occurrences);
     state.notes = sidecar.notes;
+    state.revitData = null;
     state.selectedObjectId = null;
     state.selectedOccurrenceId = null;
     state.interaction = null;
@@ -3671,6 +3751,52 @@ function addNoteFromForm(event) {
   }
 }
 
+function importRevitData(file, parsed) {
+  try {
+    if (state.documents.length === 0) {
+      throw new Error("Import the matching Object-Centric Drawing project first.");
+    }
+    const revitData = validateRevitData(parsed, state.objects, state.documents);
+    state.revitData = revitData;
+    refreshObjectUi();
+    const parameterCount = revitData.objects.reduce(
+      (sum, object) => sum + object.instanceParameters.length + object.typeParameters.length,
+      0,
+    );
+    setSidecarMessage(`Imported ${file.name} as read-only Revit source data.`);
+    setStatus(revitData.includesParameters
+      ? `Loaded ${parameterCount} populated Revit parameter${parameterCount === 1 ? "" : "s"} for ${revitData.objects.length} object${revitData.objects.length === 1 ? "" : "s"}.`
+      : `Loaded Revit identity for ${revitData.objects.length} object${revitData.objects.length === 1 ? "" : "s"}; this companion has no parameter snapshot.`);
+  } catch (error) {
+    console.error(error);
+    setSidecarMessage(`Revit data import failed: ${error.message}. The current session was not changed.`, true);
+    setStatus("The selected Revit companion was not imported.");
+  } finally {
+    elements.sidecarFile.value = "";
+  }
+}
+
+async function importJsonFile(file) {
+  if (!file) {
+    return;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (error) {
+    console.error(error);
+    setSidecarMessage(`Import failed: ${error.message}. The current session was not changed.`, true);
+    setStatus("The selected JSON file was not imported.");
+    elements.sidecarFile.value = "";
+    return;
+  }
+  if ([REVIT_DATA_FORMAT, LEGACY_REVIT_DATA_FORMAT].includes(parsed?.format)) {
+    importRevitData(file, parsed);
+    return;
+  }
+  await importSidecar(file, parsed);
+}
+
 async function handleNoteAction(event) {
   const button = event.target.closest("button[data-action]");
   if (!button) {
@@ -3970,7 +4096,10 @@ elements.addNoteForm.addEventListener("submit", addNoteFromForm);
 elements.noteText.addEventListener("input", () => elements.noteText.setCustomValidity(""));
 elements.notesList.addEventListener("click", handleNoteAction);
 elements.chooseSidecar.addEventListener("click", () => elements.sidecarFile.click());
-elements.sidecarFile.addEventListener("change", (event) => importSidecar(event.target.files?.[0]));
+elements.sidecarFile.addEventListener("change", (event) => importJsonFile(event.target.files?.[0]));
+elements.revitPropertySearch.addEventListener("input", () => {
+  renderRevitProperties(getObject(state.selectedObjectId));
+});
 elements.previousPage.addEventListener("click", () => navigateToPage(state.pageNumber - 1));
 elements.nextPage.addEventListener("click", () => navigateToPage(state.pageNumber + 1));
 elements.pageNumber.addEventListener("change", () => navigateToPage(elements.pageNumber.value));

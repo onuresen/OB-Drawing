@@ -18,7 +18,7 @@ test("workspace surfaces retain explicit rows when PDF search is hidden", async 
 
 test("the application requests the current corrected stylesheet version", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /styles\.css\?v=2026-10-07-notes/);
+  assert.match(html, /styles\.css\?v=2026-10-07-revit-properties/);
 });
 
 test("the application requests the complete text-selection module version", async () => {
@@ -56,6 +56,23 @@ test("one Notes dialog replaces the former evidence form", async () => {
   for (const scope of ["project", "object", "occurrence"]) {
     assert.match(html, new RegExp(`<option value="${scope}"`));
   }
+});
+
+test("selected objects can show searchable read-only Revit properties", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  for (const id of [
+    "revitProperties",
+    "revitIdentity",
+    "revitPropertySearch",
+    "revitInstanceProperties",
+    "revitTypeProperties",
+  ]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+  assert.ok(
+    html.indexOf('id="revitProperties"') > html.indexOf('id="selectedObjectPanel"'),
+    "Revit properties are not in the selected object panel",
+  );
 });
 
 test("the narrow toolbar lets each control cluster shrink and wrap", async () => {

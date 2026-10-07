@@ -11,7 +11,7 @@ namespace ObjectCentricDrawing
     internal static class ProjectFormat
     {
         public const string Name = "objdraw-project-v5";
-        public const string RevitRefsName = "objdraw-revit-refs-v1";
+        public const string RevitRefsName = "objdraw-revit-refs-v2";
 
         public static readonly JsonSerializerOptions Json = new()
         {
@@ -59,6 +59,8 @@ namespace ObjectCentricDrawing
         string ProjectFile,
         string ExportedAt,
         string RevitDocument,
+        ProjectDocument SourceDocument,
+        bool IncludesParameters,
         List<RevitObjectRef> Objects,
         List<RevitOccurrenceRef> Occurrences,
         List<SkippedView> Skipped);
@@ -69,7 +71,16 @@ namespace ObjectCentricDrawing
         long ElementId,
         string FamilyName,
         string TypeName,
-        string Mark);
+        string Mark,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<RevitParameter>? InstanceParameters,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<RevitParameter>? TypeParameters);
+
+    internal sealed record RevitParameter(
+        string SourceKey,
+        string Name,
+        string StorageType,
+        string RawValue,
+        string DisplayValue);
 
     internal sealed record RevitOccurrenceRef(
         string OccurrenceId,

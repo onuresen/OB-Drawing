@@ -1997,6 +1997,79 @@ select.text-input {
   background: var(--accent-soft);
 }
 
+.revit-properties {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.revit-properties .subsection-heading {
+  margin: 0;
+}
+
+.revit-identity {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.revit-property-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.revit-property-group > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.revit-property-group > summary span {
+  color: var(--ink-soft);
+  font-weight: 650;
+}
+
+.revit-property-list {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.8fr) minmax(0, 1.2fr);
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.revit-property-list dt,
+.revit-property-list dd {
+  min-width: 0;
+  margin: 0;
+  padding: 7px 9px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.revit-property-list dt {
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+}
+
+.revit-property-list dd {
+  color: var(--ink);
+}
+
+.revit-property-list > :nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
 .evidence-export {
   display: grid;
   gap: 6px;

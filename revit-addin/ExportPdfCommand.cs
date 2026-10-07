@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Globalization;
 using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -239,8 +240,16 @@ namespace ObjectCentricDrawing
                     (string familyName, string typeName) = TypeNames(doc, element);
                     objects.Add(new ProjectObject(
                         objectId, ExportCategories.Find(p.Category)!.Key, Label(element, identifier, typeName)));
+                    Element? elementType = doc.GetElement(element.GetTypeId());
                     objectRefs.Add(new RevitObjectRef(
-                        objectId, element.UniqueId, element.Id.Value, familyName, typeName, identifier));
+                        objectId,
+                        element.UniqueId,
+                        element.Id.Value,
+                        familyName,
+                        typeName,
+                        identifier,
+                        options.IncludeParameters ? Parameters(doc, element) : null,
+                        options.IncludeParameters && elementType != null ? Parameters(doc, elementType) : null));
                 }
 
                 string occurrenceId = $"occurrence-{occurrences.Count + 1:000}";
@@ -288,11 +297,77 @@ namespace ObjectCentricDrawing
                 Path.GetFileNameWithoutExtension(pdfPath) + ".objdraw.json",
                 exportedAt,
                 doc.Title,
+                project.Documents[0],
+                options.IncludeParameters,
                 objectRefs,
                 occurrenceRefs,
                 skipped);
 
             return new BuildResult(project, refs, outlineCount, occurrences.Count - outlineCount);
+        }
+
+        // A broad, read-only snapshot. Empty/unreadable values are skipped; the adapter
+        // remains separate from the neutral Object-Centric Drawing project file.
+        private static List<RevitParameter> Parameters(Document doc, Element element)
+        {
+            var result = new List<RevitParameter>();
+            foreach (Parameter parameter in element.Parameters)
+            {
+                try
+                {
+                    if (!parameter.HasValue || parameter.StorageType == StorageType.None) continue;
+                    string name = parameter.Definition?.Name?.Trim() ?? "";
+                    if (name == "") continue;
+
+                    string storageType;
+                    string rawValue;
+                    switch (parameter.StorageType)
+                    {
+                        case StorageType.Double:
+                            storageType = "double";
+                            rawValue = parameter.AsDouble().ToString("R", CultureInfo.InvariantCulture);
+                            break;
+                        case StorageType.Integer:
+                            storageType = "integer";
+                            rawValue = parameter.AsInteger().ToString(CultureInfo.InvariantCulture);
+                            break;
+                        case StorageType.String:
+                            storageType = "string";
+                            rawValue = parameter.AsString() ?? "";
+                            break;
+                        case StorageType.ElementId:
+                            storageType = "elementId";
+                            rawValue = parameter.AsElementId().Value.ToString(CultureInfo.InvariantCulture);
+                            break;
+                        default:
+                            continue;
+                    }
+
+                    string displayValue = parameter.AsValueString() ?? "";
+                    if (parameter.StorageType == StorageType.String) displayValue = rawValue;
+                    if (parameter.StorageType == StorageType.ElementId
+                        && doc.GetElement(parameter.AsElementId()) is Element referenced)
+                        displayValue = referenced.Name;
+                    if (string.IsNullOrWhiteSpace(displayValue)) displayValue = rawValue;
+                    if (string.IsNullOrWhiteSpace(displayValue)) continue;
+
+                    string sourceKey = parameter.IsShared
+                        ? $"shared:{parameter.GUID:D}"
+                        : $"parameter:{parameter.Id.Value}";
+                    result.Add(new RevitParameter(sourceKey, name, storageType, rawValue, displayValue.Trim()));
+                }
+                catch (Autodesk.Revit.Exceptions.ApplicationException)
+                {
+                    // One unreadable parameter must not block the PDF and object export.
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            }
+            return result
+                .OrderBy(parameter => parameter.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(parameter => parameter.SourceKey, StringComparer.Ordinal)
+                .ToList();
         }
 
         private static string? UnsupportedReason(View view)
@@ -390,7 +465,9 @@ namespace ObjectCentricDrawing
             string text =
                 $"{sheetCount} sheet(s) → {baseName}.pdf\n"
                 + $"{result.Project.Objects.Count} object(s), {result.Project.Occurrences.Count} occurrence(s)\n"
-                + shapes + "\n"
+                + shapes
+                + (result.Refs.IncludesParameters ? "Populated Revit parameters included\n" : "")
+                + "\n"
                 + "Open the PDF in Object-Centric Drawing, then import the .objdraw.json.";
             if (result.Refs.Skipped.Count > 0)
             {

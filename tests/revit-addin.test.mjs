@@ -81,9 +81,24 @@ test("the remembered export choice is stored by category key, not enum number", 
   assert.doesNotMatch(source, /\(int\)\s*c\.Category/);
 });
 
+test("parameter export is optional, remembered, and kept in the Revit adapter", () => {
+  const options = addin("ExportOptions.cs");
+  const dialog = addin("ExportOptionsWindow.cs");
+  const schema = addin("ProjectSchema.cs");
+  const build = addin("ExportPdfCommand.cs");
+  assert.match(options, /bool IncludeParameters = false/);
+  assert.match(dialog, /Include populated instance and type parameters/);
+  assert.match(schema, /objdraw-revit-refs-v2/);
+  assert.match(schema, /ProjectDocument SourceDocument/);
+  assert.match(schema, /List<RevitParameter>\? InstanceParameters/);
+  assert.match(schema, /List<RevitParameter>\? TypeParameters/);
+  assert.match(build, /options\.IncludeParameters \? Parameters\(doc, element\) : null/);
+  assert.doesNotMatch(schema.match(/internal sealed record Project\([\s\S]*?\);/)[0], /RevitParameter/);
+});
+
 test("rectangles stay the default shape, and an outline always falls back to one", () => {
   const options = addin("ExportOptions.cs");
-  assert.match(options, /bool Outline = false\)/, "stored default is not rectangle");
+  assert.match(options, /bool Outline = false[,)]/, "stored default is not rectangle");
   assert.doesNotMatch(options.slice(options.indexOf("Defaults()"), options.indexOf("private sealed record Stored")), /Outline\s*=\s*true/);
   const build = addin("ExportPdfCommand.cs");
   const start = build.indexOf("Geometry geometry = Geometry.Rectangle(p.Bounds);");

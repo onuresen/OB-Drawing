@@ -155,3 +155,9 @@ All migrated data is validated as `objdraw-project-v5` before it can enter runti
 The interface can import this project before its PDFs are available. Local files are then attached by exact fingerprint, either in a multi-file batch or through a document-specific Relink action. Attachment state and per-document view state stay in memory and are not project content. A missing PDF never removes its manifest entry, objects, or occurrences.
 
 Documents with occurrences cannot be removed from the manifest; they can be safely detached instead. This prevents source evidence from becoming orphaned. The interface renders and edits every geometry type retained by the v4 contract: rectangle, ellipse, and polygon.
+
+## Optional Revit source data
+
+`objdraw-revit-refs-v2` is a separate, read-only adapter file. It maps exact Object-Centric Drawing object IDs to Revit element identity and, when the exporter option is enabled, a snapshot of populated readable instance and type parameters. Each parameter retains a source key, name, storage type, raw value, and Revit-formatted display value.
+
+The adapter is not part of `objdraw-project-v5`. Importing it does not change project content, saved state, history, labels, categories, notes, or occurrence identity. Its source PDF fingerprint must match a document in the current project, and unknown object IDs fail closed; matching filenames or labels are never used to attach Revit data.

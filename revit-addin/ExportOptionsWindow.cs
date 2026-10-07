@@ -14,6 +14,7 @@ namespace ObjectCentricDrawing
     {
         private readonly List<(CategoryCount Count, CheckBox Box)> _rows = new();
         private readonly CheckBox _requireMark;
+        private readonly CheckBox _includeParameters;
         private readonly RadioButton _outline;
         private readonly TextBlock _summary;
         private readonly Button _export;
@@ -68,6 +69,14 @@ namespace ObjectCentricDrawing
             _requireMark.Unchecked += (_, _) => Update();
             root.Children.Add(_requireMark);
 
+            _includeParameters = new CheckBox
+            {
+                Content = "Include populated instance and type parameters",
+                IsChecked = previous.IncludeParameters,
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            root.Children.Add(_includeParameters);
+
             root.Children.Add(new TextBlock { Text = "Shape", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 2) });
             var rectangle = new RadioButton
             {
@@ -103,6 +112,7 @@ namespace ObjectCentricDrawing
                     Categories = _rows.Where(r => r.Box.IsChecked == true).Select(r => r.Count.Category.Category).ToHashSet(),
                     RequireMark = _requireMark.IsChecked == true,
                     Outline = _outline.IsChecked == true,
+                    IncludeParameters = _includeParameters.IsChecked == true,
                 };
                 DialogResult = true;
             };

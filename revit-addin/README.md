@@ -15,6 +15,8 @@ One button: **OneMore ▸ Object-Centric Drawing ▸ Export PDF + Objects**.
    **Shape:** Rectangle (default) or Outline. Outline gives rooms their boundary and everything else
    a convex outline of what the view draws, so rotated elements fit. Inside corners are not followed.
    Any element whose outline fails keeps its rectangle.
+   **Parameters:** "Include populated instance and type parameters" is off by default. When enabled,
+   every populated readable parameter is added to the separate Revit companion file.
 3. Pick where to save the PDF.
 4. Three files are written side by side:
 
@@ -22,15 +24,15 @@ One button: **OneMore ▸ Object-Centric Drawing ▸ Export PDF + Objects**.
 |---|---|
 | `name.pdf` | The sheets, one page each, ordered by sheet number. Not modified afterwards. |
 | `name.objdraw.json` | The project file. Open the PDF in the app, then import this. |
-| `name.objdraw-revit.json` | Revit identity: UniqueId per object, sheet and view per occurrence, skipped views. |
+| `name.objdraw-revit.json` | Revit identity, optional instance/type parameter snapshots, sheet/view references, and skipped views. |
 
 One Revit element is one object. Each sheet view it appears in is one occurrence.
 
 ## Why Revit IDs are in a separate file
 
-The app rebuilds every object field by field when it imports a project.
-An extra Revit field inside the project file would be lost on the next save.
-The project core also stays free of Revit, as `DECISIONS.md` requires.
+Import `name.objdraw.json` first, then use the same **Import JSON** action for
+`name.objdraw-revit.json`. The selected object's Revit identity and parameters appear read-only
+in Properties. The project core stays free of Revit, as `DECISIONS.md` requires.
 
 ## v1 scope
 

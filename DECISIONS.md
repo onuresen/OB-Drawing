@@ -334,6 +334,14 @@
 
 **Boundary:** The selected object's marks and unlinked marks are never hidden by a filter. You cannot lose sight of what you are working on, or of a mark that still needs an object.
 
+## 2026-10-07 — Keep optional Revit parameters broad, separate, and read-only
+
+**Decision:** The Revit export dialog has one off-by-default `Include populated instance and type parameters` option. When enabled, the exporter captures every populated readable parameter for each exported element and its type in `objdraw-revit-refs-v2`; it does not require a category-dependent parameter picker.
+
+**Interaction:** The existing Import JSON action recognizes the Revit companion after the matching project is loaded. Exact `objectId` references attach source data. The selected-object Properties pane groups Instance and Type values and provides local search.
+
+**Boundary:** Revit identity and parameters remain read-only adapter data. They do not enter the neutral project, undo history, dirty comparison, Notes, or object evidence exports. Empty and unreadable parameters are skipped. The source PDF fingerprint and every referenced object ID must match the current project; failure leaves the current session unchanged.
+
 **Alternative:** Tabs instead of stacked panes. Rejected because selecting in the list and editing below it should be visible together.
 
 **Confidence:** high.

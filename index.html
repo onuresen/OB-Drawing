@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-07-notes">
+  <link rel="stylesheet" href="styles.css?v=2026-10-07-revit-properties">
 </head>
 <body>
   <header class="app-header">
@@ -237,7 +237,7 @@
             <h3 id="sidecarTitle">Project file</h3>
             <span id="saveState" class="save-state" role="status" aria-live="polite" data-dirty="false">No document</span>
           </div>
-          <p class="quiet-copy">Export a versioned project beside its PDFs, or import a project first and relink its local source files.</p>
+          <p class="quiet-copy">Import a project or its optional Revit companion data. Revit properties stay read-only and separate from the project.</p>
           <div class="sidecar-actions">
             <button id="exportSidecar" class="button button-primary" type="button" disabled>Export JSON</button>
             <button id="chooseSidecar" class="button" type="button">Import JSON</button>
@@ -311,6 +311,25 @@
           </div>
 
           <div id="objectLensSummary" class="object-lens-summary" aria-live="polite"></div>
+
+          <section id="revitProperties" class="revit-properties" aria-labelledby="revitPropertiesTitle" hidden>
+            <div class="subsection-heading">
+              <h4 id="revitPropertiesTitle">Revit properties</h4>
+              <span id="revitPropertyCount">0</span>
+            </div>
+            <p id="revitIdentity" class="revit-identity"></p>
+            <label class="visually-hidden" for="revitPropertySearch">Search Revit properties</label>
+            <input id="revitPropertySearch" class="text-input" type="search" placeholder="Search Revit properties" autocomplete="off">
+            <p id="noRevitProperties" class="quiet-copy" hidden>No properties match this search.</p>
+            <details class="revit-property-group" open>
+              <summary>Instance <span id="revitInstanceCount">0</span></summary>
+              <dl id="revitInstanceProperties" class="revit-property-list"></dl>
+            </details>
+            <details class="revit-property-group" open>
+              <summary>Type <span id="revitTypeCount">0</span></summary>
+              <dl id="revitTypeProperties" class="revit-property-list"></dl>
+            </details>
+          </section>
 
           <div class="evidence-export">
             <details id="objectExportMenu" class="object-export-menu">

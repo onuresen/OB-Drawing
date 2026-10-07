@@ -52,8 +52,9 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AC — view rotation (R / Shift+R, per PDF, saved geometry never rotates) and a lazily rendered page thumbnail strip (T) with mark counts, current page, and pages holding the selected object. The toolbar wraps by its own width.
 - [ ] Group AD — automated browser smoke checks using a stable PDF exported from the safe CDI playground Revit model; keep Revit out of the test runtime and repository, then cover rendering, embedded-text search, explicit object linking, project round-trip, geometry stability, project replacement, multi-document navigation, and responsive overflow in Chromium.
 - [x] Group AE — one flexible Notes system with editable project, object, and occurrence scopes; `objdraw-project-v5`, undo/redo and dirty tracking, note-aware object packages and Joinery handoff, and v3/v4 evidence-text migration. The earlier observation/assumption, review-state, and conflict model was removed rather than kept beside Notes.
+- [x] Group AF — optional broad Revit parameter snapshots in `objdraw-revit-refs-v2`, with all populated readable instance/type parameters kept outside the neutral project and shown as searchable, read-only selected-object properties after explicit companion import.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
-- [ ] Later, when needed — toolbar back/forward buttons, a level filter in the Revit export, and using `.objdraw-revit.json` IDs in the app.
+- [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
 
 ### Next automation fixture
@@ -195,6 +196,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - Current Object-Centric Drawing objects are physical instances. Reusable configurations remain separate and connect only through an explicit `instanceOf` relationship; duplicate labels never imply that relationship.
 - Evidence packages retain exact source document fingerprints, page identities, and typed geometry, include only referenced documents, and fail closed on unknown or unrepresented subjects.
 - Joinery Configurator and CDI remain downstream adapters. Target-specific fields, AI drafts, and adapter output do not silently enter the neutral project or evidence contract.
+- Revit parameter export is explicit and off by default. When enabled, `objdraw-revit-refs-v2` contains every populated readable instance and type parameter for exported elements, grouped by scope. The app imports that companion only against exact object IDs and shows it as searchable read-only source data; it never enters project save state, history, or `objdraw-project-v5`.
 - Joinery AI handoff is available only for `doors` and `windows`, requires at least one successfully rendered local representation, and maps those categories only to target opening modes `door` and `window`.
 - A Joinery handoff always includes the neutral manifest, exact occurrence/document/page mappings, clean and marked crops, one marked contact sheet, and an explicit reference to the separately maintained target prompt/schema.
 - `JoineryConfigurator_Photo_to_JSON_Prompt.md` is authoritative in the Joinery Configurator repository. Object-Centric Drawing must not duplicate or silently synchronize it.
