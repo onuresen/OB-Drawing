@@ -401,3 +401,36 @@
 **Alternative:** Keep Evidence as an advanced panel beside Notes. Rejected because two overlapping systems would preserve the confusing mental model and increase maintenance.
 
 **Confidence:** high for the product direction; browser interaction still needs the planned automated fixture and later owner smoke test.
+
+## 2026-10-08 — Explicit object relations, drawn on the sheet
+
+**Decision:** `objdraw-project-v6` adds one `relations[]` collection. A relation is `{ id, type, from, to, label }` between two objects. It is drawn as an arc between their nearest marks on the current page.
+
+**Why:** Drawings carry relationships that labels cannot. A card reader controls a door. A door is hosted on a wall and opens to rooms. The door takes its finish data from those rooms.
+
+**Sources compared:**
+- Thinking Hub uses three edge types (`relates`, `blocks`, `depends-on`). Light and pleasant to draw, but too few words for buildings.
+- ONEXUS uses free-form `type` + `dimension` + `directional`. Flexible, but free text drifts.
+- CDI has a curated vocabulary in families (`ontology/cdi-relationship-vocabulary.json`) with forward and inverse meaning. Rich, but its truth classes and review states are for model-derived data.
+
+**Chosen mix:** CDI's type keys and families. Thinking Hub's simple click-to-connect drawing. ONEXUS's directed flag, so export to ONEXUS is a plain field mapping later.
+
+**Vocabulary:** 14 types in 5 families: Assembly, Space, System, Data, General. Twelve keep CDI's exact key. `takesDataFrom` and `relatesTo` are local and have no CDI equivalent yet. Each type has a forward and an inverse phrase, so a relation reads well from either end.
+
+**Human-made only:** Every relation is drawn by a person. There is no truth class, review state, or inferred relation. Category pairs only preselect a type in the dialog; the person still confirms it.
+
+**Objects, not marks:** A relation joins objects. The canvas picks the closest pair of marks on the page. A relation therefore shows on every sheet where both objects appear.
+
+**Deletion:** Deleting an object removes its relations in the same undo step. The confirm dialog says how many. Relations are not notes, so they do not block deletion.
+
+**Alternatives rejected:**
+- Free-text relation types like ONEXUS. They drift and cannot be mapped to CDI.
+- CDI's full 25-type list. Doc 39 measured that a long flat list makes people hesitate.
+- Relations between marks. A door is the same door on plan and elevation.
+- An optional `relations` field inside v5. An older app would drop it silently on save.
+
+**Not yet:** Relations are not in `objdraw-object-evidence-v2` or the Joinery pack. Revit does not export host or From/To Room yet; the add-in writes an empty list.
+
+**Revisit when:** A second project needs a type that is missing, or Revit host/room export is added.
+
+**Confidence:** med. Mechanics are tested in a browser. The vocabulary needs real drawing use.

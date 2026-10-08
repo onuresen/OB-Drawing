@@ -37,11 +37,20 @@ export function objectLayerSignature(source) {
     updatedAt: note.updatedAt,
   }));
 
+  const relations = (source.relations ?? []).map((relation) => ({
+    id: relation.id,
+    type: relation.type,
+    from: relation.from,
+    to: relation.to,
+    label: relation.label ?? "",
+  }));
+
   return JSON.stringify({
     documents,
     objects,
     occurrences,
     notes,
+    relations,
   });
 }
 

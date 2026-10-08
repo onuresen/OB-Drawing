@@ -184,3 +184,10 @@ test("R rotates, Shift+R rotates back, T toggles thumbnails", () => {
   assert.equal(keyboardShortcutAction({ key: "t" }), "toggle-thumbnails");
   assert.equal(keyboardShortcutAction({ key: "r", ctrlKey: true }), null, "Ctrl+R stays the browser's reload");
 });
+
+test("C starts a relation and G shows every relation, but never while typing or with Ctrl", () => {
+  assert.equal(keyboardShortcutAction({ key: "c" }), "start-relation");
+  assert.equal(keyboardShortcutAction({ key: "G" }), "toggle-relations");
+  assert.equal(keyboardShortcutAction({ key: "c", blocked: true }), null);
+  assert.equal(keyboardShortcutAction({ key: "c", ctrlKey: true }), null, "Ctrl+C stays copy");
+});

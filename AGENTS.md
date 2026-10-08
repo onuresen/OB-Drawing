@@ -53,6 +53,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [ ] Group AD — automated browser smoke checks using a stable PDF exported from the safe CDI playground Revit model; keep Revit out of the test runtime and repository, then cover rendering, embedded-text search, explicit object linking, project round-trip, geometry stability, project replacement, multi-document navigation, and responsive overflow in Chromium.
 - [x] Group AE — one flexible Notes system with editable project, object, and occurrence scopes; `objdraw-project-v5`, undo/redo and dirty tracking, note-aware object packages and Joinery handoff, and v3/v4 evidence-text migration. The earlier observation/assumption, review-state, and conflict model was removed rather than kept beside Notes.
 - [x] Group AF — optional broad Revit parameter snapshots in `objdraw-revit-refs-v2`, with all populated readable instance/type parameters kept outside the neutral project and shown as searchable, read-only selected-object properties after explicit companion import.
+- [x] Group AG — explicit object-to-object relations in `objdraw-project-v6`: 14 CDI-keyed types in five families, a Relate pick mode (`C`) that works across pages and PDFs, a small type dialog with suggested type and swap, arcs with arrows and pills on the sheet, a properties-pane list, all-relations view (`G`), undo/redo, dirty tracking, and v5 migration.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -85,6 +86,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `drawing-map.mjs` | Pure drawing-set page grouping, occurrence-density, object-coverage, and summary helpers. |
 | `object-evidence-package.mjs` | Pure portable evidence-package selection, physical-instance/configuration relationships, cloning, and validation. |
 | `note-model.mjs` | Pure project, object, and occurrence note creation, editing, removal, and stable identity. |
+| `relation-model.mjs` | Pure relation vocabulary, create/edit/remove rules, phrases from either end, type suggestion, and arc geometry. |
 | `evidence-export.mjs` | Pure evidence filename and companion preview-asset index helpers. |
 | `joinery-ai-handoff.mjs` | Pure Joinery AI eligibility, handoff index, provenance, and AI instruction builder. |
 | `zip-store.mjs` | Minimal dependency-free stored-ZIP writer for portable evidence bundles. |
@@ -102,6 +104,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `tests/drawing-map.test.mjs` | Node tests for page grouping, density levels, selected-object coverage, and source summaries. |
 | `tests/object-evidence-package.test.mjs` | Node tests for explicit export selection, identity separation, configuration links, and fail-closed source validation. |
 | `tests/note-model.test.mjs` | Node tests for note identity, scope requirements, editable text, and removal. |
+| `tests/relation-model.test.mjs` | Node tests for relation rules, vocabulary, suggestions, arcs, lanes, v6 round-trip, and v5 migration. |
 | `tests/evidence-export.test.mjs` | Node tests for safe export names and included/unavailable asset accounting. |
 | `tests/joinery-ai-handoff.test.mjs` | Node tests for eligibility, exact provenance, fail-closed packaging, instructions, and prompt drift. |
 | `tests/zip-store.test.mjs` | Node tests for CRC-32, stored-ZIP structure, and safe archive paths. |
@@ -134,7 +137,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - A visible mark is not identity. Marks remain unlinked until an explicit create/link action.
 - “Mark another occurrence” is an explicit link intent and may assign the selected object automatically.
 - Deleting an object preserves its shapes as unlinked occurrences. Deleting an occurrence does not delete its object. Either deletion is blocked while a note directly references its target.
-- New project files use `objdraw-project-v5`; legacy `obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, `obd-project-v4`, and `objdraw-project-v4` files migrate in memory and remain importable.
+- New project files use `objdraw-project-v6`; legacy `obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, `obd-project-v4`, `objdraw-project-v4`, and `objdraw-project-v5` files migrate in memory and remain importable.
 - Categories use stable neutral Object-Centric Drawing keys from `category-catalog.mjs`; familiar Revit-style grouping does not make Autodesk API identifiers part of the contract.
 - A project has a non-empty `documents[]` manifest and one valid `activeDocumentId`. Duplicate document IDs and exact duplicate fingerprints are rejected.
 - Every occurrence retains `documentId` at runtime and must reference a page within that document's own page count.
@@ -192,11 +195,11 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - Drawing Set Map is an on-demand dialog and read-only projection of the governed document and occurrence model. It does not infer object identity or persist map state.
 - Map groups expose every document page, occurrence density, current-page state, selected-Door coverage, and attached or missing source state. Activating a page uses its exact document and page identity.
 - Expanded drawing-map groups are view-only browser state and do not enter history or make the project dirty.
-- `objdraw-project-v5` remains Object-Centric Drawing's editable project source of truth; `objdraw-object-evidence-v2` is a selected, target-neutral export package rather than a replacement project format.
+- `objdraw-project-v6` remains Object-Centric Drawing's editable project source of truth; `objdraw-object-evidence-v2` is a selected, target-neutral export package rather than a replacement project format.
 - Current Object-Centric Drawing objects are physical instances. Reusable configurations remain separate and connect only through an explicit `instanceOf` relationship; duplicate labels never imply that relationship.
 - Evidence packages retain exact source document fingerprints, page identities, and typed geometry, include only referenced documents, and fail closed on unknown or unrepresented subjects.
 - Joinery Configurator and CDI remain downstream adapters. Target-specific fields, AI drafts, and adapter output do not silently enter the neutral project or evidence contract.
-- Revit parameter export is explicit and off by default. When enabled, `objdraw-revit-refs-v2` contains every populated readable instance and type parameter for exported elements, grouped by scope. The app imports that companion only against exact object IDs and shows it as searchable read-only source data; it never enters project save state, history, or `objdraw-project-v5`.
+- Revit parameter export is explicit and off by default. When enabled, `objdraw-revit-refs-v2` contains every populated readable instance and type parameter for exported elements, grouped by scope. The app imports that companion only against exact object IDs and shows it as searchable read-only source data; it never enters project save state, history, or `objdraw-project-v6`.
 - Joinery AI handoff is available only for `doors` and `windows`, requires at least one successfully rendered local representation, and maps those categories only to target opening modes `door` and `window`.
 - A Joinery handoff always includes the neutral manifest, exact occurrence/document/page mappings, clean and marked crops, one marked contact sheet, and an explicit reference to the separately maintained target prompt/schema.
 - `JoineryConfigurator_Photo_to_JSON_Prompt.md` is authoritative in the Joinery Configurator repository. Object-Centric Drawing must not duplicate or silently synchronize it.
@@ -211,6 +214,11 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - The Notes dialog chooses occurrence, object, or project as the initial scope from the current selection, but the user explicitly controls the saved scope.
 - Object deletion is blocked by its object notes. Occurrence deletion is blocked by its occurrence notes. Occurrence notes survive object unlinking because they follow the mark rather than its current object relationship.
 - Import converts v3/v4 observations and assumptions into ordinary notes, retaining their human topic/value text and source scope while intentionally discarding the superseded review/conflict semantics.
+- Relations join objects, never marks. Every relation is made by a person; a category pair only preselects the dialog's type.
+- Relation types come only from `relation-model.mjs`. Keep CDI's exact key when a CDI type exists; add a local key only when none fits.
+- Relation lines follow the selected object. `G` or the Relations checkbox shows every relation on the page. The choice is a viewer preference, not project data.
+- Relate mode (`C`) is view state. Escape, marking, undo, or import leaves it. Picking a mark or a list object opens the dialog; nothing saves until Save.
+- Deleting an object removes its relations in the same undo step and says how many in the confirm dialog.
 - Source PDFs and object data must not be committed unless the user explicitly approves them.
 
 ## Storage keys
@@ -250,7 +258,7 @@ Then run `start-server.cmd` and check:
 11. Renaming a Door preserves its ID and occurrence links.
 12. Deleting a Door leaves its former occurrences in the unlinked list.
 13. Deleting one occurrence does not delete its Door or sibling occurrences.
-14. Export produces valid `objdraw-project-v5` JSON with categorized objects, `documents[]`, `activeDocumentId`, typed geometry, and notes.
+14. Export produces valid `objdraw-project-v6` JSON with categorized objects, `documents[]`, `activeDocumentId`, typed geometry, notes, and relations.
 15. Import of a matching v5 project or migrated v1/v2/v3/v4 file restores all IDs, categories, labels, document links, pages, bounds, and notes.
 16. Import of malformed JSON or an invalid model is rejected without changing the session.
 17. Relinking with a different or revised PDF shows a warning and leaves the project document unattached.
@@ -314,7 +322,7 @@ Then run `start-server.cmd` and check:
 75. Two physical subjects with the same label remain distinct and acquire no implicit configuration relationship.
 76. A configuration enters the package only through an explicit, category-compatible `instanceOf` relationship.
 77. Unknown or unrepresented subjects, invalid relationship targets, invalid pages, and invalid geometry fail closed.
-78. Creating or validating an evidence package does not change `objdraw-project-v5`, local PDF attachment state, browser storage, or object history.
+78. Creating or validating an evidence package does not change `objdraw-project-v6`, local PDF attachment state, browser storage, or object history.
 79. Selecting an object with linked representations enables its compact Export menu options; an object without representations cannot be exported.
 80. Evidence JSON produces a valid `objdraw-object-evidence-v2` document containing only the selected physical subject, referenced drawing evidence, and relevant object or occurrence notes.
 81. Evidence ZIP produces a readable archive containing the identical manifest, one asset index, and one PNG per successfully rendered attached occurrence.
@@ -373,6 +381,14 @@ Then run `start-server.cmd` and check:
 134. The brand and toolbar occupy less vertical space while every existing page, zoom, history, marking, search, map, and help control remains available.
 135. Related page, zoom, and history controls read as compact groups without adding horizontal overflow at 320, 560, 900, 1024, or 1280 px.
 136. Object-rail guidance, lists, and the selected-object panel use lighter borders and shadows while preserving orange action and blue selection semantics.
+137. With an object selected, Relate (or `C`) shows the Relating guide; clicking another object's mark, on any page or PDF, or its list entry opens the relation dialog.
+138. The dialog preselects a sensible type (door → wall: hosted on; card reader → door: controls; door → room: opens to), shows the sentence, and Swap flips direction.
+139. Saving draws an arc with an arrow and a pill between the nearest marks; two relations between the same objects bend apart.
+140. The properties pane lists each relation from the selected object's side ("controlled by CR-01"); the target jumps to that object; × removes it.
+141. A duplicate relation, a self relation, and an unlinked mark are refused with a short message.
+142. Create, edit, and delete enter undo/redo and mark the project unsaved.
+143. Exported v6 JSON round-trips relations; a v5 file imports with no relations.
+144. `G` shows every relation on the page; lines stay aligned through zoom and rotation.
 
 ## Prototype acceptance
 

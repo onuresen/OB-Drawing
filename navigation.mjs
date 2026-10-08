@@ -97,6 +97,12 @@ export function keyboardShortcutAction(event) {
       if (lowerKey === "t") {
         return "toggle-thumbnails";
       }
+      if (lowerKey === "c") {
+        return "start-relation";
+      }
+      if (lowerKey === "g") {
+        return "toggle-relations";
+      }
       return null;
   }
 }

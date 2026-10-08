@@ -8,7 +8,7 @@ An object can have occurrences in several PDFs. Each occurrence explicitly names
 
 ```json
 {
-  "format": "objdraw-project-v5",
+  "format": "objdraw-project-v6",
   "exportedAt": "2026-09-30T08:00:00.000Z",
   "activeDocumentId": "document-001",
   "documents": [
@@ -66,6 +66,15 @@ An object can have occurrences in several PDFs. Each occurrence explicitly names
       "createdAt": "2026-09-30T08:10:00.000Z",
       "updatedAt": "2026-09-30T08:15:00.000Z"
     }
+  ],
+  "relations": [
+    {
+      "id": "relation-001",
+      "type": "hostedBy",
+      "from": "door-001",
+      "to": "object-002",
+      "label": ""
+    }
   ]
 }
 ```
@@ -94,7 +103,7 @@ An Object-Centric Drawing object currently identifies one physical building-obje
 
 Portable evidence exports may introduce configuration records and explicit `instanceOf` relationships. No configuration relationship may be inferred from matching labels, categories, shapes, or AI output. This keeps instance identity stable while allowing reviewed configuration evidence to be translated to systems such as Joinery Configurator.
 
-The `objdraw-project-v5` editing contract adds flexible project, object, and occurrence notes without changing physical-instance identity. The separate `objdraw-object-evidence-v2` package extracts selected physical subjects, exact document/page/geometry evidence, and their relevant object or occurrence notes for downstream review or adapters. See [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md).
+The `objdraw-project-v6` editing contract keeps flexible project, object, and occurrence notes without changing physical-instance identity. The separate `objdraw-object-evidence-v2` package extracts selected physical subjects, exact document/page/geometry evidence, and their relevant object or occurrence notes for downstream review or adapters. See [OBJECT-EVIDENCE-PACKAGE.md](OBJECT-EVIDENCE-PACKAGE.md).
 
 ## Note rules
 
@@ -105,6 +114,28 @@ Notes are ordinary editable working notes. Their `scope` is one of:
 - `occurrence`: applies to one exact mark through `occurrenceId`, whether that mark is linked or unlinked.
 
 Every note has a stable `note-*` ID, non-empty `text`, and valid creation/update timestamps. Text can be edited in place and advances `updatedAt`; add, edit, and delete are undoable project mutations. Notes have no review states, conflict derivation, assignment, threads, or inferred identity.
+
+## Relation rules
+
+A relation joins two objects. It never joins marks.
+
+- `id` is a stable `relation-*` ID.
+- `type` is one key from `relation-model.mjs`. Keys follow the CDI relationship vocabulary.
+- `from` and `to` are two different existing objects. Directed types read from → to.
+- `label` is a short optional note, at most 60 characters. Empty string when unused.
+- The same type between the same two objects is one relation. Undirected types ignore order.
+
+| Family | Types |
+|---|---|
+| Assembly | `hostedBy`, `supportedBy`, `fixedTo`, `penetrates` |
+| Space | `connectsTo`, `inside`, `adjacentTo` |
+| System | `controls`, `serves`, `communicatesWith`, `belongsToSystem`, `dependsOn` |
+| Data | `takesDataFrom` |
+| General | `relatesTo` |
+
+`adjacentTo`, `communicatesWith`, and `relatesTo` are undirected.
+
+Every relation is made by a person. Nothing is inferred from labels, categories, or geometry. Deleting an object removes its relations in the same undoable step.
 
 ## Occurrence and geometry rules
 
@@ -138,7 +169,7 @@ All values are normalized from `0` to `1` against the referenced page width and 
 
 ## Compatibility rule
 
-`obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, `obd-project-v4`, and `objdraw-project-v4` remain importable. A successful legacy migration:
+`obd-object-layer-v1`, `obd-project-v2`, `obd-project-v3`, `obd-project-v4`, `objdraw-project-v4`, and `objdraw-project-v5` remain importable. A successful legacy migration:
 
 - wraps its single `document` in `documents[]`;
 - sets that ID as `activeDocumentId`;
@@ -146,11 +177,12 @@ All values are normalized from `0` to `1` against the referenced page width and 
 - keeps every occurrence's `documentId`;
 - wraps legacy `bounds` in `geometry: { type: "rectangle", bounds }`;
 - assigns legacy Door objects the stable `doors` category;
-- initializes `notes` as an empty collection when the source format predates notes.
+- initializes `notes` as an empty collection when the source format predates notes;
+- initializes `relations` as an empty collection for every format before v6.
 
 A v3 or v4 observation/assumption is converted to one ordinary note while importing. Its topic and value become `<topic>: <value>`; an entry with an occurrence becomes an occurrence note, while a whole-object assumption becomes an object note. The old review and conflict model is intentionally not retained.
 
-All migrated data is validated as `objdraw-project-v5` before it can enter runtime state. New exports use only `objdraw-project-v5`; migration is one-way and does not rewrite the user's original file.
+All migrated data is validated as `objdraw-project-v6` before it can enter runtime state. New exports use only `objdraw-project-v6`; migration is one-way and does not rewrite the user's original file.
 
 The interface can import this project before its PDFs are available. Local files are then attached by exact fingerprint, either in a multi-file batch or through a document-specific Relink action. Attachment state and per-document view state stay in memory and are not project content. A missing PDF never removes its manifest entry, objects, or occurrences.
 
@@ -160,4 +192,4 @@ Documents with occurrences cannot be removed from the manifest; they can be safe
 
 `objdraw-revit-refs-v2` is a separate, read-only adapter file. It maps exact Object-Centric Drawing object IDs to Revit element identity and, when the exporter option is enabled, a snapshot of populated readable instance and type parameters. Each parameter retains a source key, name, storage type, raw value, and Revit-formatted display value.
 
-The adapter is not part of `objdraw-project-v5`. Importing it does not change project content, saved state, history, labels, categories, notes, or occurrence identity. Its source PDF fingerprint must match a document in the current project, and unknown object IDs fail closed; matching filenames or labels are never used to attach Revit data.
+The adapter is not part of `objdraw-project-v6`. Importing it does not change project content, saved state, history, labels, categories, notes, or occurrence identity. Its source PDF fingerprint must match a document in the current project, and unknown object IDs fail closed; matching filenames or labels are never used to attach Revit data.

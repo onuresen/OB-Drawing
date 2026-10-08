@@ -1,7 +1,13 @@
 import { NOTE_SCOPES } from "./note-model.mjs";
 import { DEFAULT_OBJECT_CATEGORY, isObjectCategoryKey } from "./category-catalog.mjs";
+import {
+  MAXIMUM_RELATION_LABEL_LENGTH,
+  findDuplicateRelation,
+  isRelationType,
+} from "./relation-model.mjs";
 
-export const PROJECT_FORMAT = "objdraw-project-v5";
+export const PROJECT_FORMAT = "objdraw-project-v6";
+export const PROJECT_V5_FORMAT = "objdraw-project-v5";
 export const PREVIOUS_PROJECT_FORMAT = "objdraw-project-v4";
 export const RENAMED_PROJECT_FORMAT = "obd-project-v4";
 export const PROJECT_V3_FORMAT = "obd-project-v3";
@@ -16,6 +22,7 @@ const LEGACY_DOOR_ID_PATTERN = /^door-\d+$/;
 const OBJECT_ID_PATTERN = /^(?:door|object)-\d+$/;
 const OCCURRENCE_ID_PATTERN = /^occurrence-\d+$/;
 const NOTE_ID_PATTERN = /^note-\d+$/;
+const RELATION_ID_PATTERN = /^relation-\d+$/;
 const OBSERVATION_ID_PATTERN = /^observation-\d+$/;
 const SUPPORTED_GEOMETRY_TYPES = new Set(["rectangle", "ellipse", "polygon"]);
 const BOUNDS_EPSILON = 1e-9;
@@ -160,6 +167,7 @@ function validateProject(value) {
   requireCondition(Array.isArray(value.objects), "Objects must be an array.");
   requireCondition(Array.isArray(value.occurrences), "Occurrences must be an array.");
   requireCondition(Array.isArray(value.notes), "Notes must be an array.");
+  requireCondition(Array.isArray(value.relations), "Relations must be an array.");
 
   const documentIds = validateUniqueIds(value.documents, DOCUMENT_ID_PATTERN, "document");
   const documentsById = new Map();
@@ -216,6 +224,21 @@ function validateProject(value) {
     }
   }
 
+  validateUniqueIds(value.relations, RELATION_ID_PATTERN, "relation");
+  const acceptedRelations = [];
+  for (const relation of value.relations) {
+    requireCondition(isRelationType(relation.type), `${relation.id} has an unsupported relation type.`);
+    requireCondition(objectIds.has(relation.from), `${relation.id} starts at an unknown object.`);
+    requireCondition(objectIds.has(relation.to), `${relation.id} ends at an unknown object.`);
+    requireCondition(relation.from !== relation.to, `${relation.id} relates an object to itself.`);
+    requireCondition(
+      typeof relation.label === "string" && relation.label.length <= MAXIMUM_RELATION_LABEL_LENGTH,
+      `${relation.id} label must be text of at most ${MAXIMUM_RELATION_LABEL_LENGTH} characters.`,
+    );
+    requireCondition(!findDuplicateRelation(acceptedRelations, relation), `${relation.id} duplicates another relation.`);
+    acceptedRelations.push(relation);
+  }
+
   return {
     format: PROJECT_FORMAT,
     exportedAt: value.exportedAt,
@@ -241,6 +264,13 @@ function validateProject(value) {
       text: note.text.trim(),
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
+    })),
+    relations: value.relations.map((relation) => ({
+      id: relation.id,
+      type: relation.type,
+      from: relation.from,
+      to: relation.to,
+      label: relation.label.trim(),
     })),
   };
 }
@@ -322,6 +352,7 @@ export function migrateLegacySidecar(value) {
       },
     })),
     notes: [],
+    relations: [],
   });
 }
 
@@ -337,6 +368,7 @@ export function migrateProjectV2(value) {
       label: object.label,
     })),
     notes: [],
+    relations: [],
   });
 }
 
@@ -352,6 +384,7 @@ export function migrateProjectV3(value) {
       label: object.label,
     })),
     notes: notesFromLegacyObservations(value),
+    relations: [],
   });
 }
 
@@ -365,6 +398,17 @@ export function migrateProjectV4(value) {
     ...value,
     format: PROJECT_FORMAT,
     notes: notesFromLegacyObservations(value),
+    relations: [],
+  });
+}
+
+export function migrateProjectV5(value) {
+  requireCondition(isRecord(value), "The project root must be an object.");
+  requireCondition(value.format === PROJECT_V5_FORMAT, `Expected ${PROJECT_V5_FORMAT}.`);
+  return validateProject({
+    ...value,
+    format: PROJECT_FORMAT,
+    relations: [],
   });
 }
 
@@ -375,6 +419,7 @@ export function createSidecar({
   objects,
   occurrences,
   notes = [],
+  relations = [],
   exportedAt = new Date().toISOString(),
 }) {
   const projectDocuments = documents ?? (document ? [document] : []);
@@ -393,6 +438,7 @@ export function createSidecar({
       geometry: geometryFromRuntimeOccurrence(occurrence),
     })),
     notes: notes.map((note) => ({ ...note })),
+    relations: relations.map((relation) => ({ ...relation })),
   });
 }
 
@@ -400,6 +446,9 @@ export function validateSidecar(value) {
   requireCondition(isRecord(value), "The sidecar root must be an object.");
   if (value.format === LEGACY_SIDECAR_FORMAT) {
     return migrateLegacySidecar(value);
+  }
+  if (value.format === PROJECT_V5_FORMAT) {
+    return migrateProjectV5(value);
   }
   if ([PREVIOUS_PROJECT_FORMAT, RENAMED_PROJECT_FORMAT].includes(value.format)) {
     return migrateProjectV4(value);

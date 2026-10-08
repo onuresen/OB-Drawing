@@ -19,6 +19,13 @@
   --shadow: 0 18px 50px hsl(220 35% 12% / 0.14);
   --shadow-soft: 0 8px 24px hsl(220 28% 16% / 0.08);
   --radius: 12px;
+  /* Relation families. Orange and blue stay reserved for marks and selection. */
+  --relation-assembly: hsl(218 32% 36%);
+  --relation-spatial: hsl(174 62% 30%);
+  --relation-system: hsl(262 50% 50%);
+  --relation-data: hsl(328 58% 44%);
+  --relation-general: hsl(216 12% 46%);
+  --danger: hsl(5 64% 40%);
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
 }
 
@@ -974,6 +981,101 @@ h1 {
 
 .mark-label.is-dimmed {
   opacity: 0.35;
+}
+
+/* Relations drawn between marks. One colour per family, dashed when undirected. */
+.family-assembly { --relation-color: var(--relation-assembly); }
+.family-spatial { --relation-color: var(--relation-spatial); }
+.family-system { --relation-color: var(--relation-system); }
+.family-data { --relation-color: var(--relation-data); }
+.family-general { --relation-color: var(--relation-general); }
+
+.relation-line {
+  fill: none;
+  stroke: var(--relation-color);
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.relation-line.is-undirected {
+  stroke-dasharray: 5 4;
+}
+
+.relation-arrow {
+  fill: var(--relation-color);
+  pointer-events: none;
+}
+
+.relation-line.is-quiet,
+.relation-arrow.is-quiet,
+.relation-pill.is-quiet {
+  opacity: 0.3;
+}
+
+.relation-preview {
+  fill: none;
+  stroke: var(--relation-system);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.relation-labels {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+.relation-pill {
+  position: absolute;
+  max-width: 18ch;
+  overflow: hidden;
+  padding: 0 7px;
+  border: 1px solid var(--relation-color);
+  border-radius: 999px;
+  color: var(--relation-color);
+  background: hsl(0 0% 100% / 0.94);
+  box-shadow: 0 1px 3px hsl(220 30% 20% / 0.16);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.relation-pill:hover,
+.relation-pill:focus-visible {
+  color: var(--white);
+  background: var(--relation-color);
+  opacity: 1;
+}
+
+.page-surface.is-marking .relation-pill,
+.page-surface.is-relating .relation-pill {
+  pointer-events: none;
+}
+
+.page-surface.is-relating .occurrence-shape,
+.side-panel.is-relating .object-card-button {
+  cursor: crosshair;
+}
+
+.relation-guide {
+  border-color: hsl(262 42% 76%);
+  background: hsl(262 60% 98% / 0.96);
+}
+
+.relation-guide .marking-pulse {
+  background: var(--relation-system);
+  box-shadow: 0 0 0 3px hsl(262 50% 50% / 0.2);
 }
 
 .object-groups {
@@ -2005,7 +2107,173 @@ select.text-input {
   border-top: 1px solid var(--line);
 }
 
-.revit-properties .subsection-heading {
+.revit-properties .relation-list {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relation-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.relation-row-phrase {
+  padding: 4px 7px;
+  border: 0;
+  border-left: 3px solid var(--relation-color);
+  border-radius: 4px 7px 7px 4px;
+  color: var(--relation-color);
+  background: transparent;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.relation-row-phrase:hover {
+  background: var(--surface-muted);
+}
+
+.relation-row-target {
+  display: grid;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relation-row-target:hover {
+  border-color: var(--selection);
+}
+
+.relation-row-target strong,
+.relation-row-target span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relation-row-target strong {
+  font-size: 0.72rem;
+}
+
+.relation-row-target span {
+  color: var(--ink-soft);
+  font-size: 0.62rem;
+}
+
+.relation-row-target span:empty {
+  display: none;
+}
+
+.relation-row-remove {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.relation-row-remove:hover {
+  color: var(--danger);
+  background: var(--surface-muted);
+}
+
+.compact-action[aria-pressed="true"] {
+  border-color: var(--relation-system);
+  color: var(--white);
+  background: var(--relation-system);
+}
+
+.relation-dialog {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  width: min(380px, calc(100vw - 32px));
+  max-width: none;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 24px 80px hsl(220 35% 12% / 0.3);
+}
+
+.relation-dialog::backdrop {
+  background: hsl(218 45% 12% / 0.32);
+}
+
+.relation-form {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px 16px;
+}
+
+.relation-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.relation-dialog-header h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.relation-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 2px 0 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+#relationPhrasePreview {
+  color: var(--relation-system);
+  font-weight: 700;
+}
+
+.relation-error {
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-size: 0.72rem;
+}
+
+.relation-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.relation-dialog-actions #swapRelation {
+  margin-right: auto;
+}
+
+.subsection-heading {
   margin: 0;
 }
 

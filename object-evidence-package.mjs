@@ -88,7 +88,7 @@ export function validateObjectEvidencePackage(value) {
   requireCondition(isRecord(value.producer), "The evidence package requires producer metadata.");
   requireCondition(value.producer.name === "Object-Centric Drawing", "The producer name must be Object-Centric Drawing.");
   requireCondition(
-    ["obd-project-v2", "obd-project-v3", "obd-project-v4", "objdraw-project-v4", "objdraw-project-v5"].includes(value.producer.projectFormat),
+    ["obd-project-v2", "obd-project-v3", "obd-project-v4", "objdraw-project-v4", "objdraw-project-v5", "objdraw-project-v6"].includes(value.producer.projectFormat),
     "The producer project format must be a supported Object-Centric Drawing project version.",
   );
   requireCondition(Array.isArray(value.subjects) && value.subjects.length > 0, "Subjects must be a non-empty array.");
@@ -245,7 +245,7 @@ export function createObjectEvidencePackage({
   return validateObjectEvidencePackage({
     format: OBJECT_EVIDENCE_FORMAT,
     exportedAt,
-    producer: { name: "Object-Centric Drawing", projectFormat: "objdraw-project-v5" },
+    producer: { name: "Object-Centric Drawing", projectFormat: "objdraw-project-v6" },
     subjects: selectedObjectIds.map((objectId) => {
       const object = objectsById.get(objectId);
       return {
