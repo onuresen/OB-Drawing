@@ -55,6 +55,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AF — optional broad Revit parameter snapshots in `objdraw-revit-refs-v2`, with all populated readable instance/type parameters kept outside the neutral project and shown as searchable, read-only selected-object properties after explicit companion import.
 - [x] Group AG — explicit object-to-object relations in `objdraw-project-v6`: 14 CDI-keyed types in five families, a Relate pick mode (`C`) that works across pages and PDFs, a small type dialog with suggested type and swap, arcs with arrows and pills on the sheet, a properties-pane list, all-relations view (`G`), undo/redo, dirty tracking, and v5 migration.
 - [x] Group AH — optional Revit relations: export option (off by default) for host wall, door From/To Room, and room containment, written with `origin: "revit"`; the app shows "from Revit" and one undoable Remove Revit relations action. Not yet built or run in Revit.
+- [x] Group AI — faster relating: "Save, add more" repeats one relation for every further pick, and a drag dot on the selected linked mark relates by drag-and-drop.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -222,6 +223,8 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - Relation lines follow the selected object. `G` or the Relations checkbox shows every relation on the page. The choice is a viewer preference, not project data.
 - Relate mode (`C`) is view state. Escape, marking, undo, or import leaves it. Picking a mark or a list object opens the dialog; nothing saves until Save.
 - Deleting an object removes its relations in the same undo step and says how many in the confirm dialog.
+- "Save, add more" keeps Relate mode with the saved type, note, and the source's side. Each further pick creates one relation at once, as its own undo step. Duplicates are refused with a message; Escape finishes.
+- The drag dot appears only beside a selected, linked mark, outside Mark and Relate modes. Dropping on another linked mark opens the dialog; dropping elsewhere cancels; a click without movement starts Relate mode.
 - Source PDFs and object data must not be committed unless the user explicitly approves them.
 
 ## Storage keys
@@ -392,6 +395,8 @@ Then run `start-server.cmd` and check:
 142. Create, edit, and delete enter undo/redo and mark the project unsaved.
 143. Exported v6 JSON round-trips relations; a v5 file imports with no relations.
 144. `G` shows every relation on the page; lines stay aligned through zoom and rotation.
+145. "Save, add more" then clicking three doors creates three relations to the same room; a repeated pick reports a duplicate; Escape finishes.
+146. Dragging the dot beside a selected mark onto another mark opens the dialog; dropping on empty paper cancels; one Undo removes only the last relation.
 
 ## Prototype acceptance
 
