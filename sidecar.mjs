@@ -3,8 +3,10 @@ import { DEFAULT_OBJECT_CATEGORY, isObjectCategoryKey } from "./category-catalog
 import {
   MAXIMUM_RELATION_LABEL_LENGTH,
   RELATION_ORIGINS,
+  RELATION_SIDES,
   findDuplicateRelation,
   isRelationType,
+  relationType,
 } from "./relation-model.mjs";
 
 export const PROJECT_FORMAT = "objdraw-project-v6";
@@ -226,8 +228,9 @@ function validateProject(value) {
   }
 
   validateUniqueIds(value.relations, RELATION_ID_PATTERN, "relation");
+  const relations = value.relations.map(sideFromRevitLabel);
   const acceptedRelations = [];
-  for (const relation of value.relations) {
+  for (const relation of relations) {
     requireCondition(isRelationType(relation.type), `${relation.id} has an unsupported relation type.`);
     requireCondition(objectIds.has(relation.from), `${relation.id} starts at an unknown object.`);
     requireCondition(objectIds.has(relation.to), `${relation.id} ends at an unknown object.`);
@@ -239,6 +242,10 @@ function validateProject(value) {
     requireCondition(
       relation.createdAt === undefined || (typeof relation.createdAt === "string" && !Number.isNaN(Date.parse(relation.createdAt))),
       `${relation.id} has an invalid createdAt timestamp.`,
+    );
+    requireCondition(
+      relation.side === undefined || (RELATION_SIDES.includes(relation.side) && relationType(relation.type).sides),
+      `${relation.id} has a side its relation type does not have.`,
     );
     requireCondition(
       relation.origin === undefined || RELATION_ORIGINS.includes(relation.origin),
@@ -274,16 +281,29 @@ function validateProject(value) {
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
     })),
-    relations: value.relations.map((relation) => ({
+    relations: relations.map((relation) => ({
       id: relation.id,
       type: relation.type,
       from: relation.from,
       to: relation.to,
       label: relation.label.trim(),
+      ...(relation.side ? { side: relation.side } : {}),
       ...(relation.origin ? { origin: relation.origin } : {}),
       ...(relation.createdAt ? { createdAt: relation.createdAt } : {}),
     })),
   };
+}
+
+// The first Revit relations export wrote the door side into the label.
+// Only those exact Revit-written labels become a side; a person's own label is never read.
+const REVIT_SIDE_LABELS = new Map([["to room", "to"], ["from room", "from"]]);
+
+function sideFromRevitLabel(relation) {
+  if (!isRecord(relation) || relation.origin !== "revit" || relation.side !== undefined || relation.type !== "connectsTo") {
+    return relation;
+  }
+  const side = REVIT_SIDE_LABELS.get(relation.label);
+  return side ? { ...relation, label: "", side } : relation;
 }
 
 function notesFromLegacyObservations(value) {

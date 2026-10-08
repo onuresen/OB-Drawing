@@ -110,6 +110,7 @@ import {
 } from "./joinery-ai-handoff.mjs";
 import { createStoredZip } from "./zip-store.mjs";
 import { buildOnexusGraph } from "./onexus-export.mjs";
+import { filterParameters, relatedDataSources } from "./related-data.mjs";
 import {
   createNote,
   removeNote,
@@ -230,6 +231,12 @@ const elements = {
   relationToLabel: document.querySelector("#relationToLabel"),
   relationType: document.querySelector("#relationType"),
   relationLabel: document.querySelector("#relationLabel"),
+  relationSideField: document.querySelector("#relationSideField"),
+  relatedData: document.querySelector("#relatedData"),
+  relatedDataCount: document.querySelector("#relatedDataCount"),
+  relatedDataSearch: document.querySelector("#relatedDataSearch"),
+  relatedDataList: document.querySelector("#relatedDataList"),
+  relationSide: document.querySelector("#relationSide"),
   relationError: document.querySelector("#relationError"),
   swapRelation: document.querySelector("#swapRelation"),
   deleteRelation: document.querySelector("#deleteRelation"),
@@ -1957,16 +1964,18 @@ function pickRelationTarget(targetObjectId) {
 
 // How the repeated relation reads from the source object's side.
 function repeatPhrase(repeat) {
-  const type = relationType(repeat.type);
-  return repeat.sourceIsFrom ? type.forward : type.inverse;
+  return relationPhrase(
+    { type: repeat.type, side: repeat.side ?? undefined, from: "source", to: "target" },
+    repeat.sourceIsFrom ? "source" : "target",
+  );
 }
 
 function addRepeatedRelation(targetObjectId) {
   const sourceId = state.relateFromObjectId;
-  const { type, label, sourceIsFrom } = state.relateRepeat;
+  const { type, label, side, sourceIsFrom } = state.relateRepeat;
   const values = sourceIsFrom
-    ? { type, label, from: sourceId, to: targetObjectId }
-    : { type, label, from: targetObjectId, to: sourceId };
+    ? { type, label, side, from: sourceId, to: targetObjectId }
+    : { type, label, side, from: targetObjectId, to: sourceId };
   let relation;
   try {
     relation = createRelation(state.relations, values);
@@ -2001,9 +2010,21 @@ function renderRelationDraft() {
     return;
   }
   const type = relationType(elements.relationType.value);
+  // Rebuild the side choices only when the type changes, so a picked side survives other edits.
+  if (elements.relationSide.dataset.type !== type.key) {
+    const previous = elements.relationSide.value;
+    elements.relationSide.replaceChildren(new Option("Either side", ""));
+    for (const [key, words] of Object.entries(type.sides ?? {})) {
+      elements.relationSide.append(new Option(words.label, key));
+    }
+    elements.relationSide.value = type.sides?.[previous] ? previous : "";
+    elements.relationSide.dataset.type = type.key;
+  }
+  elements.relationSideField.hidden = !type.sides;
+  const words = type.sides?.[elements.relationSide.value] ?? type;
   elements.relationFromLabel.textContent = getObject(relationDraft.from)?.label ?? relationDraft.from;
   elements.relationToLabel.textContent = getObject(relationDraft.to)?.label ?? relationDraft.to;
-  elements.relationPhrasePreview.textContent = type.directed ? `${type.forward} →` : `${type.forward} ↔`;
+  elements.relationPhrasePreview.textContent = type.directed ? `${words.forward} →` : `${words.forward} ↔`;
   elements.swapRelation.disabled = !type.directed;
 }
 
@@ -2028,6 +2049,9 @@ function openRelationDialog({ id = null, from, to }) {
   relationDraft = { id: existing?.id ?? null, from: draftFrom, to: draftTo, sourceObjectId: from };
   populateRelationTypeSelect(type);
   elements.relationLabel.value = existing?.label ?? "";
+  delete elements.relationSide.dataset.type;
+  elements.relationSide.replaceChildren(new Option("", existing?.side ?? ""));
+  elements.relationSide.value = existing?.side ?? "";
   elements.relationDialogTitle.textContent = existing ? "Edit relation" : "New relation";
   elements.deleteRelation.hidden = !existing;
   elements.saveRelationMore.hidden = Boolean(existing);
@@ -2053,6 +2077,7 @@ function saveRelationDraft(event, { addMore = false } = {}) {
     from: relationDraft.from,
     to: relationDraft.to,
     label: elements.relationLabel.value,
+    side: elements.relationSideField.hidden ? null : elements.relationSide.value || null,
   };
   try {
     if (relationDraft.id) {
@@ -2079,6 +2104,7 @@ function saveRelationDraft(event, { addMore = false } = {}) {
     setRelateMode(sourceObjectId, {
       type: saved.type,
       label: saved.label,
+      side: saved.side ?? null,
       sourceIsFrom: saved.from === sourceObjectId,
     });
     setStatus(`Saved: ${relationSentence(saved)}. Now click more marks for the same relation. Escape finishes.`);
@@ -2188,6 +2214,76 @@ function removeRevitRelations() {
   state.relations = removeRelationsByOrigin(state.relations, "revit");
   refreshUi();
   setStatus(`Removed ${count} relation${count === 1 ? "" : "s"} from the Revit export. Undo brings them back. Your own relations stay.`);
+}
+
+// Data from related objects: Revit parameters (when loaded) and object notes. Never copied or saved.
+function renderRelatedData() {
+  const object = getObject(state.selectedObjectId);
+  const sources = object ? relatedDataSources(state.relations, object.id) : [];
+  elements.relatedData.hidden = sources.length === 0;
+  elements.relatedDataList.replaceChildren();
+  elements.relatedDataCount.textContent = String(sources.length);
+  if (sources.length === 0) {
+    return;
+  }
+  const typed = elements.relatedDataSearch.value.trim();
+  for (const source of sources) {
+    const other = getObject(source.objectId);
+    if (!other) {
+      continue;
+    }
+    const revit = revitObjectData(state.revitData, other.id);
+    const parameters = revit ? [...revit.instanceParameters, ...revit.typeParameters] : [];
+    const query = typed || source.defaultQuery;
+    const shown = filterParameters(parameters, query);
+    const notes = state.notes.filter((note) => note.scope === "object" && note.objectId === other.id);
+
+    const group = document.createElement("details");
+    const summary = document.createElement("summary");
+    const phrase = document.createElement("span");
+    const name = document.createElement("strong");
+    const meta = document.createElement("small");
+    const go = document.createElement("button");
+    group.className = `related-data-group family-${relationType(source.relation.type).family}`;
+    group.open = true;
+    phrase.className = "related-data-phrase";
+    phrase.textContent = relationPhrase(source.relation, object.id);
+    name.textContent = other.label;
+    meta.textContent = [
+      parameters.length ? `${shown.length} of ${parameters.length}` : "",
+      query ? `“${query}”` : "",
+    ].filter(Boolean).join(" · ");
+    go.type = "button";
+    go.className = "compact-action";
+    go.dataset.objectId = other.id;
+    go.textContent = "Go";
+    go.title = `Go to ${other.label}`;
+    summary.append(phrase, name, meta, go);
+    group.append(summary);
+
+    if (shown.length > 0) {
+      const list = document.createElement("dl");
+      list.className = "revit-property-list";
+      renderRevitParameterList(list, shown);
+      group.append(list);
+    }
+    for (const note of notes) {
+      const text = document.createElement("p");
+      text.className = "related-data-note";
+      text.textContent = note.text;
+      text.title = `Note on ${other.label} · ${note.id}`;
+      group.append(text);
+    }
+    if (shown.length === 0 && notes.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "quiet-copy";
+      empty.textContent = parameters.length
+        ? `Nothing matches “${query}”.`
+        : `No data for ${other.label} yet. Load the Revit file, or add a note to ${other.label}.`;
+      group.append(empty);
+    }
+    elements.relatedDataList.append(group);
+  }
 }
 
 // The traced set, or null when no trace is running.
@@ -3110,6 +3206,7 @@ function refreshObjectUi() {
   renderObjectComposer();
   renderSelectedObjectPanel();
   renderRelationList();
+  renderRelatedData();
   renderTrace();
   syncOnexusLink();
   renderUnlinkedOccurrences();
@@ -5212,6 +5309,14 @@ elements.markForObject.addEventListener("click", () => {
 elements.deleteObject.addEventListener("click", deleteSelectedObject);
 elements.startRelation.addEventListener("click", startRelationFromSelection);
 elements.removeRevitRelations.addEventListener("click", removeRevitRelations);
+elements.relatedDataSearch.addEventListener("input", renderRelatedData);
+elements.relatedDataList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-object-id]");
+  if (button) {
+    event.preventDefault();
+    await selectObjectAndNavigate(button.dataset.objectId);
+  }
+});
 elements.toggleTrace.addEventListener("click", () => (state.trace ? endTrace() : startTrace()));
 elements.endTrace.addEventListener("click", endTrace);
 elements.exportOnexus.addEventListener("click", () => exportOnexusGraph());
@@ -5264,6 +5369,7 @@ elements.pageSurface.addEventListener("pointermove", (event) => {
 });
 elements.relationForm.addEventListener("submit", saveRelationDraft);
 elements.saveRelationMore.addEventListener("click", (event) => saveRelationDraft(event, { addMore: true }));
+elements.relationSide.addEventListener("change", () => renderRelationDraft());
 elements.relationType.addEventListener("change", () => {
   setRelationError();
   renderRelationDraft();

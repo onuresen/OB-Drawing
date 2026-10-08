@@ -251,6 +251,7 @@ export function validateObjectEvidencePackage(value) {
       from: relation.from,
       to: relation.to,
       label: relation.label.trim(),
+      ...(relation.side ? { side: relation.side } : {}),
       ...(relation.origin ? { origin: relation.origin } : {}),
     })),
   };

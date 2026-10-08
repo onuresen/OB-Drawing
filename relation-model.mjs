@@ -17,7 +17,18 @@ export const RELATION_TYPES = Object.freeze([
   { key: "supportedBy", family: "assembly", forward: "supported by", inverse: "supports", directed: true },
   { key: "fixedTo", family: "assembly", forward: "fixed to", inverse: "has fixed", directed: true },
   { key: "penetrates", family: "assembly", forward: "passes through", inverse: "passed through by", directed: true },
-  { key: "connectsTo", family: "spatial", forward: "opens to", inverse: "opened by", directed: true },
+  {
+    key: "connectsTo",
+    family: "spatial",
+    forward: "opens to",
+    inverse: "opened by",
+    directed: true,
+    // Revit's door To Room / From Room. "to" is the room the door opens into.
+    sides: {
+      to: { label: "Opens into (To Room)", forward: "opens into", inverse: "opened into by" },
+      from: { label: "Opens from (From Room)", forward: "opens from", inverse: "opened from by" },
+    },
+  },
   { key: "inside", family: "spatial", forward: "inside", inverse: "contains", directed: true },
   { key: "adjacentTo", family: "spatial", forward: "next to", inverse: "next to", directed: false },
   { key: "controls", family: "system", forward: "controls", inverse: "controlled by", directed: true },
@@ -33,6 +44,7 @@ export const DEFAULT_RELATION_TYPE = "relatesTo";
 // Optional marker for relations a tool wrote rather than a person. Absent means hand-made.
 export const RELATION_ORIGINS = Object.freeze(["revit"]);
 export const MAXIMUM_RELATION_LABEL_LENGTH = 60;
+export const RELATION_SIDES = Object.freeze(["to", "from"]);
 
 const TYPES_BY_KEY = new Map(RELATION_TYPES.map((type) => [type.key, type]));
 
@@ -49,6 +61,17 @@ export function relationTypeGroups() {
     ...family,
     types: RELATION_TYPES.filter((type) => type.family === family.key),
   }));
+}
+
+// A side is optional and only exists on types that define sides.
+export function normalizeRelationSide(type, side) {
+  if (side === undefined || side === null || side === "") {
+    return null;
+  }
+  if (!RELATION_SIDES.includes(side)) {
+    throw new Error(`Unsupported relation side: ${side}.`);
+  }
+  return relationType(type).sides ? side : null;
 }
 
 export function normalizeRelationLabel(value) {
@@ -93,23 +116,26 @@ export function createRelation(relations, {
   from,
   to,
   label = "",
+  side = null,
   createdAt = new Date().toISOString(),
 }) {
   requireValidRelation(relations, { type, from, to });
   if (Number.isNaN(Date.parse(createdAt))) {
     throw new Error("A relation requires a valid timestamp.");
   }
+  const normalizedSide = normalizeRelationSide(type, side);
   return {
     id: nextRelationId(relations),
     type,
     from,
     to,
     label: normalizeRelationLabel(label),
+    ...(normalizedSide ? { side: normalizedSide } : {}),
     createdAt,
   };
 }
 
-export function updateRelation(relations, relationId, { type, from, to, label }) {
+export function updateRelation(relations, relationId, { type, from, to, label, side }) {
   const current = relations.find((relation) => relation.id === relationId);
   if (!current) {
     throw new Error(`Unknown relation: ${relationId}.`);
@@ -121,8 +147,14 @@ export function updateRelation(relations, relationId, { type, from, to, label })
     to: to ?? current.to,
     label: label === undefined ? current.label : normalizeRelationLabel(label),
   };
+  // A type without sides drops the side; otherwise keep it unless a new one is given.
+  const nextSide = normalizeRelationSide(next.type, side === undefined ? current.side : side);
+  delete next.side;
+  if (nextSide) {
+    next.side = nextSide;
+  }
   requireValidRelation(relations, next, relationId);
-  const unchanged = ["type", "from", "to", "label"].every((key) => next[key] === current[key]);
+  const unchanged = ["type", "from", "to", "label", "side"].every((key) => next[key] === current[key]);
   if (unchanged) {
     return relations;
   }
@@ -147,7 +179,8 @@ export function removeRelationsForObject(relations, objectId) {
 // "D-105 controlled by CR-01" from D-105.
 export function relationPhrase(relation, viewpointObjectId = relation.from) {
   const type = relationType(relation.type);
-  return viewpointObjectId === relation.to && relation.from !== relation.to ? type.inverse : type.forward;
+  const words = (relation.side && type.sides?.[relation.side]) || type;
+  return viewpointObjectId === relation.to && relation.from !== relation.to ? words.inverse : words.forward;
 }
 
 // Every relation touching one object, seen from that object.

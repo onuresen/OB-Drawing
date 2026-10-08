@@ -34,7 +34,14 @@ namespace ObjectCentricDrawing
 
     // Written only when the export option asks for Revit relations; otherwise the list is empty.
     // Origin marks them as Revit's, so the app can show and remove them as one group.
-    internal sealed record ProjectRelation(string Id, string Type, string From, string To, string Label, string Origin);
+    internal sealed record ProjectRelation(
+        string Id,
+        string Type,
+        string From,
+        string To,
+        string Label,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Side,
+        string Origin);
 
     internal sealed record ProjectDocument(string Id, string Name, long Size, int PageCount, string Sha256);
 

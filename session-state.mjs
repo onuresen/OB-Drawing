@@ -43,6 +43,7 @@ export function objectLayerSignature(source) {
     from: relation.from,
     to: relation.to,
     label: relation.label ?? "",
+    side: relation.side ?? null,
     origin: relation.origin ?? null,
     createdAt: relation.createdAt ?? null,
   }));

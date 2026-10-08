@@ -2152,12 +2152,16 @@ select.text-input {
 
 .relation-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: 7.6rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
 }
 
 .relation-row-phrase {
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
   padding: 4px 7px;
   border: 0;
   border-left: 3px solid var(--relation-color);
@@ -2355,6 +2359,88 @@ select.text-input {
 .trace-copy small {
   color: var(--ink-soft);
   font-size: 0.62rem;
+}
+
+.relation-side-field {
+  display: grid;
+  gap: 6px;
+}
+
+.relation-side-field[hidden] {
+  display: none;
+}
+
+.related-data {
+  display: grid;
+  gap: 8px;
+}
+
+.related-data[hidden] {
+  display: none;
+}
+
+.related-data .subsection-heading {
+  margin-bottom: 0;
+}
+
+.related-data .quiet-copy {
+  margin: 0;
+}
+
+.related-data-list {
+  display: grid;
+  gap: 6px;
+}
+
+.related-data-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--relation-color);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.related-data-group > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.related-data-phrase {
+  color: var(--relation-color);
+  font-size: 0.66rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.related-data-group > summary strong {
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.related-data-group > summary small {
+  color: var(--ink-soft);
+  font-size: 0.6rem;
+  white-space: nowrap;
+}
+
+.related-data-group .quiet-copy,
+.related-data-note {
+  margin: 0;
+  padding: 7px 9px;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.related-data-note {
+  color: var(--ink);
+  white-space: pre-wrap;
 }
 
 .relation-dialog {
