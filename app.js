@@ -2863,7 +2863,10 @@ async function navigateToPage(pageNumber) {
 }
 
 function handlePageSurfaceClick(event) {
-  if (state.markMode || event.target.closest("[data-occurrence-id]")) {
+  // Clicks on the overlay come from marks, handles, or the end of a draw or polygon.
+  // The draw-ending click arrives after the new mark is selected and must not clear it.
+  // composedPath() still holds the overlay when the draft shape was already removed.
+  if (state.markMode || event.composedPath().includes(elements.overlay)) {
     return;
   }
   const selection = globalThis.getSelection?.();

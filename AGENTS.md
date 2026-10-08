@@ -181,6 +181,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - Marking mode displays a non-interactive drawing-area guide and changes the toolbar action to `Marking…`; `M` or `Escape` cancels it. The shape selector chooses rectangle, ellipse, or polygon without changing object identity.
 - A rectangle or ellipse drag smaller than `7px` in either dimension creates no occurrence and keeps marking active for an immediate retry.
 - Polygon marking adds a vertex per click and finishes by double-click, Enter, or clicking the first vertex; Escape cancels without history.
+- A newly drawn rectangle, ellipse, or polygon stays selected, so Create links it. The click that ends a draw lands on the overlay and must never clear the selection; only a click on empty page does.
 - Successful occurrence creation exits marking mode. The retry message may recommend zoom, but zoom remains explicit user-controlled view state.
 - After deleting an occurrence, focus moves to the nearest surviving occurrence in that list, then to the selected Door action or Door-label field when the list is empty.
 - After deleting a Door, focus moves to its first preserved unlinked occurrence workflow or the nearest surviving Door card.
