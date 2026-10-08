@@ -314,3 +314,33 @@ export function suggestRelationType(fromCategory, toCategory) {
   }
   return { type: DEFAULT_RELATION_TYPE, swap: false };
 }
+
+export const MAXIMUM_TRACE_STEPS = 3;
+
+// Objects reachable from one root within `steps` relations, in either direction.
+// Each entry keeps the relation it was reached through, so the path can be explained.
+export function traceRelations(relations, rootId, steps = 2) {
+  const limit = Math.max(1, Math.min(MAXIMUM_TRACE_STEPS, Math.floor(steps)));
+  const reached = new Map([[rootId, { objectId: rootId, step: 0, viaObjectId: null, relation: null }]]);
+  let frontier = [rootId];
+  for (let step = 1; step <= limit && frontier.length > 0; step += 1) {
+    const next = [];
+    for (const objectId of frontier) {
+      for (const relation of relations) {
+        const otherId = relation.from === objectId ? relation.to : relation.to === objectId ? relation.from : null;
+        if (!otherId || reached.has(otherId)) {
+          continue;
+        }
+        reached.set(otherId, { objectId: otherId, step, viaObjectId: objectId, relation });
+        next.push(otherId);
+      }
+    }
+    frontier = next;
+  }
+  return [...reached.values()];
+}
+
+// Objects directly related to one object, without the object itself.
+export function relatedObjectIds(relations, objectId) {
+  return new Set(relationsForObject(relations, objectId).map((entry) => entry.otherObjectId));
+}

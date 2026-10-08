@@ -132,6 +132,15 @@ previews/
 
 Each PNG uses the existing Object Lens context crop and draws the exact rectangle, ellipse, or polygon above the source image. The option is explicit and remains browser view state; it is not saved in the Object-Centric Drawing project.
 
+## Object relations (optional)
+
+Two optional arrays carry the subject's relations. Older packages without them stay valid.
+
+- `objectRelations`: relations with at least one end on a subject. Same fields as the project: `id`, `type`, `from`, `to`, `label`, optional `origin`.
+- `relatedObjects`: the other ends, as `id`, `category`, `label` only. Their drawings are not exported; they are not subjects.
+
+Every related object must be used by a relation. Unknown types, unknown ends, or a relation that touches no subject fail closed. `relationships` stays reserved for `instanceOf`.
+
 ## Planned flow
 
 ```text

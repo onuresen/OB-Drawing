@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-08-revit-relations">
+  <link rel="stylesheet" href="styles.css?v=2026-10-08-relation-trace">
 </head>
 <body>
   <header class="app-header">
@@ -332,11 +332,27 @@
               <h4 id="relationSectionTitle">Relations</h4>
               <div class="subsection-actions">
                 <span id="relationCount">0</span>
+                <button id="toggleTrace" class="compact-action" type="button" aria-pressed="false" title="Follow relations from this object, across pages">Trace</button>
                 <button id="startRelation" class="compact-action" type="button" aria-keyshortcuts="C" title="Relate to another object (C)">Relate</button>
               </div>
             </div>
             <p id="noRelations" class="quiet-copy">None yet. Press Relate, then click the other mark.</p>
             <ol id="relationList" class="relation-list"></ol>
+            <section id="tracePanel" class="trace-panel" aria-labelledby="traceTitle" hidden>
+              <div class="trace-heading">
+                <strong id="traceTitle">Trace</strong>
+                <label class="trace-steps">
+                  <span class="visually-hidden">Steps to follow</span>
+                  <select id="traceSteps" class="text-input">
+                    <option value="1">1 step</option>
+                    <option value="2" selected>2 steps</option>
+                    <option value="3">3 steps</option>
+                  </select>
+                </label>
+                <button id="endTrace" class="icon-button" type="button" aria-label="End trace" title="End trace (Escape)">×</button>
+              </div>
+              <ol id="traceList" class="trace-list"></ol>
+            </section>
           </section>
 
           <section id="revitProperties" class="revit-properties" aria-labelledby="revitPropertiesTitle" hidden>

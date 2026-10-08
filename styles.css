@@ -448,6 +448,7 @@ h1 {
 
 .thumbnail-frame {
   width: 112px;
+  position: relative;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -786,6 +787,13 @@ h1 {
   fill: hsl(216 10% 50% / 0.08);
   stroke: hsl(216 13% 48%);
   stroke-dasharray: 6 4;
+}
+
+/* Marks reached by a relation trace. */
+.occurrence-shape.is-traced:not(.is-selected) {
+  stroke: var(--relation-system);
+  stroke-width: 3;
+  fill: hsl(262 50% 50% / 0.12);
 }
 
 .occurrence-shape.is-dimmed:not(.is-selected) {
@@ -1636,6 +1644,20 @@ details[open] > .section-summary h3::before {
   outline-offset: 1px;
 }
 
+/* Pages with objects related to the selection, or in the current trace. */
+.drawing-map-page.has-related-object::after,
+.thumbnail-button.has-related .thumbnail-frame::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--white);
+  border-radius: 50%;
+  background: var(--relation-system);
+}
+
 .drawing-map-page[aria-current="page"] {
   border-color: var(--navy);
   color: var(--white);
@@ -2215,6 +2237,99 @@ select.text-input {
 
 .revit-relations-action {
   margin-top: 8px;
+}
+
+.trace-panel {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid hsl(262 42% 82%);
+  border-radius: 9px;
+  background: hsl(262 60% 98%);
+}
+
+.trace-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.trace-heading strong {
+  overflow: hidden;
+  color: var(--relation-system);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-steps .text-input {
+  min-height: 28px;
+  padding: 2px 6px;
+  font-size: 0.68rem;
+}
+
+.trace-list {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trace-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trace-item:hover,
+.trace-item[aria-current="true"] {
+  border-color: var(--relation-system);
+}
+
+.trace-step {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--white);
+  background: var(--relation-system);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.trace-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.trace-copy strong,
+.trace-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-copy strong {
+  font-size: 0.72rem;
+}
+
+.trace-copy small {
+  color: var(--ink-soft);
+  font-size: 0.62rem;
 }
 
 .relation-dialog {

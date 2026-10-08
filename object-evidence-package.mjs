@@ -1,3 +1,5 @@
+import { RELATION_ORIGINS, isRelationType } from "./relation-model.mjs";
+
 export const OBJECT_EVIDENCE_FORMAT = "objdraw-object-evidence-v2";
 export const PHYSICAL_INSTANCE_KIND = "physical-instance";
 export const INSTANCE_OF_RELATIONSHIP = "instanceOf";
@@ -98,6 +100,11 @@ export function validateObjectEvidencePackage(value) {
   requireCondition(Array.isArray(value.occurrences) && value.occurrences.length > 0, "Occurrences must be a non-empty array.");
   const notes = value.notes ?? [];
   requireCondition(Array.isArray(notes), "Notes must be an array.");
+  // Optional, additive v2 fields. Readers that predate them can ignore them.
+  const relatedObjects = value.relatedObjects ?? [];
+  const objectRelations = value.objectRelations ?? [];
+  requireCondition(Array.isArray(relatedObjects), "Related objects must be an array.");
+  requireCondition(Array.isArray(objectRelations), "Object relations must be an array.");
 
   const subjectIds = validateUniqueIds(value.subjects, "subject");
   const subjectsById = new Map();
@@ -157,6 +164,29 @@ export function validateObjectEvidencePackage(value) {
     requireCondition(representedSubjects.has(subjectId), `${subjectId} has no exported source occurrence.`);
   }
 
+  validateUniqueIds(relatedObjects, "related object");
+  for (const related of relatedObjects) {
+    requireCondition(!subjectIds.has(related.id), `${related.id} is both a subject and a related object.`);
+    requireText(related.category, `${related.id} requires a category.`);
+    requireText(related.label, `${related.id} requires a label.`);
+  }
+  const relatedIds = new Set(relatedObjects.map((related) => related.id));
+  validateUniqueIds(objectRelations, "object relation");
+  const usedRelatedIds = new Set();
+  for (const relation of objectRelations) {
+    requireCondition(isRelationType(relation.type), `${relation.id} has an unsupported relation type.`);
+    const ends = [relation.from, relation.to];
+    requireCondition(ends.every((id) => subjectIds.has(id) || relatedIds.has(id)), `${relation.id} links to an object that is not exported.`);
+    requireCondition(ends.some((id) => subjectIds.has(id)), `${relation.id} does not touch an exported subject.`);
+    requireCondition(relation.from !== relation.to, `${relation.id} relates an object to itself.`);
+    requireCondition(typeof relation.label === "string", `${relation.id} label must be text.`);
+    requireCondition(relation.origin === undefined || RELATION_ORIGINS.includes(relation.origin), `${relation.id} has an unsupported origin.`);
+    ends.filter((id) => relatedIds.has(id)).forEach((id) => usedRelatedIds.add(id));
+  }
+  for (const id of relatedIds) {
+    requireCondition(usedRelatedIds.has(id), `${id} is exported but no relation uses it.`);
+  }
+
   validateUniqueIds(notes, "note");
   for (const note of notes) {
     requireCondition(["object", "occurrence"].includes(note.scope), `${note.id} has an unsupported exported note scope.`);
@@ -210,6 +240,19 @@ export function validateObjectEvidencePackage(value) {
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
     })),
+    relatedObjects: relatedObjects.map((related) => ({
+      id: related.id,
+      category: related.category.trim(),
+      label: related.label.trim(),
+    })),
+    objectRelations: objectRelations.map((relation) => ({
+      id: relation.id,
+      type: relation.type,
+      from: relation.from,
+      to: relation.to,
+      label: relation.label.trim(),
+      ...(relation.origin ? { origin: relation.origin } : {}),
+    })),
   };
 }
 
@@ -218,6 +261,7 @@ export function createObjectEvidencePackage({
   objects,
   occurrences,
   notes = [],
+  relations = [],
   selectedObjectIds,
   configurations = [],
   relationships = [],
@@ -241,6 +285,12 @@ export function createObjectEvidencePackage({
   const selectedRelationships = relationships.filter((relationship) => selectedIds.has(relationship.subjectId));
   const referencedConfigurationIds = new Set(selectedRelationships.map((relationship) => relationship.configurationId));
   const selectedConfigurations = configurations.filter((configuration) => referencedConfigurationIds.has(configuration.id));
+  // Relations touching a subject travel with it. The object at the other end
+  // comes as identity only; its drawings stay out of this subject's evidence.
+  const subjectRelations = relations.filter((relation) => selectedIds.has(relation.from) || selectedIds.has(relation.to));
+  const relatedIds = new Set(subjectRelations
+    .flatMap((relation) => [relation.from, relation.to])
+    .filter((id) => !selectedIds.has(id)));
 
   return validateObjectEvidencePackage({
     format: OBJECT_EVIDENCE_FORMAT,
@@ -292,5 +342,9 @@ export function createObjectEvidencePackage({
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       })),
+    relatedObjects: objects
+      .filter((object) => relatedIds.has(object.id))
+      .map((object) => ({ id: object.id, category: object.category, label: object.label })),
+    objectRelations: subjectRelations,
   });
 }
