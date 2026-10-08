@@ -487,3 +487,35 @@
 **Escape:** An open dialog now owns Escape. Before, closing the Map with Escape also ended the trace or cleared the selection.
 
 **Confidence:** high.
+
+## 2026-10-08 — ONEXUS export that merges with CDI's
+
+**Decision:** Export objects and relations as an ONEXUS graph, using CDI's exporter mapping exactly.
+
+**Why:** CDI already exports to ONEXUS (CDI docs/44). Matching its node keys and edge IDs means the same door and relation from both tools become one node and one edge in ONEXUS.
+
+**Identity:** Revit UniqueId when the Revit file is loaded. Otherwise a local key, marked `identity: "local"`. Local objects still show; they just cannot merge with CDI.
+
+**Truth:** Hand-drawn relations are `project-defined`; Revit ones are `source-native`. Review is `unreviewed`. No date is invented; `createdAt` is used when present.
+
+**Relation dates:** New relations get `createdAt`. It stays optional, so older files are valid. Missing means unknown, never old.
+
+**Not now:** Writing into CDI's relationship confirmations. CDI is moving to IFC as well as Forma, so changes there wait. Proposing `takesDataFrom` to CDI also waits.
+
+**Alternative:** An Object-Centric Drawing–specific ONEXUS mapping. Rejected: two mappings for one viewer would fork the same door into two nodes.
+
+**Confidence:** high. Edge IDs were checked against CDI's Python, and the file validates against ONEXUS's schema.
+
+## 2026-10-08 — Live ONEXUS link through window messaging
+
+**Decision:** "Open live ONEXUS" opens ONEXUS in a window. The two windows exchange the graph, selections, and node taps with `postMessage`.
+
+**Why:** It works on GitHub Pages and locally. It needs no server, no port, and no CSP change, so the local-only boundary holds.
+
+**Reuse:** The messages are the ones ONEXUS already uses with its Revit host. ONEXUS gained one small plugin, gated by its own deployment policy.
+
+**Alternative:** Route both apps through the ONEXUS MCP server on `ws://localhost:8765`. Rejected: it needs a running server, and this app's local server already uses port 8765.
+
+**Known clash:** `serve.py` and the ONEXUS MCP server both use port 8765, so they cannot run at the same time. Not changed here; moving this app's port would change the start script people already use.
+
+**Confidence:** high. Driven end to end in Chromium both ways.

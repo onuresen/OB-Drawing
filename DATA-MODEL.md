@@ -124,6 +124,7 @@ A relation joins two objects. It never joins marks.
 - `from` and `to` are two different existing objects. Directed types read from → to.
 - `label` is a short optional note, at most 60 characters. Empty string when unused.
 - The same type between the same two objects is one relation. Undirected types ignore order.
+- `createdAt` is optional. New relations get one. A missing date means an unknown age.
 - `origin` is optional. `"revit"` marks a relation the Revit export wrote. Absent means a person made it. Editing a relation removes its origin, because it is then the person's.
 
 | Family | Types |

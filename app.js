@@ -109,6 +109,7 @@ import {
   createJoineryAiInstructions,
 } from "./joinery-ai-handoff.mjs";
 import { createStoredZip } from "./zip-store.mjs";
+import { buildOnexusGraph } from "./onexus-export.mjs";
 import {
   createNote,
   removeNote,
@@ -234,6 +235,10 @@ const elements = {
   deleteRelation: document.querySelector("#deleteRelation"),
   removeRevitRelations: document.querySelector("#removeRevitRelations"),
   toggleTrace: document.querySelector("#toggleTrace"),
+  exportOnexus: document.querySelector("#exportOnexus"),
+  linkOnexus: document.querySelector("#linkOnexus"),
+  onexusUrl: document.querySelector("#onexusUrl"),
+  exportTraceOnexus: document.querySelector("#exportTraceOnexus"),
   tracePanel: document.querySelector("#tracePanel"),
   traceTitle: document.querySelector("#traceTitle"),
   traceSteps: document.querySelector("#traceSteps"),
@@ -832,6 +837,8 @@ function setDocumentControlsEnabled(enabled) {
   elements.deleteObject.disabled = !hasProject;
   elements.markForObject.disabled = !enabled || !state.selectedObjectId;
   elements.exportSidecar.disabled = !hasProject;
+  elements.exportOnexus.disabled = !hasProject;
+  elements.linkOnexus.disabled = !hasProject;
   elements.openNotes.disabled = !hasProject;
   elements.chooseSidecar.disabled = false;
   updateHistoryControls();
@@ -2279,6 +2286,197 @@ function renderTrace() {
   }
 }
 
+// One-way download for ONEXUS. Never saved state, never history.
+function exportOnexusGraph(objectIds = null) {
+  if (state.documents.length === 0) {
+    return;
+  }
+  const scope = objectIds ? "trace" : "project";
+  const root = scope === "trace" ? getObject(state.trace?.rootId) : null;
+  const projectName = sidecarDownloadName().replace(/\.objdraw-project\.json$/, "");
+  const graph = buildOnexusGraph({
+    documents: state.documents,
+    objects: state.objects,
+    occurrences: state.occurrences,
+    relations: state.relations,
+    revitObjects: state.revitData?.objects ?? [],
+    objectIds,
+    scope,
+    projectName: root ? `${projectName} · trace from ${root.label}` : projectName,
+  });
+  const filename = `${projectName}${root ? `-trace-${root.label.replace(/[<>:"/\\|?*\s]+/g, "-")}` : ""}.onexus.json`;
+  downloadBlob(new Blob([`${JSON.stringify(graph, null, 2)}\n`], { type: "application/json" }), filename);
+  const { nodes, edges, localNodes } = graph.meta.objdraw.counts;
+  const identity = localNodes === 0
+    ? "All objects use Revit IDs."
+    : localNodes === nodes
+      ? "Objects use local IDs; load the Revit file first to merge with CDI."
+      : `${localNodes} object${localNodes === 1 ? "" : "s"} use local IDs.`;
+  setStatus(`Exported ${filename}: ${nodes} object${nodes === 1 ? "" : "s"}, ${edges} relation${edges === 1 ? "" : "s"}. ${identity}`);
+}
+
+// ── Live ONEXUS link ─────────────────────────────────────
+// Two browser windows talk with postMessage: no server, no network request.
+// Messages reuse ONEXUS's Revit-host vocabulary: onexus-graph, highlight-nodes, select-node.
+const onexusLink = {
+  window: null,
+  origin: "",
+  ready: false,
+  helloTimer: null,
+  graphTimer: null,
+  graphSignature: "",
+  highlightKey: "",
+  objectByNode: new Map(),
+  nodeByObject: new Map(),
+};
+
+function defaultOnexusUrl() {
+  return ["localhost", "127.0.0.1"].includes(globalThis.location?.hostname)
+    ? "http://localhost:4173/index.html"
+    : "https://onuresen.github.io/onexus/";
+}
+
+function onexusLinkUrl() {
+  const text = state.display.onexusUrl || defaultOnexusUrl();
+  try {
+    const url = new URL(text, globalThis.location?.href);
+    return ["http:", "https:"].includes(url.protocol) ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function onexusLinkOpen() {
+  return Boolean(onexusLink.window && !onexusLink.window.closed);
+}
+
+function postToOnexus(message) {
+  if (!onexusLinkOpen()) {
+    return;
+  }
+  try {
+    onexusLink.window.postMessage(message, onexusLink.origin);
+  } catch {
+    // The window navigated away or closed. The next refresh shows it as unlinked.
+  }
+}
+
+function openOnexusLink() {
+  const url = onexusLinkUrl();
+  if (!url) {
+    setStatus("The ONEXUS address is not a valid http or https address.");
+    return;
+  }
+  url.searchParams.set("link", "objdraw");
+  const linked = globalThis.open(url.href, "objdraw-onexus");
+  if (!linked) {
+    setStatus("The browser blocked the ONEXUS window. Allow pop-ups for this page, then try again.");
+    return;
+  }
+  clearInterval(onexusLink.helloTimer);
+  Object.assign(onexusLink, { window: linked, origin: url.origin, ready: false, graphSignature: "", highlightKey: "" });
+  let attempts = 0;
+  // Say hello until ONEXUS has loaded and answers. Stop after about 30 seconds.
+  onexusLink.helloTimer = setInterval(() => {
+    attempts += 1;
+    if (onexusLink.ready || !onexusLinkOpen() || attempts > 75) {
+      clearInterval(onexusLink.helloTimer);
+      if (!onexusLink.ready) {
+        setStatus(`ONEXUS did not answer at ${url.origin}. Check the address, and that this ONEXUS has the window link.`);
+        renderOnexusLinkButton();
+      }
+      return;
+    }
+    postToOnexus({ type: "objdraw-hello" });
+  }, 400);
+  renderOnexusLinkButton();
+  setStatus(`Opening ONEXUS at ${url.origin}…`);
+}
+
+function sendOnexusGraph() {
+  const graph = buildOnexusGraph({
+    documents: state.documents,
+    objects: state.objects,
+    occurrences: state.occurrences,
+    relations: state.relations,
+    revitObjects: state.revitData?.objects ?? [],
+    projectName: sidecarDownloadName().replace(/\.objdraw-project\.json$/, ""),
+  });
+  const signature = JSON.stringify([
+    graph.elements.nodes.map((node) => [node.data.id, node.data.label.en, node.data.category]),
+    graph.elements.edges.map((edge) => [edge.data.id, edge.data.notes]),
+  ]);
+  if (signature === onexusLink.graphSignature) {
+    return;
+  }
+  onexusLink.graphSignature = signature;
+  onexusLink.objectByNode = new Map(graph.elements.nodes.map((node) => [node.data.id, node.data.objdraw.objectId]));
+  onexusLink.nodeByObject = new Map(graph.elements.nodes.map((node) => [node.data.objdraw.objectId, node.data.id]));
+  onexusLink.highlightKey = "";
+  postToOnexus({ type: "onexus-graph", graph });
+}
+
+// Selection, or the whole trace, is highlighted in ONEXUS.
+function sendOnexusHighlight() {
+  const objectIds = tracedObjectIds() ?? new Set(state.selectedObjectId ? [state.selectedObjectId] : []);
+  const ids = [...objectIds].map((id) => onexusLink.nodeByObject.get(id)).filter(Boolean);
+  const key = ids.join("|");
+  if (key === onexusLink.highlightKey) {
+    return;
+  }
+  onexusLink.highlightKey = key;
+  postToOnexus({ type: "highlight-nodes", ids, fitView: ids.length > 0 });
+}
+
+function renderOnexusLinkButton() {
+  const linked = onexusLinkOpen() && onexusLink.ready;
+  elements.linkOnexus.textContent = linked ? "ONEXUS linked ●" : onexusLinkOpen() ? "Connecting to ONEXUS…" : "Open live ONEXUS";
+  elements.linkOnexus.classList.toggle("is-linked", linked);
+}
+
+function syncOnexusLink() {
+  if (onexusLink.window && !onexusLinkOpen()) {
+    clearInterval(onexusLink.helloTimer);
+    onexusLink.window = null;
+    onexusLink.ready = false;
+  }
+  renderOnexusLinkButton();
+  if (!onexusLink.ready || !onexusLinkOpen()) {
+    return;
+  }
+  // Wait for edits to settle, so a burst of changes reloads ONEXUS once.
+  clearTimeout(onexusLink.graphTimer);
+  onexusLink.graphTimer = setTimeout(() => {
+    sendOnexusGraph();
+    sendOnexusHighlight();
+  }, 500);
+}
+
+function handleOnexusMessage(event) {
+  if (!onexusLinkOpen() || event.source !== onexusLink.window || event.origin !== onexusLink.origin) {
+    return;
+  }
+  const data = event.data;
+  if (!data || typeof data !== "object") {
+    return;
+  }
+  if (data.type === "onexus-ready" && !onexusLink.ready) {
+    onexusLink.ready = true;
+    clearInterval(onexusLink.helloTimer);
+    sendOnexusGraph();
+    sendOnexusHighlight();
+    renderOnexusLinkButton();
+    setStatus("ONEXUS is linked. Selecting here highlights there; clicking a node there selects it here.");
+    return;
+  }
+  if (data.type === "select-node" && onexusLink.ready) {
+    const objectId = onexusLink.objectByNode.get(String(data.id));
+    if (getObject(objectId) && objectId !== state.selectedObjectId) {
+      selectObjectAndNavigate(objectId);
+    }
+  }
+}
+
 function setShowAllRelations(show) {
   state.display.showAllRelations = show;
   elements.showAllRelations.checked = show;
@@ -2913,6 +3111,7 @@ function refreshObjectUi() {
   renderSelectedObjectPanel();
   renderRelationList();
   renderTrace();
+  syncOnexusLink();
   renderUnlinkedOccurrences();
   renderNotes();
   renderSessionSummary();
@@ -5015,6 +5214,27 @@ elements.startRelation.addEventListener("click", startRelationFromSelection);
 elements.removeRevitRelations.addEventListener("click", removeRevitRelations);
 elements.toggleTrace.addEventListener("click", () => (state.trace ? endTrace() : startTrace()));
 elements.endTrace.addEventListener("click", endTrace);
+elements.exportOnexus.addEventListener("click", () => exportOnexusGraph());
+elements.linkOnexus.addEventListener("click", () => {
+  if (onexusLinkOpen() && onexusLink.ready) {
+    onexusLink.window.focus();
+    return;
+  }
+  openOnexusLink();
+});
+elements.onexusUrl.value = state.display.onexusUrl || defaultOnexusUrl();
+elements.onexusUrl.addEventListener("change", () => {
+  const value = elements.onexusUrl.value.trim();
+  state.display.onexusUrl = value === defaultOnexusUrl() ? "" : value;
+  saveDisplayPreferences();
+});
+globalThis.addEventListener("message", handleOnexusMessage);
+elements.exportTraceOnexus.addEventListener("click", () => {
+  const traced = tracedObjectIds();
+  if (traced) {
+    exportOnexusGraph([...traced]);
+  }
+});
 elements.traceSteps.addEventListener("change", () => {
   if (state.trace) {
     state.trace.steps = Number(elements.traceSteps.value);

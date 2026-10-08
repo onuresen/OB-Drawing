@@ -87,14 +87,25 @@ function requireValidRelation(relations, { type, from, to }, ignoreId = null) {
   }
 }
 
-export function createRelation(relations, { type = DEFAULT_RELATION_TYPE, from, to, label = "" }) {
+// createdAt is optional in files: relations saved before it existed have an unknown age.
+export function createRelation(relations, {
+  type = DEFAULT_RELATION_TYPE,
+  from,
+  to,
+  label = "",
+  createdAt = new Date().toISOString(),
+}) {
   requireValidRelation(relations, { type, from, to });
+  if (Number.isNaN(Date.parse(createdAt))) {
+    throw new Error("A relation requires a valid timestamp.");
+  }
   return {
     id: nextRelationId(relations),
     type,
     from,
     to,
     label: normalizeRelationLabel(label),
+    createdAt,
   };
 }
 

@@ -139,7 +139,7 @@ test("only viewer preferences are remembered, and bad stored values are ignored"
   display.query = "secret";
   display.hiddenCategories.add("doors");
   const stored = displayPreferences(display);
-  assert.deepEqual(Object.keys(stored).sort(), ["currentPageOnly", "groupBy", "markFocus", "showAllRelations", "showLabels", "showThumbnails"]);
+  assert.deepEqual(Object.keys(stored).sort(), ["currentPageOnly", "groupBy", "markFocus", "onexusUrl", "showAllRelations", "showLabels", "showThumbnails"]);
   const restored = applyDisplayPreferences(createDisplayState(), { ...stored, groupBy: "nonsense", markFocus: "none" });
   assert.equal(restored.groupBy, "category");
   assert.equal(restored.markFocus, "none");

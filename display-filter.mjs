@@ -13,6 +13,7 @@ export function createDisplayState() {
     currentPageOnly: false,
     showLabels: false,
     showAllRelations: false,
+    onexusUrl: "",
     showThumbnails: false,
     hiddenCategories: new Set(),
     collapsedGroups: new Set(),
@@ -27,6 +28,7 @@ export function displayPreferences(display) {
     currentPageOnly: display.currentPageOnly,
     showLabels: display.showLabels,
     showAllRelations: display.showAllRelations,
+    onexusUrl: display.onexusUrl,
     showThumbnails: display.showThumbnails,
     markFocus: display.markFocus,
   };
@@ -45,6 +47,7 @@ export function applyDisplayPreferences(display, stored) {
   display.currentPageOnly = stored.currentPageOnly === true;
   display.showLabels = stored.showLabels === true;
   display.showAllRelations = stored.showAllRelations === true;
+  display.onexusUrl = typeof stored.onexusUrl === "string" ? stored.onexusUrl.slice(0, 500) : "";
   display.showThumbnails = stored.showThumbnails === true;
   return display;
 }
