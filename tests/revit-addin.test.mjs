@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { isObjectCategoryKey } from "../category-catalog.mjs";
 import { PROJECT_FORMAT, validateSidecar } from "../sidecar.mjs";
+import { RELATION_ORIGINS, isRelationType } from "../relation-model.mjs";
 
 // The Revit add-in is C# and is never built in CI. These checks read its source
 // so the two halves cannot drift apart without a red test.
@@ -115,4 +116,41 @@ test("polygons are written with the field names the app reads", () => {
   const sidecar = readFileSync(new URL("../sidecar.mjs", import.meta.url), "utf8");
   assert.match(sidecar, /BOUNDS_EPSILON = 1e-9;/);
   assert.match(addin("SheetMath.cs"), /> 1e-9 \? points : null;/);
+});
+
+test("Revit relations are optional, off by default, and remembered like the other choices", () => {
+  const options = addin("ExportOptions.cs");
+  assert.match(options, /public bool IncludeRelations \{ get; init; \}/);
+  assert.match(options, /bool IncludeRelations = false\)/);
+  assert.match(options, /IncludeRelations = stored\.IncludeRelations/);
+  assert.match(options, /new Stored\(keys, RequireMark, Outline, IncludeParameters, IncludeRelations\)/);
+  assert.doesNotMatch(options.slice(options.indexOf("Defaults()"), options.indexOf("private sealed record Stored")), /IncludeRelations\s*=\s*true/);
+  assert.match(addin("ExportOptionsWindow.cs"), /IncludeRelations = _includeRelations\.IsChecked == true/);
+  // Off means the same empty list as before the option existed.
+  assert.match(addin("ExportPdfCommand.cs"), /options\.IncludeRelations \? Relations\.Read\(exported\) : new List<ProjectRelation>\(\)/);
+});
+
+test("Revit relations use relation types, IDs, and an origin the app accepts", () => {
+  const source = addin("Relations.cs");
+  const types = [...source.matchAll(/Add\("([A-Za-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(types)].sort(), ["connectsTo", "hostedBy", "inside"]);
+  for (const type of types) {
+    assert.ok(isRelationType(type), `${type} is not in relation-model.mjs`);
+  }
+  assert.match(source, /\$"relation-\{result\.Count \+ 1:000\}"/);
+  const origin = source.match(/const string Origin = "([^"]+)"/)?.[1];
+  assert.ok(RELATION_ORIGINS.includes(origin), `origin ${origin} is not accepted by the app`);
+  // Only between exported objects, never to self, never twice.
+  assert.match(source, /exported\.TryGetValue\(target\.UniqueId/);
+  assert.match(source, /to\.ObjectId == fromObjectId\) return;/);
+  assert.match(source, /seen\.Add\(/);
+  assert.match(addin("ProjectSchema.cs"), /record ProjectRelation\(string Id, string Type, string From, string To, string Label, string Origin\)/);
+});
+
+test("a project with Revit relations imports and keeps their origin", () => {
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/revit-export-relations.synthetic.json", import.meta.url), "utf8"));
+  const project = validateSidecar(fixture);
+  assert.equal(project.relations.length, 3);
+  assert.ok(project.relations.every((relation) => relation.origin === "revit"));
+  assert.deepEqual(project.relations.map((relation) => relation.label), ["", "from room", "to room"]);
 });

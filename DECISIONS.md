@@ -434,3 +434,38 @@
 **Revisit when:** A second project needs a type that is missing, or Revit host/room export is added.
 
 **Confidence:** med. Mechanics are tested in a browser. The vocabulary needs real drawing use.
+
+## 2026-10-08 — Optional relations from the Revit export
+
+**Decision:** The Revit export can add relations Revit already records: host wall, door From/To Room, and room for other instances. The option is off by default.
+
+**Why:** Hand-drawing every door's wall and rooms is slow. Revit already knows them.
+
+**Optional and additive:**
+- Off means the exact same file as before.
+- Only between objects in the same export. Nothing points outside the file.
+- Each relation carries an optional `origin: "revit"`. Older v6 files without it stay valid.
+- The app shows "from Revit" and offers one undoable "Remove Revit relations".
+- Editing a Revit relation drops its origin. It is the person's from then on.
+
+**Not CDI truth classes:** `origin` only says who wrote the line. It does not claim confirmed or inferred truth. That richer model waits for the CDI exchange discussion.
+
+**Alternative:** Infer card reader → door from geometry, like CDI. Rejected for now. Proximity is a guess, and Revit host/room data is not.
+
+**Revisit when:** It is run on a real model, or CDI exchange is designed.
+
+**Confidence:** med. Not yet built or run in Revit.
+
+## 2026-10-08 — Relate many at once, and drag from a mark
+
+**Decision:** "Save, add more" repeats one relation for every further pick. A dot beside the selected mark relates by drag-and-drop.
+
+**Why:** One card reader to many doors, or one room to many doors, was one dialog per line. CDI found batch linking saved the most time (docs 34–35).
+
+**Repeat rule:** The source object keeps its side. Picking a room first and saving "D-105 opens to 105 Retail" means each further door opens to that room.
+
+**Each relation is its own undo step.** One Undo removes only the last pick.
+
+**Alternative:** Select many objects, then relate them all in one dialog. Rejected for now. The app has no multi-select yet, and clicking on the sheet is faster.
+
+**Confidence:** high for repeat; med for the dot's size and place until used on real sheets.

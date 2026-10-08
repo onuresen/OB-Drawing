@@ -222,6 +222,7 @@ namespace ObjectCentricDrawing
             var objects = new List<ProjectObject>();
             var objectRefs = new List<RevitObjectRef>();
             var objectIdByUniqueId = new Dictionary<string, string>();
+            var exported = new Dictionary<string, (string ObjectId, Element Element)>();
             var occurrences = new List<Occurrence>();
             var occurrenceRefs = new List<RevitOccurrenceRef>();
             var skipped = new List<SkippedView>();
@@ -237,6 +238,7 @@ namespace ObjectCentricDrawing
                 {
                     objectId = $"object-{objects.Count + 1:000}";
                     objectIdByUniqueId[element.UniqueId] = objectId;
+                    exported[element.UniqueId] = (objectId, element);
                     (string familyName, string typeName) = TypeNames(doc, element);
                     objects.Add(new ProjectObject(
                         objectId, ExportCategories.Find(p.Category)!.Key, Label(element, identifier, typeName)));
@@ -291,7 +293,7 @@ namespace ObjectCentricDrawing
                 objects,
                 occurrences,
                 new List<object>(),
-                new List<object>());
+                options.IncludeRelations ? Relations.Read(exported) : new List<ProjectRelation>());
 
             var refs = new RevitRefs(
                 ProjectFormat.RevitRefsName,
@@ -468,6 +470,7 @@ namespace ObjectCentricDrawing
                 + $"{result.Project.Objects.Count} object(s), {result.Project.Occurrences.Count} occurrence(s)\n"
                 + shapes
                 + (result.Refs.IncludesParameters ? "Populated Revit parameters included\n" : "")
+                + (result.Project.Relations.Count > 0 ? $"{result.Project.Relations.Count} relation(s) from Revit\n" : "")
                 + "\n"
                 + "Open the PDF in Object-Centric Drawing, then import the .objdraw.json.";
             if (result.Refs.Skipped.Count > 0)

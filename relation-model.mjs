@@ -30,6 +30,8 @@ export const RELATION_TYPES = Object.freeze([
 ]);
 
 export const DEFAULT_RELATION_TYPE = "relatesTo";
+// Optional marker for relations a tool wrote rather than a person. Absent means hand-made.
+export const RELATION_ORIGINS = Object.freeze(["revit"]);
 export const MAXIMUM_RELATION_LABEL_LENGTH = 60;
 
 const TYPES_BY_KEY = new Map(RELATION_TYPES.map((type) => [type.key, type]));
@@ -110,11 +112,20 @@ export function updateRelation(relations, relationId, { type, from, to, label })
   };
   requireValidRelation(relations, next, relationId);
   const unchanged = ["type", "from", "to", "label"].every((key) => next[key] === current[key]);
-  return unchanged ? relations : relations.map((relation) => (relation.id === relationId ? next : relation));
+  if (unchanged) {
+    return relations;
+  }
+  // Once a person changes it, the relation is theirs, not the tool's.
+  delete next.origin;
+  return relations.map((relation) => (relation.id === relationId ? next : relation));
 }
 
 export function removeRelation(relations, relationId) {
   return relations.filter((relation) => relation.id !== relationId);
+}
+
+export function removeRelationsByOrigin(relations, origin) {
+  return relations.filter((relation) => relation.origin !== origin);
 }
 
 export function removeRelationsForObject(relations, objectId) {

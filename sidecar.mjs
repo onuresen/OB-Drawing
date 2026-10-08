@@ -2,6 +2,7 @@ import { NOTE_SCOPES } from "./note-model.mjs";
 import { DEFAULT_OBJECT_CATEGORY, isObjectCategoryKey } from "./category-catalog.mjs";
 import {
   MAXIMUM_RELATION_LABEL_LENGTH,
+  RELATION_ORIGINS,
   findDuplicateRelation,
   isRelationType,
 } from "./relation-model.mjs";
@@ -235,6 +236,10 @@ function validateProject(value) {
       typeof relation.label === "string" && relation.label.length <= MAXIMUM_RELATION_LABEL_LENGTH,
       `${relation.id} label must be text of at most ${MAXIMUM_RELATION_LABEL_LENGTH} characters.`,
     );
+    requireCondition(
+      relation.origin === undefined || RELATION_ORIGINS.includes(relation.origin),
+      `${relation.id} has an unsupported origin.`,
+    );
     requireCondition(!findDuplicateRelation(acceptedRelations, relation), `${relation.id} duplicates another relation.`);
     acceptedRelations.push(relation);
   }
@@ -271,6 +276,7 @@ function validateProject(value) {
       from: relation.from,
       to: relation.to,
       label: relation.label.trim(),
+      ...(relation.origin ? { origin: relation.origin } : {}),
     })),
   };
 }

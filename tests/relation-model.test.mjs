@@ -12,6 +12,7 @@ import {
   relationTypeGroups,
   relationsForObject,
   removeRelation,
+  removeRelationsByOrigin,
   removeRelationsForObject,
   suggestRelationType,
   updateRelation,
@@ -190,7 +191,7 @@ test("relations enter undo snapshots and the unsaved-changes signature", () => {
 
 test("the Revit add-in writes an empty relation list in the v6 project", () => {
   const schema = readFileSync(new URL("../revit-addin/ProjectSchema.cs", import.meta.url), "utf8");
-  assert.match(schema, /List<object> Notes,\s*List<object> Relations\);/);
+  assert.match(schema, /List<object> Notes,\s*List<ProjectRelation> Relations\);/);
 });
 
 test("relations between the same two objects get separate arcs, whatever their direction", () => {
@@ -209,4 +210,34 @@ test("relations between the same two objects get separate arcs, whatever their d
   const offsets = [a, b, c].map((curve) => curve.mid.y - 0.425);
   assert.ok(offsets[0] * offsets[1] < 0, "first two bend to opposite sides");
   assert.ok(Math.abs(offsets[2]) > Math.abs(offsets[0]) && offsets[2] * offsets[0] > 0, "third bends further out");
+});
+
+test("Revit relations keep their origin until a person changes them, and can be removed as one group", () => {
+  const relations = [
+    { id: "relation-001", type: "hostedBy", from: "object-002", to: "object-003", label: "", origin: "revit" },
+    { id: "relation-002", type: "controls", from: "object-001", to: "object-002", label: "" },
+  ];
+  assert.equal(updateRelation(relations, "relation-001", { type: "hostedBy", label: "" }), relations, "no change keeps origin");
+  const edited = updateRelation(relations, "relation-001", { type: "fixedTo" });
+  assert.equal(edited[0].origin, undefined);
+  assert.equal(relations[0].origin, "revit", "the original array is not mutated");
+  assert.deepEqual(removeRelationsByOrigin(relations, "revit").map((relation) => relation.id), ["relation-002"]);
+});
+
+test("origin is optional in v6 files: absent stays absent, revit round-trips, unknown fails closed", () => {
+  const relations = [
+    { id: "relation-001", type: "hostedBy", from: "object-002", to: "object-003", label: "", origin: "revit" },
+    { id: "relation-002", type: "controls", from: "object-001", to: "object-002", label: "" },
+  ];
+  const saved = validateSidecar(JSON.parse(JSON.stringify(project(relations))));
+  assert.equal(saved.relations[0].origin, "revit");
+  assert.equal("origin" in saved.relations[1], false);
+  assert.throws(
+    () => validateSidecar({ ...saved, relations: [{ ...relations[0], origin: "ai" }] }),
+    /unsupported origin/,
+  );
+  assert.notEqual(
+    objectLayerSignature({ objects, occurrences: [], notes: [], relations: [relations[1]] }),
+    objectLayerSignature({ objects, occurrences: [], notes: [], relations: [{ ...relations[1], origin: "revit" }] }),
+  );
 });

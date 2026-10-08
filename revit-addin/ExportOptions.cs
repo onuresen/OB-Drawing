@@ -18,6 +18,9 @@ namespace ObjectCentricDrawing
         public bool Outline { get; init; }
         public bool IncludeParameters { get; init; }
 
+        // Off by default: host, door From/To Room, and room containment read from Revit.
+        public bool IncludeRelations { get; init; }
+
         public static ExportOptions Defaults() => new()
         {
             Categories = ExportCategories.All.Where(c => c.DefaultOn).Select(c => c.Category).ToHashSet(),
@@ -27,7 +30,8 @@ namespace ObjectCentricDrawing
             List<string> Categories,
             bool RequireMark,
             bool Outline = false,
-            bool IncludeParameters = false);
+            bool IncludeParameters = false,
+            bool IncludeRelations = false);
 
         private static string StorePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -53,6 +57,7 @@ namespace ObjectCentricDrawing
                         RequireMark = stored.RequireMark,
                         Outline = stored.Outline,
                         IncludeParameters = stored.IncludeParameters,
+                        IncludeRelations = stored.IncludeRelations,
                     };
             }
             catch (Exception)
@@ -68,7 +73,7 @@ namespace ObjectCentricDrawing
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(StorePath)!);
                 var keys = ExportCategories.All.Where(c => Categories.Contains(c.Category)).Select(c => c.Key).ToList();
-                File.WriteAllText(StorePath, JsonSerializer.Serialize(new Stored(keys, RequireMark, Outline, IncludeParameters)));
+                File.WriteAllText(StorePath, JsonSerializer.Serialize(new Stored(keys, RequireMark, Outline, IncludeParameters, IncludeRelations)));
             }
             catch (Exception)
             {

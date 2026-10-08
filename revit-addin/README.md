@@ -17,6 +17,14 @@ One button: **OneMore ▸ Object-Centric Drawing ▸ Export PDF + Objects**.
    Any element whose outline fails keeps its rectangle.
    **Parameters:** "Include populated instance and type parameters" is off by default. When enabled,
    every populated readable parameter is added to the separate Revit companion file.
+   **Relations:** "Add relations Revit knows" is off by default. When on, the project file gets:
+   - door / window → its host wall: *hosted on*;
+   - door → its From Room and To Room: *opens to*, labelled "from room" / "to room";
+   - any other family instance → its room: *inside*.
+
+   Only between objects in the same export. A face-based door hosted on a level gets no host relation.
+   Each relation carries `origin: "revit"`. The app marks them "from Revit" and can remove them all at once.
+   A Revit error on one element skips that relation only.
 3. Pick where to save the PDF.
 4. Three files are written side by side:
 
@@ -59,6 +67,7 @@ Test: export one sheet with a few doors. Open both files in the app. Check the r
 From Onur's first real run (2026-10-06):
 
 - **Choose what to export.** Done: categories and a Mark filter. Levels are not offered yet.
+- **Relations from Revit.** Done as an option, off by default. Not built or run in Revit yet.
 - **Exact shapes.** Done as the Outline option: convex outlines, room boundaries. Not built or run in Revit yet. Inside corners are left out on purpose.
 
 ## Build
@@ -83,4 +92,5 @@ Each add-in keeps its own panel name and prefixes its button IDs.
 - an exported category is not a `category-catalog.mjs` key, or the defaults stop being doors and windows;
 - the dialog counts and the export stop sharing one walk over the sheets;
 - the ID shapes change;
-- the panel leaves the OneMore tab.
+- the panel leaves the OneMore tab;
+- the relations option stops being off by default, or writes a type, ID, or origin the app rejects.

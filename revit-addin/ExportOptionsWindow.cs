@@ -15,6 +15,7 @@ namespace ObjectCentricDrawing
         private readonly List<(CategoryCount Count, CheckBox Box)> _rows = new();
         private readonly CheckBox _requireMark;
         private readonly CheckBox _includeParameters;
+        private readonly CheckBox _includeRelations;
         private readonly RadioButton _outline;
         private readonly TextBlock _summary;
         private readonly Button _export;
@@ -77,6 +78,18 @@ namespace ObjectCentricDrawing
             };
             root.Children.Add(_includeParameters);
 
+            _includeRelations = new CheckBox
+            {
+                Content = new TextBlock
+                {
+                    Text = "Add relations Revit knows (host wall, door From/To Room, room). Only between exported objects.",
+                    TextWrapping = TextWrapping.Wrap,
+                },
+                IsChecked = previous.IncludeRelations,
+                Margin = new Thickness(0, 8, 0, 0),
+            };
+            root.Children.Add(_includeRelations);
+
             root.Children.Add(new TextBlock { Text = "Shape", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 2) });
             var rectangle = new RadioButton
             {
@@ -113,6 +126,7 @@ namespace ObjectCentricDrawing
                     RequireMark = _requireMark.IsChecked == true,
                     Outline = _outline.IsChecked == true,
                     IncludeParameters = _includeParameters.IsChecked == true,
+                    IncludeRelations = _includeRelations.IsChecked == true,
                 };
                 DialogResult = true;
             };
