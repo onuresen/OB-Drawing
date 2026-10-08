@@ -178,7 +178,7 @@ test("selected subject exports include its object and occurrence notes", () => {
     notes,
     selectedObjectIds: ["door-001"],
   });
-  assert.equal(result.producer.projectFormat, "objdraw-project-v5");
+  assert.equal(result.producer.projectFormat, "objdraw-project-v6");
   assert.deepEqual(result.notes.map((entry) => entry.id), ["note-001"]);
   assert.equal(result.notes[0].subjectId, "door-001");
 });

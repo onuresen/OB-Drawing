@@ -115,6 +115,20 @@ import {
   updateNote,
 } from "./note-model.mjs";
 import {
+  createRelation,
+  nearestOccurrencePair,
+  relationCurve,
+  relationLanes,
+  relationPhrase,
+  relationType,
+  relationTypeGroups,
+  relationsForObject,
+  removeRelation,
+  removeRelationsForObject,
+  suggestRelationType,
+  updateRelation,
+} from "./relation-model.mjs";
+import {
   LEGACY_REVIT_DATA_FORMAT,
   REVIT_DATA_FORMAT,
   revitObjectData,
@@ -193,6 +207,26 @@ const elements = {
   renderingIndicator: document.querySelector("#renderingIndicator"),
   markingGuide: document.querySelector("#markingGuide"),
   markingGuideText: document.querySelector("#markingGuideText"),
+  relationGuide: document.querySelector("#relationGuide"),
+  relationGuideTitle: document.querySelector("#relationGuideTitle"),
+  relationLabels: document.querySelector("#relationLabels"),
+  showAllRelations: document.querySelector("#showAllRelations"),
+  relationCount: document.querySelector("#relationCount"),
+  startRelation: document.querySelector("#startRelation"),
+  noRelations: document.querySelector("#noRelations"),
+  relationList: document.querySelector("#relationList"),
+  relationDialog: document.querySelector("#relationDialog"),
+  relationDialogTitle: document.querySelector("#relationDialogTitle"),
+  relationForm: document.querySelector("#relationForm"),
+  closeRelationDialog: document.querySelector("#closeRelationDialog"),
+  relationFromLabel: document.querySelector("#relationFromLabel"),
+  relationPhrasePreview: document.querySelector("#relationPhrasePreview"),
+  relationToLabel: document.querySelector("#relationToLabel"),
+  relationType: document.querySelector("#relationType"),
+  relationLabel: document.querySelector("#relationLabel"),
+  relationError: document.querySelector("#relationError"),
+  swapRelation: document.querySelector("#swapRelation"),
+  deleteRelation: document.querySelector("#deleteRelation"),
   statusMessage: document.querySelector("#statusMessage"),
   documentSummary: document.querySelector("#documentSummary"),
   objectBadge: document.querySelector("#objectBadge"),
@@ -294,6 +328,9 @@ const state = {
   objects: [],
   occurrences: [],
   notes: [],
+  relations: [],
+  // Object whose relation is being drawn. Pick mode only; never saved.
+  relateFromObjectId: null,
   // Optional read-only adapter data. It is never saved in the neutral project.
   revitData: null,
   selectedObjectId: null,
@@ -357,6 +394,7 @@ function syncDisplayControls() {
   elements.groupBy.value = state.display.groupBy;
   elements.currentPageOnly.checked = state.display.currentPageOnly;
   elements.showLabels.checked = state.display.showLabels;
+  elements.showAllRelations.checked = state.display.showAllRelations;
 }
 
 function setStatus(message) {
@@ -708,9 +746,11 @@ function restoreObjectLayerSnapshot(snapshot) {
   state.objects = snapshot.objects;
   state.occurrences = snapshot.occurrences;
   state.notes = snapshot.notes;
+  state.relations = snapshot.relations ?? [];
   state.selectedObjectId = snapshot.selectedObjectId;
   state.selectedOccurrenceId = snapshot.selectedOccurrenceId;
   state.interaction = null;
+  setRelateMode(null);
   setMarkMode(false);
   refreshUi();
 }
@@ -1030,6 +1070,9 @@ function setMarkMode(enabled, objectId = null) {
     closePdfSearch({ restoreFocus: false });
   }
   state.markMode = Boolean(enabled && state.pdfDocument);
+  if (state.markMode && state.relateFromObjectId) {
+    setRelateMode(null);
+  }
   if (!state.markMode && state.interaction?.type === "polygon-draw") {
     state.interaction = null;
   }
@@ -1562,6 +1605,13 @@ function renderOverlay() {
     appendSelectionHandles(selectedOccurrence);
   }
   renderMarkLabels(objectsById);
+  renderRelationLines(objectsById);
+  if (state.relateFromObjectId) {
+    const preview = document.createElementNS(SVG_NAMESPACE, "path");
+    preview.setAttribute("class", "relation-preview");
+    overlayLayer.append(preview);
+    updateRelationPreview(lastRelationPointer.x, lastRelationPointer.y);
+  }
 
   if (state.interaction?.type === "draw") {
     overlayLayer.append(makeSvgShape(state.markGeometryType, state.interaction.bounds, null, "draft-shape"));
@@ -1603,6 +1653,367 @@ function renderMarkLabels(objectsById) {
     label.style.top = `${onView.y * 100}%`;
     elements.markLabels.append(label);
   }
+}
+
+// ── Relations ─────────────────────────────────────────────
+// Lines run between the nearest marks of two related objects on the current page.
+// They follow the selected object unless "Relations" asks for every line on the page.
+
+function relationsToDraw() {
+  if (state.display.markFocus === "none" || state.markMode) {
+    return [];
+  }
+  if (state.display.showAllRelations) {
+    return state.relations;
+  }
+  const selectedId = state.selectedObjectId;
+  return selectedId
+    ? state.relations.filter((relation) => relation.from === selectedId || relation.to === selectedId)
+    : [];
+}
+
+function relationSentence(relation) {
+  const from = getObject(relation.from);
+  const to = getObject(relation.to);
+  const note = relation.label ? ` (${relation.label})` : "";
+  return `${from?.label ?? relation.from} ${relationPhrase(relation)} ${to?.label ?? relation.to}${note}`;
+}
+
+function svgPoint(point) {
+  return `${point.x} ${point.y}`;
+}
+
+function renderRelationLines(objectsById) {
+  elements.relationLabels.replaceChildren();
+  const relations = relationsToDraw();
+  if (relations.length === 0 || !overlayLayer) {
+    return;
+  }
+  const pageSize = unrotatedSize(elements.overlay.getBoundingClientRect(), state.rotation);
+  if (pageSize.width < 2 || pageSize.height < 2) {
+    return;
+  }
+
+  const marksByObject = new Map();
+  for (const occurrence of getCurrentPageOccurrences()) {
+    if (!occurrence.objectId) {
+      continue;
+    }
+    if (occurrenceVisibility(occurrence, objectsById, state.display, state.selectedObjectId) === "hidden") {
+      continue;
+    }
+    if (!marksByObject.has(occurrence.objectId)) {
+      marksByObject.set(occurrence.objectId, []);
+    }
+    marksByObject.get(occurrence.objectId).push(occurrence);
+  }
+
+  const lanes = relationLanes(relations);
+  const layer = document.createElementNS(SVG_NAMESPACE, "g");
+  layer.setAttribute("class", "relation-layer");
+  for (const relation of relations) {
+    const pair = nearestOccurrencePair(marksByObject.get(relation.from) ?? [], marksByObject.get(relation.to) ?? []);
+    if (!pair) {
+      continue;
+    }
+    const type = relationType(relation.type);
+    const curve = relationCurve(pair.from.bounds, pair.to.bounds, pageSize, {
+      directed: type.directed,
+      lane: lanes.get(relation.id),
+    });
+    if (!curve) {
+      continue;
+    }
+    const focused = relation.from === state.selectedObjectId || relation.to === state.selectedObjectId;
+    const quiet = Boolean(state.selectedObjectId) && !focused;
+    const modifiers = `${type.directed ? "" : " is-undirected"}${quiet ? " is-quiet" : ""}`;
+
+    const line = document.createElementNS(SVG_NAMESPACE, "path");
+    line.setAttribute("d", `M ${svgPoint(curve.start)} Q ${svgPoint(curve.control)} ${svgPoint(curve.end)}`);
+    line.setAttribute("class", `relation-line family-${type.family}${modifiers}`);
+    layer.append(line);
+    if (curve.arrow) {
+      const arrow = document.createElementNS(SVG_NAMESPACE, "polygon");
+      arrow.setAttribute("points", curve.arrow.map(svgPoint).join(" "));
+      arrow.setAttribute("class", `relation-arrow family-${type.family}${modifiers}`);
+      layer.append(arrow);
+    }
+
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = `relation-pill family-${type.family}${modifiers}`;
+    pill.dataset.relationId = relation.id;
+    pill.textContent = relation.label || relationPhrase(relation);
+    pill.title = `${relationSentence(relation)}. Click to edit.`;
+    pill.setAttribute("aria-label", `Edit relation: ${relationSentence(relation)}`);
+    const onView = rotateBounds({ x: curve.mid.x, y: curve.mid.y, width: 0, height: 0 }, state.rotation);
+    pill.style.left = `${onView.x * 100}%`;
+    pill.style.top = `${onView.y * 100}%`;
+    elements.relationLabels.append(pill);
+  }
+  // Under the marks, so a line never steals a click meant for a shape.
+  overlayLayer.prepend(layer);
+}
+
+// A dashed line from the source mark to the pointer while picking the other object.
+function updateRelationPreview(clientX, clientY) {
+  const preview = overlayLayer?.querySelector(".relation-preview");
+  if (!preview) {
+    return;
+  }
+  const sourceMarks = getCurrentPageOccurrences().filter((occurrence) => occurrence.objectId === state.relateFromObjectId);
+  if (sourceMarks.length === 0 || clientX === undefined) {
+    preview.setAttribute("d", "");
+    return;
+  }
+  const point = pagePointFromClient(clientX, clientY, elements.overlay.getBoundingClientRect());
+  const source = sourceMarks.reduce((best, occurrence) => {
+    const cx = occurrence.bounds.x + occurrence.bounds.width / 2;
+    const cy = occurrence.bounds.y + occurrence.bounds.height / 2;
+    const distance = Math.hypot(cx - point.x, cy - point.y);
+    return !best || distance < best.distance ? { cx, cy, distance } : best;
+  }, null);
+  preview.setAttribute("d", `M ${source.cx} ${source.cy} L ${point.x} ${point.y}`);
+}
+
+let lastRelationPointer = {};
+
+function setRelateMode(objectId) {
+  const object = objectId ? getObject(objectId) : null;
+  const enabled = Boolean(object && state.documents.length > 0);
+  if (enabled && state.markMode) {
+    setMarkMode(false);
+  }
+  state.relateFromObjectId = enabled ? object.id : null;
+  elements.relationGuide.hidden = !enabled;
+  elements.relationGuideTitle.textContent = enabled ? `Relating ${object.label}` : "Relating";
+  elements.pageSurface.classList.toggle("is-relating", enabled);
+  elements.sidePanel.classList.toggle("is-relating", enabled);
+  elements.startRelation.textContent = enabled ? "Cancel" : "Relate";
+  elements.startRelation.setAttribute("aria-pressed", String(enabled));
+  elements.startRelation.title = enabled ? "Cancel relating (Escape)" : "Relate to another object (C)";
+  renderOverlay();
+}
+
+function startRelationFromSelection() {
+  const object = getObject(state.selectedObjectId);
+  if (!object) {
+    setStatus("Select an object first, then relate it to another.");
+    return;
+  }
+  if (state.relateFromObjectId) {
+    setRelateMode(null);
+    setStatus("Relating cancelled.");
+    return;
+  }
+  setRelateMode(object.id);
+  setStatus(`Relating ${object.label}. Click the other object's mark or pick it in the list. Escape cancels.`);
+}
+
+function pickRelationTarget(targetObjectId) {
+  const from = getObject(state.relateFromObjectId);
+  if (!from) {
+    setRelateMode(null);
+    return;
+  }
+  if (!targetObjectId) {
+    setStatus("That mark has no object yet. Link it first, or pick another mark.");
+    return;
+  }
+  if (targetObjectId === from.id) {
+    setStatus(`That is ${from.label} itself. Pick another object.`);
+    return;
+  }
+  setRelateMode(null);
+  openRelationDialog({ from: from.id, to: targetObjectId });
+}
+
+// The dialog edits one draft. Nothing changes until Save.
+let relationDraft = null;
+
+function populateRelationTypeSelect(selectedType) {
+  elements.relationType.replaceChildren();
+  for (const group of relationTypeGroups()) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    for (const type of group.types) {
+      optgroup.append(new Option(type.forward, type.key));
+    }
+    elements.relationType.append(optgroup);
+  }
+  elements.relationType.value = selectedType;
+}
+
+function renderRelationDraft() {
+  if (!relationDraft) {
+    return;
+  }
+  const type = relationType(elements.relationType.value);
+  elements.relationFromLabel.textContent = getObject(relationDraft.from)?.label ?? relationDraft.from;
+  elements.relationToLabel.textContent = getObject(relationDraft.to)?.label ?? relationDraft.to;
+  elements.relationPhrasePreview.textContent = type.directed ? `${type.forward} →` : `${type.forward} ↔`;
+  elements.swapRelation.disabled = !type.directed;
+}
+
+function setRelationError(message = "") {
+  elements.relationError.hidden = !message;
+  elements.relationError.textContent = message;
+}
+
+function openRelationDialog({ id = null, from, to }) {
+  const existing = id ? state.relations.find((relation) => relation.id === id) : null;
+  let draftFrom = existing?.from ?? from;
+  let draftTo = existing?.to ?? to;
+  let type = existing?.type;
+  if (!existing) {
+    const suggestion = suggestRelationType(getObject(draftFrom)?.category, getObject(draftTo)?.category);
+    type = suggestion.type;
+    if (suggestion.swap) {
+      [draftFrom, draftTo] = [draftTo, draftFrom];
+    }
+  }
+  relationDraft = { id: existing?.id ?? null, from: draftFrom, to: draftTo };
+  populateRelationTypeSelect(type);
+  elements.relationLabel.value = existing?.label ?? "";
+  elements.relationDialogTitle.textContent = existing ? "Edit relation" : "New relation";
+  elements.deleteRelation.hidden = !existing;
+  setRelationError();
+  renderRelationDraft();
+  showDialog(elements.relationDialog);
+  elements.relationType.focus();
+}
+
+function closeRelationDialog() {
+  relationDraft = null;
+  hideDialog(elements.relationDialog);
+}
+
+function saveRelationDraft(event) {
+  event.preventDefault();
+  if (!relationDraft) {
+    return;
+  }
+  const values = {
+    type: elements.relationType.value,
+    from: relationDraft.from,
+    to: relationDraft.to,
+    label: elements.relationLabel.value,
+  };
+  try {
+    if (relationDraft.id) {
+      const next = updateRelation(state.relations, relationDraft.id, values);
+      if (next !== state.relations) {
+        recordObjectMutation(`edit ${relationDraft.id}`);
+        state.relations = next;
+      }
+    } else {
+      const relation = createRelation(state.relations, values);
+      recordObjectMutation(`create ${relation.id}`);
+      state.relations = [...state.relations, relation];
+    }
+  } catch (error) {
+    setRelationError(error.message);
+    return;
+  }
+  const saved = relationDraft.id
+    ? state.relations.find((relation) => relation.id === relationDraft.id)
+    : state.relations.at(-1);
+  closeRelationDialog();
+  refreshUi();
+  setStatus(`Saved: ${relationSentence(saved)}.`);
+}
+
+function deleteRelationById(relationId) {
+  const relation = state.relations.find((item) => item.id === relationId);
+  if (!relation) {
+    return;
+  }
+  const sentence = relationSentence(relation);
+  recordObjectMutation(`delete ${relation.id}`);
+  state.relations = removeRelation(state.relations, relation.id);
+  refreshUi();
+  setStatus(`Removed: ${sentence}. Undo brings it back.`);
+}
+
+function renderRelationList() {
+  const object = getObject(state.selectedObjectId);
+  if (state.relateFromObjectId && !getObject(state.relateFromObjectId)) {
+    setRelateMode(null);
+  }
+  elements.relationList.replaceChildren();
+  if (!object) {
+    return;
+  }
+  const familyOrder = new Map(relationTypeGroups().map((group, index) => [group.key, index]));
+  const entries = relationsForObject(state.relations, object.id)
+    .map((entry) => ({ ...entry, other: getObject(entry.otherObjectId), type: relationType(entry.relation.type) }))
+    .sort((a, b) => (familyOrder.get(a.type.family) - familyOrder.get(b.type.family))
+      || a.phrase.localeCompare(b.phrase)
+      || (a.other?.label ?? "").localeCompare(b.other?.label ?? "", undefined, { numeric: true }));
+  elements.relationCount.textContent = String(entries.length);
+  elements.noRelations.hidden = entries.length > 0;
+  elements.startRelation.disabled = state.documents.length === 0;
+
+  for (const entry of entries) {
+    const item = document.createElement("li");
+    const phrase = document.createElement("button");
+    const target = document.createElement("button");
+    const targetLabel = document.createElement("strong");
+    const targetMeta = document.createElement("span");
+    const remove = document.createElement("button");
+
+    item.className = `relation-row family-${entry.type.family}`;
+    phrase.type = "button";
+    phrase.className = "relation-row-phrase";
+    phrase.dataset.action = "edit-relation";
+    phrase.dataset.relationId = entry.relation.id;
+    phrase.textContent = entry.phrase;
+    phrase.title = "Edit this relation";
+
+    target.type = "button";
+    target.className = "relation-row-target";
+    target.dataset.action = "go-relation-target";
+    target.dataset.objectId = entry.otherObjectId;
+    target.title = `Go to ${entry.other?.label ?? entry.otherObjectId}`;
+    targetLabel.textContent = entry.other?.label ?? entry.otherObjectId;
+    targetMeta.textContent = [entry.other ? objectCategoryLabel(entry.other.category) : "", entry.relation.label]
+      .filter(Boolean)
+      .join(" · ");
+    target.append(targetLabel, targetMeta);
+
+    remove.type = "button";
+    remove.className = "relation-row-remove";
+    remove.dataset.action = "delete-relation";
+    remove.dataset.relationId = entry.relation.id;
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove relation: ${relationSentence(entry.relation)}`);
+    remove.title = "Remove relation";
+
+    item.append(phrase, target, remove);
+    elements.relationList.append(item);
+  }
+}
+
+async function handleRelationListAction(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) {
+    return;
+  }
+  if (button.dataset.action === "edit-relation") {
+    openRelationDialog({ id: button.dataset.relationId });
+  } else if (button.dataset.action === "delete-relation") {
+    deleteRelationById(button.dataset.relationId);
+  } else if (button.dataset.action === "go-relation-target") {
+    await selectObjectAndNavigate(button.dataset.objectId);
+  }
+}
+
+function setShowAllRelations(show) {
+  state.display.showAllRelations = show;
+  elements.showAllRelations.checked = show;
+  saveDisplayPreferences();
+  renderOverlay();
+  setStatus(show ? "Showing every relation on this page." : "Showing relations of the selected object.");
 }
 
 function createRepresentationCard(occurrence, { isCurrent }) {
@@ -2221,6 +2632,7 @@ function refreshObjectUi() {
   renderObjectList();
   renderObjectComposer();
   renderSelectedObjectPanel();
+  renderRelationList();
   renderUnlinkedOccurrences();
   renderNotes();
   renderSessionSummary();
@@ -2451,7 +2863,10 @@ async function navigateToPage(pageNumber) {
 }
 
 function handlePageSurfaceClick(event) {
-  if (state.markMode || event.target.closest("[data-occurrence-id]")) {
+  // Clicks on the overlay come from marks, handles, or the end of a draw or polygon.
+  // The draw-ending click arrives after the new mark is selected and must not clear it.
+  // composedPath() still holds the overlay when the draft shape was already removed.
+  if (state.markMode || event.composedPath().includes(elements.overlay)) {
     return;
   }
   const selection = globalThis.getSelection?.();
@@ -3031,6 +3446,7 @@ function exportSidecar() {
       objects: state.objects,
       occurrences: state.occurrences,
       notes: state.notes,
+      relations: state.relations,
     });
     const blob = new Blob([`${JSON.stringify(sidecar, null, 2)}\n`], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -3107,10 +3523,12 @@ async function importSidecar(file, parsed) {
     state.objects = sidecar.objects;
     state.occurrences = toRuntimeOccurrences(sidecar.occurrences);
     state.notes = sidecar.notes;
+    state.relations = sidecar.relations;
     state.revitData = null;
     state.selectedObjectId = null;
     state.selectedOccurrenceId = null;
     state.interaction = null;
+    setRelateMode(null);
     setMarkMode(false);
     resetObjectHistory();
     viewHistory.clear();
@@ -3315,6 +3733,13 @@ function handleOverlayPointerDown(event) {
   }
 
   const occurrenceId = event.target.dataset?.occurrenceId;
+  if (state.relateFromObjectId) {
+    if (occurrenceId) {
+      pickRelationTarget(getOccurrence(occurrenceId)?.objectId ?? null);
+      event.preventDefault();
+    }
+    return;
+  }
   if (!occurrenceId) {
     state.selectedOccurrenceId = null;
     refreshUi();
@@ -3604,6 +4029,10 @@ function handleOverlayKeyDown(event) {
   }
 
   event.preventDefault();
+  if (state.relateFromObjectId) {
+    pickRelationTarget(occurrence.objectId);
+    return;
+  }
   state.selectedOccurrenceId = occurrence.id;
   state.selectedObjectId = occurrence.objectId;
   refreshUi();
@@ -3698,8 +4127,12 @@ function deleteSelectedObject() {
   }
 
   const occurrenceCount = getObjectOccurrences(state.occurrences, object.id).length;
+  const relationCount = relationsForObject(state.relations, object.id).length;
+  const relationWarning = relationCount
+    ? `\n${relationCount} relation${relationCount === 1 ? "" : "s"} will be removed. Undo brings them back.`
+    : "";
   const confirmed = globalThis.confirm(
-    `Delete ${object.label} (${object.id})?\n\n${occurrenceCount} occurrence${occurrenceCount === 1 ? "" : "s"} will remain as unlinked marks.`,
+    `Delete ${object.label} (${object.id})?\n\n${occurrenceCount} occurrence${occurrenceCount === 1 ? "" : "s"} will remain as unlinked marks.${relationWarning}`,
   );
   if (!confirmed) {
     return;
@@ -3713,6 +4146,7 @@ function deleteSelectedObject() {
   const result = deleteObjectPreservingOccurrences(state.objects, state.occurrences, object.id);
   state.objects = result.objects;
   state.occurrences = result.occurrences;
+  state.relations = removeRelationsForObject(state.relations, object.id);
   state.selectedObjectId = null;
   const formerlyLinkedOccurrence = state.occurrences.find((occurrence) => formerlyLinkedIds.has(occurrence.id));
   state.selectedOccurrenceId = formerlyLinkedOccurrence?.id ?? null;
@@ -3875,6 +4309,11 @@ function cancelCurrentAction() {
     elements.shortcutHelp.focus();
     return true;
   }
+  if (state.relateFromObjectId) {
+    setRelateMode(null);
+    setStatus("Relating cancelled.");
+    return true;
+  }
 
   const hadPanAction = Boolean(panInteraction || spacePanActive);
   finishPan();
@@ -3905,6 +4344,9 @@ function cancelCurrentAction() {
 
 function handleDocumentKeyDown(event) {
   if (event.key === "Escape") {
+    if (dialogIsOpen(elements.relationDialog)) {
+      return;
+    }
     if (!elements.pdfSearchBar.hidden) {
       closePdfSearch();
       event.preventDefault();
@@ -3971,6 +4413,16 @@ function handleDocumentKeyDown(event) {
   if (action === "toggle-labels") {
     event.preventDefault();
     setShowLabels(!state.display.showLabels);
+    return;
+  }
+  if (action === "toggle-relations") {
+    event.preventDefault();
+    setShowAllRelations(!state.display.showAllRelations);
+    return;
+  }
+  if (action === "start-relation") {
+    event.preventDefault();
+    startRelationFromSelection();
     return;
   }
   if (!state.pdfDocument) {
@@ -4188,6 +4640,10 @@ elements.objectList.addEventListener("click", async (event) => {
     return;
   }
   const button = event.target.closest("button[data-object-id]");
+  if (button && state.relateFromObjectId) {
+    pickRelationTarget(button.dataset.objectId);
+    return;
+  }
   if (button) {
     await selectObjectAndNavigate(button.dataset.objectId);
   }
@@ -4251,6 +4707,58 @@ elements.markForObject.addEventListener("click", () => {
   }
 });
 elements.deleteObject.addEventListener("click", deleteSelectedObject);
+elements.startRelation.addEventListener("click", startRelationFromSelection);
+elements.relationList.addEventListener("click", handleRelationListAction);
+elements.showAllRelations.addEventListener("change", () => setShowAllRelations(elements.showAllRelations.checked));
+elements.relationLabels.addEventListener("click", (event) => {
+  const pill = event.target.closest("button[data-relation-id]");
+  if (pill) {
+    openRelationDialog({ id: pill.dataset.relationId });
+  }
+});
+elements.pageSurface.addEventListener("pointermove", (event) => {
+  if (!state.relateFromObjectId) {
+    return;
+  }
+  lastRelationPointer = { x: event.clientX, y: event.clientY };
+  updateRelationPreview(event.clientX, event.clientY);
+});
+elements.relationForm.addEventListener("submit", saveRelationDraft);
+elements.relationType.addEventListener("change", () => {
+  setRelationError();
+  renderRelationDraft();
+});
+elements.swapRelation.addEventListener("click", () => {
+  if (relationDraft) {
+    [relationDraft.from, relationDraft.to] = [relationDraft.to, relationDraft.from];
+    setRelationError();
+    renderRelationDraft();
+  }
+});
+elements.deleteRelation.addEventListener("click", () => {
+  const relationId = relationDraft?.id;
+  closeRelationDialog();
+  if (relationId) {
+    deleteRelationById(relationId);
+  }
+});
+elements.closeRelationDialog.addEventListener("click", closeRelationDialog);
+elements.relationDialog.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeRelationDialog();
+});
+// Close on a backdrop click only when the press also started there,
+// so the click that picked the target cannot close the new dialog.
+let relationBackdropPress = false;
+elements.relationDialog.addEventListener("pointerdown", (event) => {
+  relationBackdropPress = event.target === elements.relationDialog;
+});
+elements.relationDialog.addEventListener("click", (event) => {
+  if (event.target === elements.relationDialog && relationBackdropPress) {
+    closeRelationDialog();
+  }
+  relationBackdropPress = false;
+});
 elements.openRepresentationBoard.addEventListener("click", openRepresentationBoard);
 elements.closeRepresentationBoard.addEventListener("click", closeRepresentationBoard);
 elements.representationBoardGrid.addEventListener("click", handleRepresentationBoardAction);

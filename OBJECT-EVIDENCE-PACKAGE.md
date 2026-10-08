@@ -4,7 +4,7 @@
 
 `objdraw-object-evidence-v2` is a portable, target-neutral package for carrying one or more explicitly selected physical subjects and their exact drawing evidence out of an Object-Centric Drawing project.
 
-It is not a replacement for `objdraw-project-v5`. The project file remains the editable Object-Centric Drawing source of truth. An evidence package is a bounded export assembled from that project for review, exchange, or translation by a separate adapter.
+It is not a replacement for `objdraw-project-v6`. The project file remains the editable Object-Centric Drawing source of truth. An evidence package is a bounded export assembled from that project for review, exchange, or translation by a separate adapter.
 
 ## Semantic boundary
 
@@ -22,7 +22,7 @@ This distinction allows a future Joinery Configurator adapter to translate revie
   "exportedAt": "2026-09-30T00:00:00.000Z",
   "producer": {
     "name": "Object-Centric Drawing",
-    "projectFormat": "objdraw-project-v5"
+    "projectFormat": "objdraw-project-v6"
   },
   "subjects": [
     {
@@ -105,7 +105,7 @@ Later groups may add separately governed sections or companion assets for:
 - domain-profile declarations;
 - adapter results.
 
-Human project, object, and occurrence notes are governed by `objdraw-project-v5`. They remain editable working context rather than reviewed claims.
+Human project, object, and occurrence notes are governed by `objdraw-project-v6`. They remain editable working context rather than reviewed claims.
 
 AI output must remain distinguishable from captured facts and human-reviewed values. Target-specific Joinery Configurator or CDI records should be produced by adapters and must not silently become part of the neutral Object-Centric Drawing project model.
 
@@ -135,7 +135,7 @@ Each PNG uses the existing Object Lens context crop and draws the exact rectangl
 ## Planned flow
 
 ```text
-objdraw-project-v5
+objdraw-project-v6
   -> explicit subject selection
   -> objdraw-object-evidence-v2
   -> optional reviewed interpretation

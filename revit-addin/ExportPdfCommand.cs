@@ -290,6 +290,7 @@ namespace ObjectCentricDrawing
                 },
                 objects,
                 occurrences,
+                new List<object>(),
                 new List<object>());
 
             var refs = new RevitRefs(

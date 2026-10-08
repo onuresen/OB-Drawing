@@ -10,7 +10,7 @@ namespace ObjectCentricDrawing
     // tests/revit-addin.test.mjs checks the format string and category keys against the app.
     internal static class ProjectFormat
     {
-        public const string Name = "objdraw-project-v5";
+        public const string Name = "objdraw-project-v6";
         public const string RevitRefsName = "objdraw-revit-refs-v2";
 
         public static readonly JsonSerializerOptions Json = new()
@@ -29,7 +29,8 @@ namespace ObjectCentricDrawing
         List<ProjectDocument> Documents,
         List<ProjectObject> Objects,
         List<Occurrence> Occurrences,
-        List<object> Notes);
+        List<object> Notes,
+        List<object> Relations);
 
     internal sealed record ProjectDocument(string Id, string Name, long Size, int PageCount, string Sha256);
 
