@@ -58,6 +58,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AI — faster relating: "Save, add more" repeats one relation for every further pick, and a drag dot on the selected linked mark relates by drag-and-drop.
 - [x] Group AJ — relation trace (1–3 steps, both directions, pinned root, cross-page list), related-page dots in the Drawing Set Map and thumbnails, and optional `relatedObjects` / `objectRelations` in Object JSON/ZIP.
 - [x] Group AK — ONEXUS export (whole project or the current trace) using CDI's mapping and edge IDs, Revit UniqueIds as node IDs when the Revit file is loaded, and optional `createdAt` on relations.
+- [x] Group AL — live ONEXUS link: "Open live ONEXUS" opens ONEXUS in a window and keeps the graph, selection, and trace in step; tapping a node there selects the object here. Browser-window messaging only.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -233,6 +234,8 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - An open dialog owns Escape. The app's Escape handling (cancel, end trace, clear selection) never runs while any `dialog[open]` exists.
 - Object JSON/ZIP (and so the Joinery pack manifest) carry the subject's relations in optional `objectRelations` and the other ends as identity-only `relatedObjects`. Their drawings are not exported. Format stays `objdraw-object-evidence-v2`.
 - ONEXUS export copies CDI's exporter mapping (CDI docs/44). Keep edge IDs as `REL-` + FNV-1a of `from|type|to` over node IDs, and node IDs as Revit UniqueIds when known; otherwise `objdraw:<first PDF sha256 12>:<objectId>`, marked `identity: "local"`. Never invent dates or reviews.
+- The live ONEXUS link uses `postMessage` between two windows: no server, no request, no CSP change. It talks only to the window it opened, at that URL's exact origin, using ONEXUS's Revit-host messages (`objdraw-hello`/`onexus-ready`, `onexus-graph`, `highlight-nodes`, `select-node`). The graph is resent only when objects or relations change, after edits settle.
+- The ONEXUS address is a viewer preference in `objdraw-display` (`onexusUrl`); empty means the default: local ONEXUS on `localhost:4173` when this app runs locally, otherwise the GitHub Pages ONEXUS.
 - New relations carry `createdAt`. It stays optional in files; a missing date is an unknown age.
 - The drag dot appears only beside a selected, linked mark, outside Mark and Relate modes. Dropping on another linked mark opens the dialog; dropping elsewhere cancels; a click without movement starts Relate mode.
 - Source PDFs and object data must not be committed unless the user explicitly approves them.
@@ -413,6 +416,7 @@ Then run `start-server.cmd` and check:
 150. Object JSON for a door lists its relations and the related objects' identity, and no occurrences of those objects.
 151. Export ONEXUS graph downloads a file that ONEXUS loads with every object and relation; with the Revit file loaded, nodes use Revit UniqueIds.
 152. Export trace to ONEXUS contains only the traced objects and the relations between them.
+153. Open live ONEXUS links within a few seconds; selecting an object highlights its node; a trace highlights all traced nodes; a new relation appears there; tapping a node selects the object here; closing ONEXUS resets the button.
 
 ## Prototype acceptance
 

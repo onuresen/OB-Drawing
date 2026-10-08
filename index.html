@@ -257,6 +257,12 @@
             <button id="chooseSidecar" class="button" type="button">Import JSON</button>
             <input id="sidecarFile" class="visually-hidden" type="file" accept="application/json,.json">
           </div>
+          <button id="linkOnexus" class="button revit-relations-action" type="button" title="Open ONEXUS in another window and keep it in step: the graph, the selection, and the trace. Clicking a node there selects the object here." disabled>Open live ONEXUS</button>
+          <details class="onexus-address">
+            <summary>ONEXUS address</summary>
+            <label class="visually-hidden" for="onexusUrl">ONEXUS address</label>
+            <input id="onexusUrl" class="text-input" type="url" autocomplete="off" spellcheck="false">
+          </details>
           <button id="exportOnexus" class="button revit-relations-action" type="button" title="Download objects and relations as an ONEXUS graph. Revit IDs are used when the Revit file is loaded." disabled>Export ONEXUS graph</button>
           <button id="removeRevitRelations" class="compact-action revit-relations-action" type="button" title="Remove every relation the Revit export added. Undo brings them back." hidden>Remove Revit relations</button>
           <p id="sidecarStatus" class="sidecar-status" role="alert" hidden></p>

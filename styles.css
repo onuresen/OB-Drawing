@@ -2240,6 +2240,26 @@ select.text-input {
   margin-top: 8px;
 }
 
+#linkOnexus.is-linked {
+  border-color: var(--relation-system);
+  color: var(--relation-system);
+}
+
+.onexus-address {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.66rem;
+}
+
+.onexus-address summary {
+  cursor: pointer;
+}
+
+.onexus-address .text-input {
+  margin-top: 4px;
+  font-size: 0.7rem;
+}
+
 #exportTraceOnexus {
   justify-self: end;
 }

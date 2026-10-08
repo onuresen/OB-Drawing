@@ -505,3 +505,17 @@
 **Alternative:** An Object-Centric Drawing–specific ONEXUS mapping. Rejected: two mappings for one viewer would fork the same door into two nodes.
 
 **Confidence:** high. Edge IDs were checked against CDI's Python, and the file validates against ONEXUS's schema.
+
+## 2026-10-08 — Live ONEXUS link through window messaging
+
+**Decision:** "Open live ONEXUS" opens ONEXUS in a window. The two windows exchange the graph, selections, and node taps with `postMessage`.
+
+**Why:** It works on GitHub Pages and locally. It needs no server, no port, and no CSP change, so the local-only boundary holds.
+
+**Reuse:** The messages are the ones ONEXUS already uses with its Revit host. ONEXUS gained one small plugin, gated by its own deployment policy.
+
+**Alternative:** Route both apps through the ONEXUS MCP server on `ws://localhost:8765`. Rejected: it needs a running server, and this app's local server already uses port 8765.
+
+**Known clash:** `serve.py` and the ONEXUS MCP server both use port 8765, so they cannot run at the same time. Not changed here; moving this app's port would change the start script people already use.
+
+**Confidence:** high. Driven end to end in Chromium both ways.
