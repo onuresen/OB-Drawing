@@ -182,3 +182,50 @@ test("selected subject exports include its object and occurrence notes", () => {
   assert.deepEqual(result.notes.map((entry) => entry.id), ["note-001"]);
   assert.equal(result.notes[0].subjectId, "door-001");
 });
+
+test("a subject's relations travel with it, and the other ends come as identity only", () => {
+  const allObjects = [
+    ...objects,
+    { id: "object-003", category: "walls", label: "W-3" },
+    { id: "object-004", category: "rooms", label: "105 Retail" },
+  ];
+  const relations = [
+    { id: "relation-001", type: "hostedBy", from: "door-001", to: "object-003", label: "", origin: "revit" },
+    { id: "relation-002", type: "connectsTo", from: "door-001", to: "object-004", label: "from room" },
+    { id: "relation-003", type: "inside", from: "door-002", to: "object-004", label: "" },
+  ];
+  const result = createObjectEvidencePackage({
+    documents,
+    objects: allObjects,
+    occurrences,
+    relations,
+    selectedObjectIds: ["door-001"],
+    exportedAt: "2026-10-08T00:00:00.000Z",
+  });
+  assert.equal(result.format, OBJECT_EVIDENCE_FORMAT);
+  assert.deepEqual(result.objectRelations.map((relation) => relation.id), ["relation-001", "relation-002"]);
+  assert.equal(result.objectRelations[0].origin, "revit");
+  assert.deepEqual(result.relatedObjects, [
+    { id: "object-003", category: "walls", label: "W-3" },
+    { id: "object-004", category: "rooms", label: "105 Retail" },
+  ]);
+  // Related objects bring no drawings of their own.
+  assert.ok(result.occurrences.every((occurrence) => occurrence.subjectId === "door-001"));
+  assert.ok(result.relationships.every((relationship) => relationship.kind === "instanceOf"));
+});
+
+test("relation fields are optional, and broken relations fail closed", () => {
+  const base = createObjectEvidencePackage({ documents, objects, occurrences, selectedObjectIds: ["door-001"], exportedAt: "2026-10-08T00:00:00.000Z" });
+  const { relatedObjects: _r, objectRelations: _o, ...older } = base;
+  assert.deepEqual(validateObjectEvidencePackage(older).objectRelations, [], "packages without the fields stay valid");
+  const related = [{ id: "object-004", category: "rooms", label: "105 Retail" }];
+  const relation = { id: "relation-001", type: "connectsTo", from: "door-001", to: "object-004", label: "" };
+  for (const [patch, message] of [
+    [{ relatedObjects: related, objectRelations: [{ ...relation, type: "nextDoor" }] }, /unsupported relation type/],
+    [{ relatedObjects: [], objectRelations: [relation] }, /not exported/],
+    [{ relatedObjects: related, objectRelations: [] }, /no relation uses it/],
+    [{ relatedObjects: [{ id: "object-005", category: "rooms", label: "R" }, ...related], objectRelations: [{ ...relation, from: "object-005" }] }, /does not touch an exported subject/],
+  ]) {
+    assert.throws(() => validateObjectEvidencePackage({ ...base, ...patch }), message);
+  }
+});

@@ -9,6 +9,8 @@ import {
   relationCurve,
   relationLanes,
   relationPhrase,
+  relatedObjectIds,
+  traceRelations,
   relationTypeGroups,
   relationsForObject,
   removeRelation,
@@ -240,4 +242,24 @@ test("origin is optional in v6 files: absent stays absent, revit round-trips, un
     objectLayerSignature({ objects, occurrences: [], notes: [], relations: [relations[1]] }),
     objectLayerSignature({ objects, occurrences: [], notes: [], relations: [{ ...relations[1], origin: "revit" }] }),
   );
+});
+
+test("a trace follows relations both ways, step by step, and remembers how each object was reached", () => {
+  const relations = [
+    { id: "relation-001", type: "controls", from: "object-001", to: "object-002" },
+    { id: "relation-002", type: "hostedBy", from: "object-002", to: "object-003" },
+    { id: "relation-003", type: "connectsTo", from: "object-002", to: "object-004" },
+    { id: "relation-004", type: "adjacentTo", from: "object-004", to: "object-005" },
+  ];
+  const fromReader = traceRelations(relations, "object-001", 2);
+  assert.deepEqual(fromReader.map((entry) => [entry.objectId, entry.step]), [
+    ["object-001", 0], ["object-002", 1], ["object-003", 2], ["object-004", 2],
+  ]);
+  assert.equal(fromReader[2].viaObjectId, "object-002");
+  assert.equal(fromReader[2].relation.id, "relation-002");
+  assert.equal(traceRelations(relations, "object-001", 3).length, 5);
+  assert.equal(traceRelations(relations, "object-001", 9).length, 5, "steps are capped");
+  // Backwards along "controls": from the door, the reader is one step away.
+  assert.deepEqual(traceRelations(relations, "object-002", 1).map((entry) => entry.objectId).sort(), ["object-001", "object-002", "object-003", "object-004"]);
+  assert.deepEqual([...relatedObjectIds(relations, "object-002")].sort(), ["object-001", "object-003", "object-004"]);
 });

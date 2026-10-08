@@ -469,3 +469,21 @@
 **Alternative:** Select many objects, then relate them all in one dialog. Rejected for now. The app has no multi-select yet, and clicking on the sheet is faster.
 
 **Confidence:** high for repeat; med for the dot's size and place until used on real sheets.
+
+## 2026-10-08 — Trace, related pages, and relations in object exports
+
+**Decision:** Add a relation trace, mark related pages in the map and thumbnails, and put relations in Object JSON/ZIP.
+
+**Trace:** Follows relations 1–3 steps, both directions. The root stays pinned while you jump between traced objects. It is view state only.
+
+**Why both directions:** "What does this touch?" matters more than which way an arrow points. Card reader → door → rooms must work from either end.
+
+**Related pages:** The trace when one runs; otherwise the selected object's direct relations. A violet dot, so the blue selected-object outline keeps its meaning.
+
+**Export:** `objectRelations` and identity-only `relatedObjects`, as optional fields in `objdraw-object-evidence-v2`. Readers that ignore them keep working. The other objects' drawings stay out, so a package stays about its subject.
+
+**Alternative:** A new `-v3` package format. Rejected: the change only adds fields, so a version bump would break readers for nothing. `relationships` stays reserved for `instanceOf`.
+
+**Escape:** An open dialog now owns Escape. Before, closing the Map with Escape also ended the trace or cleared the selection.
+
+**Confidence:** high.

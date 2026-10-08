@@ -124,9 +124,11 @@ import {
   relationTypeGroups,
   relationsForObject,
   removeRelation,
+  relatedObjectIds,
   removeRelationsByOrigin,
   removeRelationsForObject,
   suggestRelationType,
+  traceRelations,
   updateRelation,
 } from "./relation-model.mjs";
 import {
@@ -231,6 +233,12 @@ const elements = {
   swapRelation: document.querySelector("#swapRelation"),
   deleteRelation: document.querySelector("#deleteRelation"),
   removeRevitRelations: document.querySelector("#removeRevitRelations"),
+  toggleTrace: document.querySelector("#toggleTrace"),
+  tracePanel: document.querySelector("#tracePanel"),
+  traceTitle: document.querySelector("#traceTitle"),
+  traceSteps: document.querySelector("#traceSteps"),
+  endTrace: document.querySelector("#endTrace"),
+  traceList: document.querySelector("#traceList"),
   statusMessage: document.querySelector("#statusMessage"),
   documentSummary: document.querySelector("#documentSummary"),
   objectBadge: document.querySelector("#objectBadge"),
@@ -337,6 +345,8 @@ const state = {
   relateFromObjectId: null,
   // After "Save, add more": the type, note, and side reused for every further pick.
   relateRepeat: null,
+  // Relation trace from one pinned object. View only; never saved.
+  trace: null,
   // Optional read-only adapter data. It is never saved in the neutral project.
   revitData: null,
   selectedObjectId: null,
@@ -969,6 +979,7 @@ function drawingMapContentSignature() {
 
 function updateDrawingMapState() {
   const selectedObject = getObject(state.selectedObjectId);
+  const related = highlightedRelatedIds();
   for (const documentGroup of elements.drawingMap.querySelectorAll(".drawing-map-document")) {
     const isActive = documentGroup.dataset.documentId === state.activeDocumentId;
     documentGroup.classList.toggle("is-active", isActive);
@@ -984,10 +995,14 @@ function updateDrawingMapState() {
     const containsSelectedObject = Boolean(selectedObject && objectIds.includes(selectedObject.id));
     const baseLabel = pageButton.dataset.baseLabel;
     pageButton.setAttribute("aria-current", isCurrent ? "page" : "false");
+    const relatedHere = objectIds.filter((id) => related.has(id)).map((id) => getObject(id)?.label ?? id);
     pageButton.classList.toggle("has-selected-object", containsSelectedObject);
-    pageButton.title = containsSelectedObject
-      ? `${baseLabel}. Contains ${selectedObject.label} (${selectedObject.id}).`
-      : baseLabel;
+    pageButton.classList.toggle("has-related-object", relatedHere.length > 0);
+    pageButton.title = [
+      baseLabel,
+      containsSelectedObject ? `Contains ${selectedObject.label} (${selectedObject.id})` : "",
+      relatedHere.length ? `Related: ${relatedHere.slice(0, 4).join(", ")}${relatedHere.length > 4 ? "…" : ""}` : "",
+    ].filter(Boolean).join(". ");
   }
 }
 
@@ -1565,6 +1580,7 @@ function renderOverlay() {
   let selectedOccurrence = null;
 
   const objectsById = new Map(state.objects.map((object) => [object.id, object]));
+  const traced = tracedObjectIds();
   for (const occurrence of getCurrentPageOccurrences()) {
     const visibility = occurrenceVisibility(occurrence, objectsById, state.display, state.selectedObjectId);
     // A filter never hides the mark being worked on.
@@ -1577,6 +1593,9 @@ function renderOverlay() {
     }
     if (!occurrence.objectId) {
       classes.push("is-unlinked");
+    }
+    if (traced) {
+      classes.push(traced.has(occurrence.objectId) ? "is-traced" : "is-dimmed");
     }
     if (occurrence.objectId && occurrence.objectId === state.selectedObjectId) {
       classes.push("is-object-active");
@@ -1670,6 +1689,10 @@ function relationsToDraw() {
   if (state.display.markFocus === "none" || state.markMode) {
     return [];
   }
+  const traced = tracedObjectIds();
+  if (traced) {
+    return state.relations.filter((relation) => traced.has(relation.from) && traced.has(relation.to));
+  }
   if (state.display.showAllRelations) {
     return state.relations;
   }
@@ -1732,7 +1755,8 @@ function renderRelationLines(objectsById) {
       continue;
     }
     const focused = relation.from === state.selectedObjectId || relation.to === state.selectedObjectId;
-    const quiet = Boolean(state.selectedObjectId) && !focused;
+    // In a trace every drawn line belongs to it, so none fades.
+    const quiet = Boolean(state.selectedObjectId) && !focused && !state.trace;
     const modifiers = `${type.directed ? "" : " is-undirected"}${quiet ? " is-quiet" : ""}`;
 
     const line = document.createElementNS(SVG_NAMESPACE, "path");
@@ -2159,6 +2183,102 @@ function removeRevitRelations() {
   setStatus(`Removed ${count} relation${count === 1 ? "" : "s"} from the Revit export. Undo brings them back. Your own relations stay.`);
 }
 
+// The traced set, or null when no trace is running.
+function tracedObjectIds() {
+  if (!state.trace) {
+    return null;
+  }
+  return new Set(traceRelations(state.relations, state.trace.rootId, state.trace.steps).map((entry) => entry.objectId));
+}
+
+// Objects the map and thumbnails mark as related: the trace, or the selected object's direct relations.
+function highlightedRelatedIds() {
+  const traced = tracedObjectIds();
+  const related = traced ?? (state.selectedObjectId ? relatedObjectIds(state.relations, state.selectedObjectId) : new Set());
+  related.delete(state.selectedObjectId);
+  return related;
+}
+
+function startTrace() {
+  const object = getObject(state.selectedObjectId);
+  if (!object) {
+    return;
+  }
+  state.trace = { rootId: object.id, steps: Number(elements.traceSteps.value) || 2 };
+  refreshUi();
+  const count = tracedObjectIds().size - 1;
+  setStatus(`Tracing from ${object.label}: ${count} related object${count === 1 ? "" : "s"}. Click one to go there; Escape ends the trace.`);
+}
+
+function endTrace() {
+  if (!state.trace) {
+    return;
+  }
+  state.trace = null;
+  refreshUi();
+  setStatus("Trace ended.");
+}
+
+function objectPlacesLabel(objectId) {
+  const multipleDocuments = state.documents.length > 1;
+  const places = [...new Set(getObjectOccurrences(state.occurrences, objectId).map((occurrence) => {
+    const name = multipleDocuments ? `${(getProjectDocument(occurrence.documentId)?.name ?? "").replace(/\.pdf$/i, "")} ` : "";
+    return `${name}p.${occurrence.page}`;
+  }))];
+  if (places.length === 0) {
+    return "not marked yet";
+  }
+  return places.length > 3 ? `${places.slice(0, 3).join(", ")} +${places.length - 3}` : places.join(", ");
+}
+
+function renderTrace() {
+  if (state.trace && !getObject(state.trace.rootId)) {
+    state.trace = null;
+  }
+  const active = Boolean(state.trace);
+  elements.toggleTrace.setAttribute("aria-pressed", String(active));
+  elements.toggleTrace.disabled = !active && relationsForObject(state.relations, state.selectedObjectId).length === 0;
+  elements.tracePanel.hidden = !active;
+  elements.traceList.replaceChildren();
+  if (!active) {
+    return;
+  }
+  const root = getObject(state.trace.rootId);
+  elements.traceTitle.textContent = `Trace from ${root.label}`;
+  elements.traceSteps.value = String(state.trace.steps);
+  for (const entry of traceRelations(state.relations, state.trace.rootId, state.trace.steps)) {
+    const object = getObject(entry.objectId);
+    if (!object) {
+      continue;
+    }
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    const step = document.createElement("span");
+    const copy = document.createElement("span");
+    const label = document.createElement("strong");
+    const detail = document.createElement("small");
+    button.type = "button";
+    button.className = "trace-item";
+    button.dataset.objectId = object.id;
+    if (object.id === state.selectedObjectId) {
+      button.setAttribute("aria-current", "true");
+    }
+    step.className = "trace-step";
+    step.textContent = entry.step === 0 ? "●" : String(entry.step);
+    step.title = entry.step === 0 ? "Start" : `${entry.step} step${entry.step === 1 ? "" : "s"} away`;
+    copy.className = "trace-copy";
+    label.textContent = object.label;
+    detail.textContent = [
+      entry.relation ? relationSentence(entry.relation) : objectCategoryLabel(object.category),
+      objectPlacesLabel(object.id),
+    ].join(" · ");
+    copy.append(label, detail);
+    button.append(step, copy);
+    item.append(button);
+    elements.traceList.append(item);
+  }
+}
+
 function setShowAllRelations(show) {
   state.display.showAllRelations = show;
   elements.showAllRelations.checked = show;
@@ -2343,6 +2463,7 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
       objects: state.objects,
       occurrences: state.occurrences,
       notes: state.notes,
+      relations: state.relations,
       selectedObjectIds: [object.id],
       exportedAt,
     });
@@ -2433,6 +2554,7 @@ async function exportSelectedObjectForJoineryAi() {
       objects: state.objects,
       occurrences: state.occurrences,
       notes: state.notes,
+      relations: state.relations,
       selectedObjectIds: [object.id],
       exportedAt,
     });
@@ -2701,6 +2823,8 @@ async function renderThumbnailImage(pdfDocument, pageNumber, viewRotation) {
 function updateThumbnailStates() {
   const counts = new Map();
   const selectedPages = new Set();
+  const relatedPages = new Set();
+  const related = highlightedRelatedIds();
   for (const occurrence of state.occurrences) {
     if (occurrence.documentId !== state.activeDocumentId) {
       continue;
@@ -2708,6 +2832,9 @@ function updateThumbnailStates() {
     counts.set(occurrence.page, (counts.get(occurrence.page) ?? 0) + 1);
     if (occurrence.objectId && occurrence.objectId === state.selectedObjectId) {
       selectedPages.add(occurrence.page);
+    }
+    if (related.has(occurrence.objectId)) {
+      relatedPages.add(occurrence.page);
     }
   }
   for (const button of elements.thumbnailList.querySelectorAll("button[data-thumbnail-page]")) {
@@ -2720,9 +2847,10 @@ function updateThumbnailStates() {
       button.removeAttribute("aria-current");
     }
     button.classList.toggle("has-selected", selectedPages.has(page));
+    button.classList.toggle("has-related", relatedPages.has(page));
     badge.hidden = count === 0;
     badge.textContent = String(count);
-    button.setAttribute("aria-label", `Page ${page}${count ? `, ${count} mark${count === 1 ? "" : "s"}` : ""}${selectedPages.has(page) ? ", has the selected object" : ""}`);
+    button.setAttribute("aria-label", `Page ${page}${count ? `, ${count} mark${count === 1 ? "" : "s"}` : ""}${selectedPages.has(page) ? ", has the selected object" : ""}${relatedPages.has(page) ? ", has related objects" : ""}`);
   }
   if (lastThumbnailPage !== state.pageNumber) {
     lastThumbnailPage = state.pageNumber;
@@ -2784,6 +2912,7 @@ function refreshObjectUi() {
   renderObjectComposer();
   renderSelectedObjectPanel();
   renderRelationList();
+  renderTrace();
   renderUnlinkedOccurrences();
   renderNotes();
   renderSessionSummary();
@@ -4500,6 +4629,10 @@ function cancelCurrentAction() {
   const hadAction = Boolean(state.interaction || state.markMode || hadPanAction);
   state.interaction = null;
   setMarkMode(false);
+  if (!hadAction && state.trace) {
+    endTrace();
+    return true;
+  }
   // A second Escape, with nothing left to cancel, clears the selection.
   if (!hadAction && (state.selectedObjectId || state.selectedOccurrenceId)) {
     state.selectedObjectId = null;
@@ -4514,7 +4647,8 @@ function cancelCurrentAction() {
 
 function handleDocumentKeyDown(event) {
   if (event.key === "Escape") {
-    if (dialogIsOpen(elements.relationDialog)) {
+    // An open dialog handles its own Escape. It must not also end a trace or clear the selection.
+    if (document.querySelector("dialog[open]")) {
       return;
     }
     if (!elements.pdfSearchBar.hidden) {
@@ -4879,6 +5013,20 @@ elements.markForObject.addEventListener("click", () => {
 elements.deleteObject.addEventListener("click", deleteSelectedObject);
 elements.startRelation.addEventListener("click", startRelationFromSelection);
 elements.removeRevitRelations.addEventListener("click", removeRevitRelations);
+elements.toggleTrace.addEventListener("click", () => (state.trace ? endTrace() : startTrace()));
+elements.endTrace.addEventListener("click", endTrace);
+elements.traceSteps.addEventListener("change", () => {
+  if (state.trace) {
+    state.trace.steps = Number(elements.traceSteps.value);
+    refreshUi();
+  }
+});
+elements.traceList.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-object-id]");
+  if (button) {
+    await selectObjectAndNavigate(button.dataset.objectId);
+  }
+});
 elements.relationList.addEventListener("click", handleRelationListAction);
 elements.showAllRelations.addEventListener("change", () => setShowAllRelations(elements.showAllRelations.checked));
 elements.relationLabels.addEventListener("click", (event) => {
