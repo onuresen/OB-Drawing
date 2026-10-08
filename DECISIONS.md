@@ -487,3 +487,21 @@
 **Escape:** An open dialog now owns Escape. Before, closing the Map with Escape also ended the trace or cleared the selection.
 
 **Confidence:** high.
+
+## 2026-10-08 — ONEXUS export that merges with CDI's
+
+**Decision:** Export objects and relations as an ONEXUS graph, using CDI's exporter mapping exactly.
+
+**Why:** CDI already exports to ONEXUS (CDI docs/44). Matching its node keys and edge IDs means the same door and relation from both tools become one node and one edge in ONEXUS.
+
+**Identity:** Revit UniqueId when the Revit file is loaded. Otherwise a local key, marked `identity: "local"`. Local objects still show; they just cannot merge with CDI.
+
+**Truth:** Hand-drawn relations are `project-defined`; Revit ones are `source-native`. Review is `unreviewed`. No date is invented; `createdAt` is used when present.
+
+**Relation dates:** New relations get `createdAt`. It stays optional, so older files are valid. Missing means unknown, never old.
+
+**Not now:** Writing into CDI's relationship confirmations. CDI is moving to IFC as well as Forma, so changes there wait. Proposing `takesDataFrom` to CDI also waits.
+
+**Alternative:** An Object-Centric Drawing–specific ONEXUS mapping. Rejected: two mappings for one viewer would fork the same door into two nodes.
+
+**Confidence:** high. Edge IDs were checked against CDI's Python, and the file validates against ONEXUS's schema.

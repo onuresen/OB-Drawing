@@ -2236,7 +2236,12 @@ select.text-input {
 }
 
 .revit-relations-action {
+  width: 100%;
   margin-top: 8px;
+}
+
+#exportTraceOnexus {
+  justify-self: end;
 }
 
 .trace-panel {

@@ -109,6 +109,7 @@ import {
   createJoineryAiInstructions,
 } from "./joinery-ai-handoff.mjs";
 import { createStoredZip } from "./zip-store.mjs";
+import { buildOnexusGraph } from "./onexus-export.mjs";
 import {
   createNote,
   removeNote,
@@ -234,6 +235,8 @@ const elements = {
   deleteRelation: document.querySelector("#deleteRelation"),
   removeRevitRelations: document.querySelector("#removeRevitRelations"),
   toggleTrace: document.querySelector("#toggleTrace"),
+  exportOnexus: document.querySelector("#exportOnexus"),
+  exportTraceOnexus: document.querySelector("#exportTraceOnexus"),
   tracePanel: document.querySelector("#tracePanel"),
   traceTitle: document.querySelector("#traceTitle"),
   traceSteps: document.querySelector("#traceSteps"),
@@ -832,6 +835,7 @@ function setDocumentControlsEnabled(enabled) {
   elements.deleteObject.disabled = !hasProject;
   elements.markForObject.disabled = !enabled || !state.selectedObjectId;
   elements.exportSidecar.disabled = !hasProject;
+  elements.exportOnexus.disabled = !hasProject;
   elements.openNotes.disabled = !hasProject;
   elements.chooseSidecar.disabled = false;
   updateHistoryControls();
@@ -2277,6 +2281,35 @@ function renderTrace() {
     item.append(button);
     elements.traceList.append(item);
   }
+}
+
+// One-way download for ONEXUS. Never saved state, never history.
+function exportOnexusGraph(objectIds = null) {
+  if (state.documents.length === 0) {
+    return;
+  }
+  const scope = objectIds ? "trace" : "project";
+  const root = scope === "trace" ? getObject(state.trace?.rootId) : null;
+  const projectName = sidecarDownloadName().replace(/\.objdraw-project\.json$/, "");
+  const graph = buildOnexusGraph({
+    documents: state.documents,
+    objects: state.objects,
+    occurrences: state.occurrences,
+    relations: state.relations,
+    revitObjects: state.revitData?.objects ?? [],
+    objectIds,
+    scope,
+    projectName: root ? `${projectName} · trace from ${root.label}` : projectName,
+  });
+  const filename = `${projectName}${root ? `-trace-${root.label.replace(/[<>:"/\\|?*\s]+/g, "-")}` : ""}.onexus.json`;
+  downloadBlob(new Blob([`${JSON.stringify(graph, null, 2)}\n`], { type: "application/json" }), filename);
+  const { nodes, edges, localNodes } = graph.meta.objdraw.counts;
+  const identity = localNodes === 0
+    ? "All objects use Revit IDs."
+    : localNodes === nodes
+      ? "Objects use local IDs; load the Revit file first to merge with CDI."
+      : `${localNodes} object${localNodes === 1 ? "" : "s"} use local IDs.`;
+  setStatus(`Exported ${filename}: ${nodes} object${nodes === 1 ? "" : "s"}, ${edges} relation${edges === 1 ? "" : "s"}. ${identity}`);
 }
 
 function setShowAllRelations(show) {
@@ -5015,6 +5048,13 @@ elements.startRelation.addEventListener("click", startRelationFromSelection);
 elements.removeRevitRelations.addEventListener("click", removeRevitRelations);
 elements.toggleTrace.addEventListener("click", () => (state.trace ? endTrace() : startTrace()));
 elements.endTrace.addEventListener("click", endTrace);
+elements.exportOnexus.addEventListener("click", () => exportOnexusGraph());
+elements.exportTraceOnexus.addEventListener("click", () => {
+  const traced = tracedObjectIds();
+  if (traced) {
+    exportOnexusGraph([...traced]);
+  }
+});
 elements.traceSteps.addEventListener("change", () => {
   if (state.trace) {
     state.trace.steps = Number(elements.traceSteps.value);

@@ -44,6 +44,7 @@ export function objectLayerSignature(source) {
     to: relation.to,
     label: relation.label ?? "",
     origin: relation.origin ?? null,
+    createdAt: relation.createdAt ?? null,
   }));
 
   return JSON.stringify({

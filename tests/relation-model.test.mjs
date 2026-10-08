@@ -263,3 +263,15 @@ test("a trace follows relations both ways, step by step, and remembers how each 
   assert.deepEqual(traceRelations(relations, "object-002", 1).map((entry) => entry.objectId).sort(), ["object-001", "object-002", "object-003", "object-004"]);
   assert.deepEqual([...relatedObjectIds(relations, "object-002")].sort(), ["object-001", "object-003", "object-004"]);
 });
+
+test("new relations get a creation date; files without one stay valid and keep it absent", () => {
+  const created = createRelation([], { type: "controls", from: "object-001", to: "object-002", createdAt: "2026-10-08T03:00:00.000Z" });
+  assert.equal(created.createdAt, "2026-10-08T03:00:00.000Z");
+  assert.ok(!Number.isNaN(Date.parse(createRelation([], { type: "controls", from: "object-001", to: "object-002" }).createdAt)));
+  assert.throws(() => createRelation([], { type: "controls", from: "object-001", to: "object-002", createdAt: "soon" }), /timestamp/);
+  const saved = validateSidecar(JSON.parse(JSON.stringify(project([created, { id: "relation-002", type: "inside", from: "object-001", to: "object-004", label: "" }]))));
+  assert.equal(saved.relations[0].createdAt, "2026-10-08T03:00:00.000Z");
+  assert.equal("createdAt" in saved.relations[1], false);
+  assert.throws(() => validateSidecar({ ...saved, relations: [{ ...created, createdAt: "yesterday" }] }), /createdAt/);
+  assert.deepEqual(updateRelation([created], created.id, { label: "main" })[0].createdAt, created.createdAt, "editing keeps the date");
+});

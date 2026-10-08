@@ -237,6 +237,10 @@ function validateProject(value) {
       `${relation.id} label must be text of at most ${MAXIMUM_RELATION_LABEL_LENGTH} characters.`,
     );
     requireCondition(
+      relation.createdAt === undefined || (typeof relation.createdAt === "string" && !Number.isNaN(Date.parse(relation.createdAt))),
+      `${relation.id} has an invalid createdAt timestamp.`,
+    );
+    requireCondition(
       relation.origin === undefined || RELATION_ORIGINS.includes(relation.origin),
       `${relation.id} has an unsupported origin.`,
     );
@@ -277,6 +281,7 @@ function validateProject(value) {
       to: relation.to,
       label: relation.label.trim(),
       ...(relation.origin ? { origin: relation.origin } : {}),
+      ...(relation.createdAt ? { createdAt: relation.createdAt } : {}),
     })),
   };
 }
