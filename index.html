@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-08-onexus-export">
+  <link rel="stylesheet" href="styles.css?v=2026-10-08-related-data">
 </head>
 <body>
   <header class="app-header">
@@ -363,6 +363,17 @@
             </section>
           </section>
 
+          <section id="relatedData" class="related-data" aria-labelledby="relatedDataTitle" hidden>
+            <div class="subsection-heading">
+              <h4 id="relatedDataTitle">Related data</h4>
+              <span id="relatedDataCount">0</span>
+            </div>
+            <p class="quiet-copy">From the objects this one opens to, is hosted on, or takes data from. View only.</p>
+            <label class="visually-hidden" for="relatedDataSearch">Filter related data</label>
+            <input id="relatedDataSearch" class="text-input" type="search" placeholder="Filter, e.g. finish" autocomplete="off">
+            <div id="relatedDataList" class="related-data-list"></div>
+          </section>
+
           <section id="revitProperties" class="revit-properties" aria-labelledby="revitPropertiesTitle" hidden>
             <div class="subsection-heading">
               <h4 id="revitPropertiesTitle">Revit properties</h4>
@@ -463,6 +474,10 @@
       </p>
       <label class="field-label" for="relationType">Relation</label>
       <select id="relationType" class="text-input"></select>
+      <div id="relationSideField" class="relation-side-field" hidden>
+        <label class="field-label" for="relationSide">Room side</label>
+        <select id="relationSide" class="text-input"></select>
+      </div>
       <label class="field-label" for="relationLabel">Short note on the line</label>
       <input id="relationLabel" class="text-input" type="text" maxlength="60" placeholder="Optional, e.g. finish" autocomplete="off">
       <p id="relationError" class="relation-error" role="alert" hidden></p>

@@ -519,3 +519,21 @@
 **Known clash:** `serve.py` and the ONEXUS MCP server both use port 8765, so they cannot run at the same time. Not changed here; moving this app's port would change the start script people already use.
 
 **Confidence:** high. Driven end to end in Chromium both ways.
+
+## 2026-10-08 — Door sides and related data
+
+**Decision:** A door's room relation can carry `side: "to"` (opens into) or `"from"` (opens from). A Related data section shows data from the objects a selected object opens to, is hosted on, or takes data from.
+
+**Why:** Finish and fire rules differ per side of a door. "Finish comes from these rooms" needs to know which room is which side, and needs to show that room's data where the door is read.
+
+**Side as a field, not a type:** CDI and ONEXUS know one `connectsTo`. Adding `opensInto`/`opensFrom` types would split it. The side rides along as an optional field. Older files stay valid.
+
+**Revit labels:** The first Revit export wrote "to room"/"from room" as labels. Those exact labels on Revit-made relations become a side on import. A person's own label is never read as data.
+
+**Related data is a view:** It reads Revit parameters and notes when shown. Nothing is copied, so the room stays the single source for its finish. A "finish" note on a takes-data-from relation pre-filters that group. "finish" also matches 仕上.
+
+**Alternative:** Copy room finish values into the door. Rejected: two copies drift apart when the room changes.
+
+**Revisit when:** Real drawings need data from a source other than Revit parameters or notes.
+
+**Confidence:** med. Checked on synthetic data; needs a real Revit export.

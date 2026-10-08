@@ -103,7 +103,8 @@ export function buildOnexusGraph({
     }
     usedIds.add(edgeId);
     const fromRevit = relation.origin === "revit";
-    const notes = [relation.label, fromRevit ? "from the Revit export" : "drawn by a person"].filter(Boolean).join(" · ");
+    const sideNote = relation.side ? relationType(relation.type).sides?.[relation.side]?.forward : "";
+    const notes = [sideNote, relation.label, fromRevit ? "from the Revit export" : "drawn by a person"].filter(Boolean).join(" · ");
     edges.push({
       data: {
         id: edgeId,
@@ -129,7 +130,12 @@ export function buildOnexusGraph({
           review: { status: "unreviewed" },
           lifecycle: { deleted: false },
         },
-        objdraw: { relationId: relation.id, label: relation.label, ...(relation.origin ? { origin: relation.origin } : {}) },
+        objdraw: {
+          relationId: relation.id,
+          label: relation.label,
+          ...(relation.side ? { side: relation.side } : {}),
+          ...(relation.origin ? { origin: relation.origin } : {}),
+        },
       },
     });
   }

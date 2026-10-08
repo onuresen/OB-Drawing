@@ -275,3 +275,42 @@ test("new relations get a creation date; files without one stay valid and keep i
   assert.throws(() => validateSidecar({ ...saved, relations: [{ ...created, createdAt: "yesterday" }] }), /createdAt/);
   assert.deepEqual(updateRelation([created], created.id, { label: "main" })[0].createdAt, created.createdAt, "editing keeps the date");
 });
+
+test("a door's room relation can say which side: opens into (To Room) or opens from (From Room)", () => {
+  const into = createRelation([], { type: "connectsTo", from: "object-002", to: "object-004", side: "to" });
+  assert.equal(into.side, "to");
+  assert.equal(relationPhrase(into, "object-002"), "opens into");
+  assert.equal(relationPhrase(into, "object-004"), "opened into by");
+  const out = createRelation([into], { type: "connectsTo", from: "object-002", to: "object-005", side: "from" });
+  assert.equal(relationPhrase(out, "object-002"), "opens from");
+  assert.equal(relationPhrase({ ...out, side: undefined }, "object-002"), "opens to", "no side keeps the plain phrase");
+  // Types without sides drop a side instead of storing it.
+  assert.equal("side" in createRelation([], { type: "hostedBy", from: "object-002", to: "object-003", side: "to" }), false);
+  assert.throws(() => createRelation([], { type: "connectsTo", from: "object-002", to: "object-004", side: "left" }), /side/);
+
+  const relations = [into];
+  assert.equal(updateRelation(relations, into.id, { side: "to" }), relations, "same side is no change");
+  assert.equal(updateRelation(relations, into.id, { side: "from" })[0].side, "from");
+  assert.equal(updateRelation(relations, into.id, { side: null })[0].side, undefined);
+  assert.equal(updateRelation(relations, into.id, { type: "inside" })[0].side, undefined, "changing type drops the side");
+  assert.equal(updateRelation(relations, into.id, { label: "main entrance" })[0].side, "to", "editing the note keeps the side");
+});
+
+test("sides round-trip in files; only Revit-written side labels are converted", () => {
+  const relations = [
+    { id: "relation-001", type: "connectsTo", from: "object-002", to: "object-004", label: "", side: "to" },
+    { id: "relation-002", type: "connectsTo", from: "object-001", to: "object-004", label: "to room" },
+    { id: "relation-003", type: "connectsTo", from: "object-003", to: "object-004", label: "from room", origin: "revit" },
+  ];
+  const saved = validateSidecar(JSON.parse(JSON.stringify(project(relations))));
+  assert.equal(saved.relations[0].side, "to");
+  assert.equal(saved.relations[1].label, "to room", "a person's own label stays a label");
+  assert.equal("side" in saved.relations[1], false);
+  assert.equal(saved.relations[2].side, "from");
+  assert.equal(saved.relations[2].label, "");
+  assert.throws(
+    () => validateSidecar({ ...saved, relations: [{ id: "relation-001", type: "hostedBy", from: "object-002", to: "object-003", label: "", side: "to" }] }),
+    /side its relation type does not have/,
+  );
+  assert.throws(() => validateSidecar({ ...saved, relations: [{ ...relations[0], side: "up" }] }), /side/);
+});

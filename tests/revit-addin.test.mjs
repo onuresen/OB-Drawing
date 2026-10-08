@@ -144,7 +144,15 @@ test("Revit relations use relation types, IDs, and an origin the app accepts", (
   assert.match(source, /exported\.TryGetValue\(target\.UniqueId/);
   assert.match(source, /to\.ObjectId == fromObjectId\) return;/);
   assert.match(source, /seen\.Add\(/);
-  assert.match(addin("ProjectSchema.cs"), /record ProjectRelation\(string Id, string Type, string From, string To, string Label, string Origin\)/);
+  const record = addin("ProjectSchema.cs").match(/record ProjectRelation\(([\s\S]*?)\);/)?.[1] ?? "";
+  assert.deepEqual(
+    [...record.matchAll(/(\w+\??) (\w+)\s*(?:,|$)/g)].map((m) => `${m[1]} ${m[2]}`),
+    ["string Id", "string Type", "string From", "string To", "string Label", "string? Side", "string Origin"],
+  );
+  assert.match(record, /JsonIgnore\(Condition = JsonIgnoreCondition\.WhenWritingNull\)\] string\? Side/);
+  // Door sides are the app's side keys, not labels.
+  const sides = [...source.matchAll(/Add\("connectsTo", objectId, instance\.(\w+), "(\w+)"\)/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(sides, [["ToRoom", "to"], ["FromRoom", "from"]]);
 });
 
 test("a project with Revit relations imports and keeps their origin", () => {
@@ -152,5 +160,7 @@ test("a project with Revit relations imports and keeps their origin", () => {
   const project = validateSidecar(fixture);
   assert.equal(project.relations.length, 3);
   assert.ok(project.relations.every((relation) => relation.origin === "revit"));
-  assert.deepEqual(project.relations.map((relation) => relation.label), ["", "from room", "to room"]);
+  // The first export wrote the door side into the label; it now imports as a side.
+  assert.deepEqual(project.relations.map((relation) => relation.label), ["", "", ""]);
+  assert.deepEqual(project.relations.map((relation) => relation.side ?? null), [null, "from", "to"]);
 });

@@ -59,6 +59,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AJ — relation trace (1–3 steps, both directions, pinned root, cross-page list), related-page dots in the Drawing Set Map and thumbnails, and optional `relatedObjects` / `objectRelations` in Object JSON/ZIP.
 - [x] Group AK — ONEXUS export (whole project or the current trace) using CDI's mapping and edge IDs, Revit UniqueIds as node IDs when the Revit file is loaded, and optional `createdAt` on relations.
 - [x] Group AL — live ONEXUS link: "Open live ONEXUS" opens ONEXUS in a window and keeps the graph, selection, and trace in step; tapping a node there selects the object here. Browser-window messaging only.
+- [x] Group AM — door sides (`side: "to" | "from"` on `connectsTo`, from Revit To/From Room) and a view-only Related data section showing Revit parameters and notes of the objects a selected object opens to, is hosted on, or takes data from.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -91,6 +92,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `drawing-map.mjs` | Pure drawing-set page grouping, occurrence-density, object-coverage, and summary helpers. |
 | `object-evidence-package.mjs` | Pure portable evidence-package selection, physical-instance/configuration relationships, cloning, and validation. |
 | `onexus-export.mjs` | Pure one-way ONEXUS graph export: CDI-compatible node keys, FNV-1a edge IDs, dimensions, and `onexus.relationship.v1` envelopes. |
+| `related-data.mjs` | Pure related-data sources (takes data from, opens to, hosted on) and parameter filtering with Japanese aliases. |
 | `note-model.mjs` | Pure project, object, and occurrence note creation, editing, removal, and stable identity. |
 | `relation-model.mjs` | Pure relation vocabulary, create/edit/remove rules, phrases from either end, type suggestion, and arc geometry. |
 | `evidence-export.mjs` | Pure evidence filename and companion preview-asset index helpers. |
@@ -110,6 +112,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | `tests/drawing-map.test.mjs` | Node tests for page grouping, density levels, selected-object coverage, and source summaries. |
 | `tests/object-evidence-package.test.mjs` | Node tests for explicit export selection, identity separation, configuration links, and fail-closed source validation. |
 | `tests/onexus-export.test.mjs` | Node tests for CDI edge-ID parity, Revit vs local node keys, envelopes, trace scope, and ONEXUS required fields. |
+| `tests/related-data.test.mjs` | Node tests for related-data source order, default filters, and alias matching. |
 | `tests/note-model.test.mjs` | Node tests for note identity, scope requirements, editable text, and removal. |
 | `tests/relation-model.test.mjs` | Node tests for relation rules, vocabulary, suggestions, arcs, lanes, v6 round-trip, and v5 migration. |
 | `tests/evidence-export.test.mjs` | Node tests for safe export names and included/unavailable asset accounting. |
@@ -236,6 +239,8 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - ONEXUS export copies CDI's exporter mapping (CDI docs/44). Keep edge IDs as `REL-` + FNV-1a of `from|type|to` over node IDs, and node IDs as Revit UniqueIds when known; otherwise `objdraw:<first PDF sha256 12>:<objectId>`, marked `identity: "local"`. Never invent dates or reviews.
 - The live ONEXUS link uses `postMessage` between two windows: no server, no request, no CSP change. It talks only to the window it opened, at that URL's exact origin, using ONEXUS's Revit-host messages (`objdraw-hello`/`onexus-ready`, `onexus-graph`, `highlight-nodes`, `select-node`). The graph is resent only when objects or relations change, after edits settle.
 - The ONEXUS address is a viewer preference in `objdraw-display` (`onexusUrl`); empty means the default: local ONEXUS on `localhost:4173` when this app runs locally, otherwise the GitHub Pages ONEXUS.
+- A door side is structured data (`side`), never read from a label. The only exception is the first Revit export's exact "to room"/"from room" labels on `origin: "revit"` relations, converted on import.
+- Related data is a view. It reads the related object's Revit parameters and object notes at render time and copies nothing into the selected object or the project file. A takes-data-from note ("finish") is that group's default filter; the search box overrides it.
 - New relations carry `createdAt`. It stays optional in files; a missing date is an unknown age.
 - The drag dot appears only beside a selected, linked mark, outside Mark and Relate modes. Dropping on another linked mark opens the dialog; dropping elsewhere cancels; a click without movement starts Relate mode.
 - Source PDFs and object data must not be committed unless the user explicitly approves them.
@@ -417,6 +422,8 @@ Then run `start-server.cmd` and check:
 151. Export ONEXUS graph downloads a file that ONEXUS loads with every object and relation; with the Revit file loaded, nodes use Revit UniqueIds.
 152. Export trace to ONEXUS contains only the traced objects and the relations between them.
 153. Open live ONEXUS links within a few seconds; selecting an object highlights its node; a trace highlights all traced nodes; a new relation appears there; tapping a node selects the object here; closing ONEXUS resets the button.
+154. A door's room relation can be set to Opens into or Opens from; the rows read "opens into 102 Corridor" and, from the room, "opened into by D-101".
+155. With the Revit file loaded, a door shows its rooms' and wall's parameters under Related data; typing "finish" also matches 仕上 parameters; a takes-data-from relation labelled "finish" shows first, pre-filtered.
 
 ## Prototype acceptance
 

@@ -19,7 +19,7 @@ One button: **OneMore ▸ Object-Centric Drawing ▸ Export PDF + Objects**.
    every populated readable parameter is added to the separate Revit companion file.
    **Relations:** "Add relations Revit knows" is off by default. When on, the project file gets:
    - door / window → its host wall: *hosted on*;
-   - door → its From Room and To Room: *opens to*, labelled "from room" / "to room";
+   - door → its To Room and From Room: *opens into* / *opens from* (`side: "to"` / `"from"`);
    - any other family instance → its room: *inside*.
 
    Only between objects in the same export. A face-based door hosted on a level gets no host relation.

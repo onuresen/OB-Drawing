@@ -17,14 +17,14 @@ namespace ObjectCentricDrawing
             var result = new List<ProjectRelation>();
             var seen = new HashSet<string>();
 
-            void Add(string type, string fromObjectId, Element? target, string label)
+            void Add(string type, string fromObjectId, Element? target, string? side = null)
             {
                 if (target == null || !exported.TryGetValue(target.UniqueId, out var to)) return;
                 if (to.ObjectId == fromObjectId) return;
                 // A door whose From and To Room are the same room gives one relation, not two.
                 if (!seen.Add($"{type}|{fromObjectId}|{to.ObjectId}")) return;
                 result.Add(new ProjectRelation(
-                    $"relation-{result.Count + 1:000}", type, fromObjectId, to.ObjectId, label, Origin));
+                    $"relation-{result.Count + 1:000}", type, fromObjectId, to.ObjectId, "", side, Origin));
             }
 
             foreach ((string objectId, Element element) in exported.Values)
@@ -36,16 +36,17 @@ namespace ObjectCentricDrawing
                 if (opening)
                 {
                     // Face-based families report a level as host; a level is never an exported object.
-                    Try(() => Add("hostedBy", objectId, instance.Host, ""));
+                    Try(() => Add("hostedBy", objectId, instance.Host));
                 }
                 if (category == BuiltInCategory.OST_Doors)
                 {
-                    Try(() => Add("connectsTo", objectId, instance.FromRoom, "from room"));
-                    Try(() => Add("connectsTo", objectId, instance.ToRoom, "to room"));
+                    // Revit's To Room is the room the door opens into.
+                    Try(() => Add("connectsTo", objectId, instance.ToRoom, "to"));
+                    Try(() => Add("connectsTo", objectId, instance.FromRoom, "from"));
                 }
                 else if (!opening)
                 {
-                    Try(() => Add("inside", objectId, instance.Room, ""));
+                    Try(() => Add("inside", objectId, instance.Room));
                 }
             }
             return result;
