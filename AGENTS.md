@@ -54,6 +54,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AE — one flexible Notes system with editable project, object, and occurrence scopes; `objdraw-project-v5`, undo/redo and dirty tracking, note-aware object packages and Joinery handoff, and v3/v4 evidence-text migration. The earlier observation/assumption, review-state, and conflict model was removed rather than kept beside Notes.
 - [x] Group AF — optional broad Revit parameter snapshots in `objdraw-revit-refs-v2`, with all populated readable instance/type parameters kept outside the neutral project and shown as searchable, read-only selected-object properties after explicit companion import.
 - [x] Group AG — explicit object-to-object relations in `objdraw-project-v6`: 14 CDI-keyed types in five families, a Relate pick mode (`C`) that works across pages and PDFs, a small type dialog with suggested type and swap, arcs with arrows and pills on the sheet, a properties-pane list, all-relations view (`G`), undo/redo, dirty tracking, and v5 migration.
+- [x] Group AH — optional Revit relations: export option (off by default) for host wall, door From/To Room, and room containment, written with `origin: "revit"`; the app shows "from Revit" and one undoable Remove Revit relations action. Not yet built or run in Revit.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -215,7 +216,8 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - The Notes dialog chooses occurrence, object, or project as the initial scope from the current selection, but the user explicitly controls the saved scope.
 - Object deletion is blocked by its object notes. Occurrence deletion is blocked by its occurrence notes. Occurrence notes survive object unlinking because they follow the mark rather than its current object relationship.
 - Import converts v3/v4 observations and assumptions into ordinary notes, retaining their human topic/value text and source scope while intentionally discarding the superseded review/conflict semantics.
-- Relations join objects, never marks. Every relation is made by a person; a category pair only preselects the dialog's type.
+- Relations join objects, never marks. A person makes them, or the optional Revit export reads them from Revit's own host and room data. A category pair only preselects the dialog's type.
+- `origin` is optional and only `"revit"` today. Editing a relation drops it. Removing Revit relations never touches hand-made ones.
 - Relation types come only from `relation-model.mjs`. Keep CDI's exact key when a CDI type exists; add a local key only when none fits.
 - Relation lines follow the selected object. `G` or the Relations checkbox shows every relation on the page. The choice is a viewer preference, not project data.
 - Relate mode (`C`) is view state. Escape, marking, undo, or import leaves it. Picking a mark or a list object opens the dialog; nothing saves until Save.

@@ -434,3 +434,24 @@
 **Revisit when:** A second project needs a type that is missing, or Revit host/room export is added.
 
 **Confidence:** med. Mechanics are tested in a browser. The vocabulary needs real drawing use.
+
+## 2026-10-08 — Optional relations from the Revit export
+
+**Decision:** The Revit export can add relations Revit already records: host wall, door From/To Room, and room for other instances. The option is off by default.
+
+**Why:** Hand-drawing every door's wall and rooms is slow. Revit already knows them.
+
+**Optional and additive:**
+- Off means the exact same file as before.
+- Only between objects in the same export. Nothing points outside the file.
+- Each relation carries an optional `origin: "revit"`. Older v6 files without it stay valid.
+- The app shows "from Revit" and offers one undoable "Remove Revit relations".
+- Editing a Revit relation drops its origin. It is the person's from then on.
+
+**Not CDI truth classes:** `origin` only says who wrote the line. It does not claim confirmed or inferred truth. That richer model waits for the CDI exchange discussion.
+
+**Alternative:** Infer card reader → door from geometry, like CDI. Rejected for now. Proximity is a guess, and Revit host/room data is not.
+
+**Revisit when:** It is run on a real model, or CDI exchange is designed.
+
+**Confidence:** med. Not yet built or run in Revit.

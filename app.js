@@ -124,6 +124,7 @@ import {
   relationTypeGroups,
   relationsForObject,
   removeRelation,
+  removeRelationsByOrigin,
   removeRelationsForObject,
   suggestRelationType,
   updateRelation,
@@ -227,6 +228,7 @@ const elements = {
   relationError: document.querySelector("#relationError"),
   swapRelation: document.querySelector("#swapRelation"),
   deleteRelation: document.querySelector("#deleteRelation"),
+  removeRevitRelations: document.querySelector("#removeRevitRelations"),
   statusMessage: document.querySelector("#statusMessage"),
   documentSummary: document.querySelector("#documentSummary"),
   objectBadge: document.querySelector("#objectBadge"),
@@ -1675,8 +1677,8 @@ function relationsToDraw() {
 function relationSentence(relation) {
   const from = getObject(relation.from);
   const to = getObject(relation.to);
-  const note = relation.label ? ` (${relation.label})` : "";
-  return `${from?.label ?? relation.from} ${relationPhrase(relation)} ${to?.label ?? relation.to}${note}`;
+  const note = [relation.label, relation.origin === "revit" ? "from Revit" : ""].filter(Boolean).join(", ");
+  return `${from?.label ?? relation.from} ${relationPhrase(relation)} ${to?.label ?? relation.to}${note ? ` (${note})` : ""}`;
 }
 
 function svgPoint(point) {
@@ -1936,6 +1938,9 @@ function deleteRelationById(relationId) {
 }
 
 function renderRelationList() {
+  const revitRelationCount = state.relations.filter((relation) => relation.origin === "revit").length;
+  elements.removeRevitRelations.hidden = revitRelationCount === 0;
+  elements.removeRevitRelations.textContent = `Remove ${revitRelationCount} Revit relation${revitRelationCount === 1 ? "" : "s"}`;
   const object = getObject(state.selectedObjectId);
   if (state.relateFromObjectId && !getObject(state.relateFromObjectId)) {
     setRelateMode(null);
@@ -1976,7 +1981,11 @@ function renderRelationList() {
     target.dataset.objectId = entry.otherObjectId;
     target.title = `Go to ${entry.other?.label ?? entry.otherObjectId}`;
     targetLabel.textContent = entry.other?.label ?? entry.otherObjectId;
-    targetMeta.textContent = [entry.other ? objectCategoryLabel(entry.other.category) : "", entry.relation.label]
+    targetMeta.textContent = [
+      entry.other ? objectCategoryLabel(entry.other.category) : "",
+      entry.relation.label,
+      entry.relation.origin === "revit" ? "from Revit" : "",
+    ]
       .filter(Boolean)
       .join(" · ");
     target.append(targetLabel, targetMeta);
@@ -2006,6 +2015,17 @@ async function handleRelationListAction(event) {
   } else if (button.dataset.action === "go-relation-target") {
     await selectObjectAndNavigate(button.dataset.objectId);
   }
+}
+
+function removeRevitRelations() {
+  const count = state.relations.filter((relation) => relation.origin === "revit").length;
+  if (count === 0) {
+    return;
+  }
+  recordObjectMutation(`remove ${count} Revit relation${count === 1 ? "" : "s"}`);
+  state.relations = removeRelationsByOrigin(state.relations, "revit");
+  refreshUi();
+  setStatus(`Removed ${count} relation${count === 1 ? "" : "s"} from the Revit export. Undo brings them back. Your own relations stay.`);
 }
 
 function setShowAllRelations(show) {
@@ -3546,7 +3566,7 @@ async function importSidecar(file, parsed) {
             : "";
     setSidecarMessage(`Imported ${file.name}${migrationNote}.`);
     const missingCount = state.documents.length - state.documentSessions.size;
-    setStatus(`Restored ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}, ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, and ${state.notes.length} note${state.notes.length === 1 ? "" : "s"}.${missingCount ? ` ${missingCount} PDF${missingCount === 1 ? " needs" : "s need"} relinking.` : ""}`);
+    setStatus(`Restored ${state.documents.length} PDF${state.documents.length === 1 ? "" : "s"}, ${state.objects.length} object${state.objects.length === 1 ? "" : "s"}, ${state.occurrences.length} occurrence${state.occurrences.length === 1 ? "" : "s"}, ${state.notes.length} note${state.notes.length === 1 ? "" : "s"}, and ${state.relations.length} relation${state.relations.length === 1 ? "" : "s"}.${missingCount ? ` ${missingCount} PDF${missingCount === 1 ? " needs" : "s need"} relinking.` : ""}`);
   } catch (error) {
     console.error(error);
     setSidecarMessage(`Import failed: ${error.message}. The current session was not changed.`, true);
@@ -4708,6 +4728,7 @@ elements.markForObject.addEventListener("click", () => {
 });
 elements.deleteObject.addEventListener("click", deleteSelectedObject);
 elements.startRelation.addEventListener("click", startRelationFromSelection);
+elements.removeRevitRelations.addEventListener("click", removeRevitRelations);
 elements.relationList.addEventListener("click", handleRelationListAction);
 elements.showAllRelations.addEventListener("change", () => setShowAllRelations(elements.showAllRelations.checked));
 elements.relationLabels.addEventListener("click", (event) => {

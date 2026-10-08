@@ -1,0 +1,142 @@
+{
+  "format": "objdraw-project-v6",
+  "exportedAt": "2026-10-06T09:00:00.0000000Z",
+  "activeDocumentId": "document-001",
+  "documents": [
+    {
+      "id": "document-001",
+      "name": "synthetic-sheets.pdf",
+      "size": 482113,
+      "pageCount": 2,
+      "sha256": "0f4c1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7"
+    }
+  ],
+  "objects": [
+    {
+      "id": "object-001",
+      "category": "doors",
+      "label": "D-101"
+    },
+    {
+      "id": "object-002",
+      "category": "windows",
+      "label": "Fixed 900x1200 #348211"
+    },
+    {
+      "id": "object-003",
+      "category": "walls",
+      "label": "Basic Wall #348100"
+    },
+    {
+      "id": "object-004",
+      "category": "rooms",
+      "label": "101 Office"
+    },
+    {
+      "id": "object-005",
+      "category": "rooms",
+      "label": "102 Corridor"
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "occurrence-001",
+      "objectId": "object-001",
+      "documentId": "document-001",
+      "page": 1,
+      "geometry": {
+        "type": "rectangle",
+        "bounds": {
+          "x": 0.312,
+          "y": 0.4205,
+          "width": 0.0214,
+          "height": 0.0302
+        }
+      }
+    },
+    {
+      "id": "occurrence-002",
+      "objectId": "object-001",
+      "documentId": "document-001",
+      "page": 2,
+      "geometry": {
+        "type": "rectangle",
+        "bounds": {
+          "x": 0.6,
+          "y": 0.1,
+          "width": 0.4,
+          "height": 0.25
+        }
+      }
+    },
+    {
+      "id": "occurrence-003",
+      "objectId": "object-002",
+      "documentId": "document-001",
+      "page": 1,
+      "geometry": {
+        "type": "rectangle",
+        "bounds": {
+          "x": 0.7,
+          "y": 0.2,
+          "width": 0.018,
+          "height": 0.006
+        }
+      }
+    },
+    {
+      "id": "occurrence-004",
+      "objectId": "object-002",
+      "documentId": "document-001",
+      "page": 2,
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          {
+            "x": 0.398551,
+            "y": 0.25641
+          },
+          {
+            "x": 0.434783,
+            "y": 0.307692
+          },
+          {
+            "x": 0.471014,
+            "y": 0.25641
+          },
+          {
+            "x": 0.434783,
+            "y": 0.205128
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [],
+  "relations": [
+    {
+      "id": "relation-001",
+      "type": "hostedBy",
+      "from": "object-001",
+      "to": "object-003",
+      "label": "",
+      "origin": "revit"
+    },
+    {
+      "id": "relation-002",
+      "type": "connectsTo",
+      "from": "object-001",
+      "to": "object-004",
+      "label": "from room",
+      "origin": "revit"
+    },
+    {
+      "id": "relation-003",
+      "type": "connectsTo",
+      "from": "object-001",
+      "to": "object-005",
+      "label": "to room",
+      "origin": "revit"
+    }
+  ]
+}

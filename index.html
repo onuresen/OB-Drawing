@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-08-relations">
+  <link rel="stylesheet" href="styles.css?v=2026-10-08-revit-relations">
 </head>
 <body>
   <header class="app-header">
@@ -257,6 +257,7 @@
             <button id="chooseSidecar" class="button" type="button">Import JSON</button>
             <input id="sidecarFile" class="visually-hidden" type="file" accept="application/json,.json">
           </div>
+          <button id="removeRevitRelations" class="compact-action revit-relations-action" type="button" title="Remove every relation the Revit export added. Undo brings them back." hidden>Remove Revit relations</button>
           <p id="sidecarStatus" class="sidecar-status" role="alert" hidden></p>
         </section>
       </div>
