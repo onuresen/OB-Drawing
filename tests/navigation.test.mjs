@@ -191,3 +191,8 @@ test("C starts a relation and G shows every relation, but never while typing or 
   assert.equal(keyboardShortcutAction({ key: "c", blocked: true }), null);
   assert.equal(keyboardShortcutAction({ key: "c", ctrlKey: true }), null, "Ctrl+C stays copy");
 });
+
+test("P toggles the floating Properties panel", () => {
+  assert.equal(keyboardShortcutAction({ key: "p" }), "toggle-properties");
+  assert.equal(keyboardShortcutAction({ key: "p", blocked: true }), null);
+});

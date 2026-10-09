@@ -81,7 +81,7 @@ select:focus-visible,
 }
 
 .app-header {
-  height: 48px;
+  height: 40px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -121,9 +121,9 @@ h1 {
 }
 
 .app-shell {
-  height: calc(100% - 48px);
+  height: calc(100% - 40px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(320px, 28vw, 380px);
+  grid-template-columns: minmax(0, 1fr) clamp(240px, 20vw, 300px);
 }
 
 .workspace {
@@ -136,12 +136,12 @@ h1 {
 
 .toolbar {
   grid-row: 1;
-  min-height: 52px;
+  min-height: 44px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
+  gap: 8px;
+  padding: 5px 10px;
   background: var(--white);
   border-bottom: 1px solid var(--line);
   box-shadow: 0 1px 0 hsl(220 20% 20% / 0.03);
@@ -170,7 +170,7 @@ h1 {
   container-type: inline-size;
 }
 
-@container (max-width: 1120px) {
+@container (max-width: 1260px) {
   .toolbar {
     grid-template-columns: minmax(0, 1fr) auto;
   }
@@ -186,7 +186,8 @@ h1 {
 }
 
 .toolbar-navigation {
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
 }
 
 .toolbar-actions {
@@ -196,7 +197,7 @@ h1 {
 
 .button,
 .icon-button {
-  min-height: 34px;
+  min-height: 30px;
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   color: var(--ink);
@@ -221,9 +222,10 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 6px 11px;
-  font-weight: 700;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -256,10 +258,10 @@ h1 {
 }
 
 .icon-button {
-  width: 34px;
+  width: 30px;
   padding: 0;
-  font-size: 1.05rem;
-  font-weight: 800;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .document-name {
@@ -311,8 +313,8 @@ h1 {
 }
 
 .page-field input {
-  width: 48px;
-  height: 34px;
+  width: 44px;
+  height: 30px;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -328,7 +330,7 @@ h1 {
 }
 
 .zoom-value {
-  min-width: 62px;
+  min-width: 48px;
   text-align: center;
 }
 
@@ -869,57 +871,194 @@ h1 {
   margin: 0;
 }
 
-/* Two panes, like Revit's Project Browser over Properties.
-   --browser-pane-size is set by the splitter; until then the panes share the height. */
+/* Object browser on the right, like Revit's Project Browser.
+   Properties float over the drawing on the left (see .properties-float). */
 .side-panel {
   width: 100%;
   min-width: 0;
   min-height: 0;
-  display: grid;
-  grid-template-rows: minmax(140px, var(--browser-pane-size, 1fr)) 7px minmax(140px, 1fr);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: var(--white);
   border-left: 1px solid var(--line);
 }
 
 /* Several panel blocks set their own display, which would otherwise beat the hidden attribute. */
-.side-panel [hidden] {
+.side-panel [hidden],
+.properties-float [hidden] {
   display: none !important;
 }
 
 .panel-pane {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
-  padding: 16px 18px;
+  padding: 12px 12px 14px;
 }
 
-.properties-pane {
-  background: hsl(216 18% 99%);
+.panel-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.pane-splitter {
+/* Floating Properties panel. It sits over the drawing's top-left corner and moves
+   by a transform, so the drawing underneath never reflows. */
+.viewer-row {
   position: relative;
-  cursor: row-resize;
+}
+
+.viewer-row > .viewer-stage {
+  grid-row: 1;
+}
+
+.properties-float {
+  grid-column: 2;
+  grid-row: 1;
+  z-index: 6;
+  align-self: start;
+  justify-self: start;
+  width: 300px;
+  max-width: calc(100% - 20px);
+  /* Moving the panel down shortens it, so its bottom stays on screen. */
+  max-height: calc(100% - 20px - max(0px, var(--float-y, 0px)));
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+  transform: translate(var(--float-x, 0px), var(--float-y, 0px));
+  font-size: 0.8rem;
+}
+
+.properties-float.is-dragging {
+  opacity: 0.92;
+  user-select: none;
+}
+
+.float-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 12px;
+  border-bottom: 1px solid var(--line);
   background: var(--surface-muted);
-  border-block: 1px solid var(--line);
+  cursor: move;
   touch-action: none;
+  user-select: none;
 }
 
-.pane-splitter::after {
-  content: "";
-  position: absolute;
-  inset: 2px calc(50% - 16px);
-  border-radius: 999px;
-  background: var(--line-strong);
+.float-heading h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
-.pane-splitter:hover,
-.pane-splitter:focus-visible,
-.pane-splitter.is-dragging {
-  background: hsl(205 70% 93%);
+.float-button {
+  width: 26px;
+  min-height: 26px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.float-body {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px 12px;
+}
+
+.properties-float.is-collapsed .float-body {
+  display: none;
+}
+
+.properties-float.is-collapsed .float-heading {
+  border-bottom: 0;
+}
+
+.object-id-line {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-size: 0.64rem;
+  opacity: 0.8;
+}
+
+/* Right-click menu. */
+.context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 210px;
+  max-width: 280px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+  font-size: 0.78rem;
+}
+
+.context-menu-title {
+  margin: 0;
+  padding: 5px 8px 4px;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--ink);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.context-menu-item:hover:not(:disabled),
+.context-menu-item:focus-visible {
+  background: hsl(205 80% 95%);
   outline: none;
+}
+
+.context-menu-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.context-menu-item.is-danger {
+  color: var(--danger);
+}
+
+.context-menu-item kbd {
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.68rem;
+}
+
+.context-menu-line {
+  margin: 4px 2px;
+  border: 0;
+  border-top: 1px solid var(--line);
 }
 
 .display-bar {
@@ -1224,18 +1363,19 @@ details[open] > .section-summary h3::before {
 
 .panel-heading h2 {
   margin-bottom: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
 }
 
 .count-badge {
-  min-width: 28px;
-  height: 28px;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 999px;
   color: var(--white);
   background: var(--navy);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 800;
 }
 
@@ -1770,10 +1910,8 @@ details[open] > .section-summary h3::before {
 
 .field-label {
   color: var(--ink-soft);
-  font-size: 0.7rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.68rem;
+  font-weight: 650;
 }
 
 .form-row {
@@ -1886,8 +2024,9 @@ kbd {
 .text-input {
   width: 100%;
   min-width: 0;
-  min-height: 36px;
-  padding: 7px 9px;
+  min-height: 30px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   color: var(--ink);
@@ -1935,7 +2074,7 @@ select.text-input {
 .object-list,
 .object-occurrence-list {
   display: grid;
-  gap: 7px;
+  gap: 1px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1944,12 +2083,12 @@ select.text-input {
 .object-card-button {
   width: 100%;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  padding: 9px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  gap: 8px;
+  padding: 4px 6px 4px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   color: var(--ink);
   background: var(--white);
   text-align: left;
@@ -1959,9 +2098,7 @@ select.text-input {
 }
 
 .object-card-button:hover {
-  border-color: var(--line-strong);
   background: var(--surface-muted);
-  box-shadow: 0 3px 10px hsl(220 28% 16% / 0.06);
 }
 
 .object-card-button[aria-current="true"] {
@@ -1973,12 +2110,12 @@ select.text-input {
 .object-icon {
   display: grid;
   place-items: center;
-  width: 35px;
-  height: 35px;
-  border-radius: 6px;
+  width: 24px;
+  height: 18px;
+  border-radius: 4px;
   color: var(--white);
   background: var(--navy-soft);
-  font-size: 0.65rem;
+  font-size: 0.56rem;
   font-weight: 800;
 }
 
@@ -2001,9 +2138,13 @@ select.text-input {
   font-size: 0.68rem;
 }
 
+.object-count:empty {
+  display: none;
+}
+
 .object-count {
-  min-width: 45px;
-  padding: 4px 7px;
+  min-width: 20px;
+  padding: 1px 6px;
   border-radius: 999px;
   background: var(--panel);
   text-align: center;
@@ -2032,10 +2173,14 @@ select.text-input {
   box-shadow: none;
 }
 
-.properties-pane .selected-object-panel,
-.properties-pane .object-composer {
+.properties-float .selected-object-panel,
+.properties-float .object-composer {
   margin-top: 0;
-  padding-top: 12px;
+  padding-top: 0;
+}
+
+.properties-float .concept-note {
+  margin: 0 0 12px;
 }
 
 .sidecar-actions {
@@ -2105,9 +2250,9 @@ select.text-input {
 }
 
 .panel-actions .button {
-  min-height: 32px;
-  padding: 5px 10px;
-  font-size: 0.72rem;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
 }
 
 .object-lens-summary {
@@ -2152,13 +2297,14 @@ select.text-input {
 
 .relation-row {
   display: grid;
-  grid-template-columns: 7.6rem minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
 }
 
 .relation-row-phrase {
   min-width: 0;
+  max-width: 7.6rem;
   overflow: hidden;
   text-align: left;
   text-overflow: ellipsis;
@@ -3074,7 +3220,7 @@ select.text-input {
 
   .app-shell {
     height: auto;
-    min-height: calc(100% - 48px);
+    min-height: calc(100% - 40px);
     grid-template-columns: 1fr;
   }
 
@@ -3087,8 +3233,17 @@ select.text-input {
     overflow: visible;
   }
 
-  .pane-splitter {
-    display: none;
+  /* On small screens Properties docks to the bottom of the drawing. */
+  .properties-float {
+    justify-self: stretch;
+    align-self: end;
+    width: auto;
+    max-height: 55%;
+    transform: none;
+  }
+
+  .float-heading {
+    cursor: default;
   }
 
   .thumbnail-panel {
@@ -3130,12 +3285,12 @@ select.text-input {
 
 @media (max-width: 560px) {
   .app-header {
-    height: 48px;
+    height: 40px;
     padding-inline: 12px;
   }
 
   .app-shell {
-    min-height: calc(100% - 48px);
+    min-height: calc(100% - 40px);
   }
 
   .toolbar {

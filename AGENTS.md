@@ -60,6 +60,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AK — ONEXUS export (whole project or the current trace) using CDI's mapping and edge IDs, Revit UniqueIds as node IDs when the Revit file is loaded, and optional `createdAt` on relations.
 - [x] Group AL — live ONEXUS link: "Open live ONEXUS" opens ONEXUS in a window and keeps the graph, selection, and trace in step; tapping a node there selects the object here. Browser-window messaging only.
 - [x] Group AM — door sides (`side: "to" | "from"` on `connectsTo`, from Revit To/From Room) and a view-only Related data section showing Revit parameters and notes of the objects a selected object opens to, is hosted on, or takes data from.
+- [x] Group AN — UI cleanup: compact fonts, floating Properties panel (left, draggable, P), object browser alone on the right rail, groups start collapsed, right-click menu on marks/page/browser rows with "Link to another object…", and readable names ("Door 577", "Mark 12") with IDs kept out of the UI.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -76,7 +77,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 
 | File | Role |
 |---|---|
-| `index.html` | Application structure and controls. |
+| `index.html` | Application structure and controls. Properties is a floating panel inside `.viewer-row`; the browser is the right rail. |
 | `styles.css` | Object-Centric Drawing visual system and responsive layout. |
 | `app.js` | PDF session, rendering, interaction state, and object/occurrence UI. |
 | `geometry.mjs` | Pure normalized-coordinate helpers. |
@@ -160,7 +161,11 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - A failed validation or fingerprint comparison must not mutate the active object layer.
 - Direct page entry must work with Enter as well as change/blur.
 - SVG occurrence shapes are keyboard-focusable; Enter or Space selects the occurrence and its Door.
-- The desktop object panel uses a `320px`–`380px` responsive rail; below `900px` it stacks beneath the drawing workspace.
+- The object browser uses a `240px`–`300px` right rail; below `900px` it stacks beneath the drawing workspace.
+- Properties float over the drawing's top-left corner. Drag the header to move; – collapses; × or `P` hides. Below `900px` it docks to the bottom of the drawing.
+- Right-click opens one small menu: on a linked mark or browser row (link, mark another place, trace, show all places, note, rename, delete), on an unlinked mark (create, link to existing, note, delete), or on the empty page. Every item also exists elsewhere.
+- UI text names objects with `objectDisplayName()` ("Door 577") and marks with `markName()` ("Mark 12"). IDs stay out of the UI except one small line in Properties.
+- Browser groups start collapsed; selecting an object opens its group; a single group stays open.
 - The toolbar, optional search row, drawing viewer, and compact status bar use explicit workspace grid rows so hiding search never moves the status bar into the flexible viewer row.
 - Toolbar groups may wrap into deliberate rows, but neither the toolbar nor object panel may create page-level horizontal overflow.
 - `PageUp`/`PageDown` and `Home`/`End` navigate pages; `+`/`-` zoom; `0` or `F` fits; `M` toggles marking; `?` opens shortcut help.
@@ -247,7 +252,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 
 ## Storage keys
 
-`objdraw-display` stores only best-effort browser-local viewer preferences: grouping, current-page filtering, mark labels, thumbnail visibility, and mark focus. It never stores project content, PDF data, search content, object identity, or occurrence geometry.
+`objdraw-display` stores only best-effort browser-local viewer preferences: grouping, current-page filtering, mark labels, thumbnail visibility, mark focus, and the Properties panel's open, collapsed, and offset state. It never stores project content, PDF data, search content, object identity, or occurrence geometry.
 
 All other runtime state stays in memory. The explicit user-controlled JSON sidecar is the portable project source of truth; do not introduce another localStorage contract.
 
@@ -424,6 +429,9 @@ Then run `start-server.cmd` and check:
 153. Open live ONEXUS links within a few seconds; selecting an object highlights its node; a trace highlights all traced nodes; a new relation appears there; tapping a node selects the object here; closing ONEXUS resets the button.
 154. A door's room relation can be set to Opens into or Opens from; the rows read "opens into 102 Corridor" and, from the room, "opened into by D-101".
 155. With the Revit file loaded, a door shows its rooms' and wall's parameters under Related data; typing "finish" also matches 仕上 parameters; a takes-data-from relation labelled "finish" shows first, pre-filtered.
+156. Properties float on the left, move by header drag, collapse, and hide with `P`; the browser fills the right rail.
+157. Right-clicking a linked mark shows "Link to another object…"; choosing it then clicking another mark opens the link dialog.
+158. Browser rows show the name only; Properties shows "Door 577"; no `object-*` or `occurrence-*` ID appears in status messages.
 
 ## Prototype acceptance
 

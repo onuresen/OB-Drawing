@@ -146,3 +146,31 @@ export function filterObjectCategoryGroups(query) {
     )),
   })).filter((group) => group.categories.length > 0);
 }
+
+// "Doors" -> "Door", "Assemblies" -> "Assembly". Used for readable names only.
+export function objectCategorySingular(key) {
+  const category = objectCategory(key);
+  if (!category || category.key === "other") {
+    return "Object";
+  }
+  const words = category.label.split(" ");
+  const last = words.pop();
+  const singular = /ies$/.test(last) ? `${last.slice(0, -3)}y`
+    : /sses$/.test(last) ? last.slice(0, -2)
+      : /[^s]s$/.test(last) ? last.slice(0, -1)
+        : last;
+  return [...words, singular].join(" ");
+}
+
+// A short, shareable name like "Door 577". The immutable ID stays out of it.
+export function objectDisplayName(object) {
+  if (!object) {
+    return "";
+  }
+  const type = objectCategorySingular(object.category);
+  const label = String(object.label ?? "").trim();
+  if (!label) {
+    return type;
+  }
+  return label.toLowerCase().startsWith(type.toLowerCase()) ? label : `${type} ${label}`;
+}

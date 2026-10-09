@@ -537,3 +537,23 @@
 **Revisit when:** Real drawings need data from a source other than Revit parameters or notes.
 
 **Confidence:** med. Checked on synthetic data; needs a real Revit export.
+
+## 2026-10-09 — Floating Properties, right-click menu, readable names
+
+**Decision:** Properties float over the drawing's left side, like CDI. The object browser owns the right rail. Right-clicking a mark, the page, or a browser row opens a small menu. Objects show as "Door 577", never with their ID.
+
+**Why:** Onur found the stacked browser and properties hard to use: both panes were too short. The link actions existed but were hidden behind a small "Relate" button. IDs like `object-007` are for machines, not for sharing.
+
+**Properties:** Move by dragging the header. Collapse with –. Hide with × or P. Position and state are viewer preferences in `objdraw-display`. Below 900 px the panel docks to the bottom of the drawing.
+
+**Names:** `objectDisplayName()` gives type + name ("Door 577"). The browser shows the name only, because the group already says the type. The ID stays in the project file and in one small line at the bottom of Properties. Messages say "Mark 12", not `occurrence-118`.
+
+**Browser:** Groups start collapsed. Selecting an object opens its group. One group alone stays open.
+
+**Words:** The UI says "link" for object-to-object relations. The data model still says `relations`.
+
+**Alternative:** Keep the two stacked panes and only shrink fonts. Rejected: the panes still fight for height with hundreds of objects.
+
+**Revisit when:** A second screen or a docked layout is wanted; the float can then dock left.
+
+**Confidence:** med. Driven in Chromium on a sample PDF; needs a real drawing set.

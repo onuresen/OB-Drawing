@@ -34,6 +34,7 @@ import {
   filterObjectCategoryGroups,
   objectCategoryCode,
   objectCategoryLabel,
+  objectDisplayName,
 } from "./category-catalog.mjs";
 import {
   applyDisplayPreferences,
@@ -286,7 +287,15 @@ const elements = {
   thumbnailList: document.querySelector("#thumbnailList"),
   sidePanel: document.querySelector(".side-panel"),
   browserPane: document.querySelector("#browserPane"),
-  paneSplitter: document.querySelector("#paneSplitter"),
+  propertiesPane: document.querySelector("#propertiesPane"),
+  propertiesHandle: document.querySelector("#propertiesHandle"),
+  collapseProperties: document.querySelector("#collapseProperties"),
+  closeProperties: document.querySelector("#closeProperties"),
+  toggleProperties: document.querySelector("#toggleProperties"),
+  relateFromPanel: document.querySelector("#relateFromPanel"),
+  collapseAllGroups: document.querySelector("#collapseAllGroups"),
+  contextMenu: document.querySelector("#contextMenu"),
+  selectedObjectType: document.querySelector("#selectedObjectType"),
   propertiesEmpty: document.querySelector("#propertiesEmpty"),
   documentSection: document.querySelector("#documentSection"),
   objectList: document.querySelector("#objectList"),
@@ -1014,7 +1023,7 @@ function updateDrawingMapState() {
     pageButton.classList.toggle("has-related-object", relatedHere.length > 0);
     pageButton.title = [
       baseLabel,
-      containsSelectedObject ? `Contains ${selectedObject.label} (${selectedObject.id})` : "",
+      containsSelectedObject ? `Contains ${objectDisplayName(selectedObject)}` : "",
       relatedHere.length ? `Related: ${relatedHere.slice(0, 4).join(", ")}${relatedHere.length > 4 ? "…" : ""}` : "",
     ].filter(Boolean).join(". ");
   }
@@ -1133,12 +1142,12 @@ function setMarkMode(enabled, objectId = null) {
   elements.pageSurface.classList.toggle("is-marking", state.markMode);
   elements.markingGuide.hidden = !state.markMode;
   elements.markingGuideText.textContent = targetObject
-    ? `${drawingInstruction} another occurrence of ${targetObject.label}.${state.markGeometryType === "polygon" ? " Double-click or press Enter to finish." : ""}`
+    ? `${drawingInstruction} another occurrence of ${objectDisplayName(targetObject)}.${state.markGeometryType === "polygon" ? " Double-click or press Enter to finish." : ""}`
     : `${drawingInstruction} a visible object occurrence.${state.markGeometryType === "polygon" ? " Double-click or press Enter to finish." : ""}`;
 
   setStatus(state.markMode
     ? targetObject
-      ? `${drawingInstruction} an occurrence of ${targetObject.label} (${targetObject.id}).${state.markGeometryType === "polygon" ? " Double-click or press Enter to finish." : ""} Press Escape to cancel.`
+      ? `${drawingInstruction} an occurrence of ${objectDisplayName(targetObject)}.${state.markGeometryType === "polygon" ? " Double-click or press Enter to finish." : ""} Press Escape to cancel.`
       : `${drawingInstruction} a visible object, then explicitly create or choose its identity.${state.markGeometryType === "polygon" ? " Double-click or press Enter to finish." : ""} Press Escape to cancel.`
     : state.pdfDocument
       ? "Select a shape or object to continue."
@@ -1148,6 +1157,11 @@ function setMarkMode(enabled, objectId = null) {
 
 function occurrenceDisplayNumber(occurrence) {
   return state.occurrences.indexOf(occurrence) + 1;
+}
+
+// "Mark 12" reads better than "occurrence-118" in messages.
+function markName(occurrence) {
+  return occurrence ? `Mark ${occurrenceDisplayNumber(occurrence)}` : "Mark";
 }
 
 function renderOccurrenceRows(container, occurrences) {
@@ -1217,16 +1231,21 @@ function createObjectCard(object) {
   button.className = "object-card-button";
   button.dataset.objectId = object.id;
   button.setAttribute("aria-current", String(object.id === state.selectedObjectId));
-  button.title = `Select ${object.label} (${object.id})`;
+  button.title = `Select ${objectDisplayName(object)}`;
   icon.className = "object-icon";
   icon.textContent = objectCategoryCode(object.category);
   label.className = "object-label";
   title.textContent = object.label;
-  identity.textContent = object.id;
-  label.append(title, identity);
+  label.append(title);
+  // Group by page or none mixes categories, so the type name helps there.
+  if (state.display.groupBy !== "category") {
+    identity.textContent = objectCategoryLabel(object.category);
+    label.append(identity);
+  }
   count.className = "object-count";
-  count.textContent = `${occurrences.length} occ`;
-  count.setAttribute("aria-label", `${occurrences.length} occurrence${occurrences.length === 1 ? "" : "s"}`);
+  count.textContent = occurrences.length === 1 ? "" : String(occurrences.length);
+  count.title = `${occurrences.length} mark${occurrences.length === 1 ? "" : "s"}`;
+  count.setAttribute("aria-label", `${occurrences.length} mark${occurrences.length === 1 ? "" : "s"}`);
   button.append(icon, label, count);
   item.append(button);
   return item;
@@ -1250,7 +1269,7 @@ function renderObjectList() {
   if (revealSelection) {
     for (const group of groups) {
       if (group.objects.some((object) => object.id === selectedObject.id)) {
-        display.collapsedGroups.delete(group.key);
+        display.expandedGroups.add(group.key);
       }
     }
   }
@@ -1272,7 +1291,8 @@ function renderObjectList() {
     const list = document.createElement("ol");
     const hiddenOnDrawing = Boolean(group.category) && display.hiddenCategories.has(group.category);
     // A search shows every match, whatever was collapsed before.
-    const expanded = searching || !display.collapsedGroups.has(group.key);
+    // One group needs no folding; otherwise groups stay closed until opened.
+    const expanded = searching || groups.length === 1 || display.expandedGroups.has(group.key);
 
     item.className = `object-group${hiddenOnDrawing ? " is-hidden-on-drawing" : ""}`;
     header.className = "object-group-header";
@@ -1329,7 +1349,7 @@ function renderObjectComposer() {
   elements.objectFormHint.textContent = !state.pdfDocument
     ? "Open a PDF before creating objects."
     : isUnlinkedSelection
-      ? `${selectedOccurrence.id} on page ${selectedOccurrence.page} needs an explicit object.`
+      ? `${markName(selectedOccurrence)} on page ${selectedOccurrence.page} needs an explicit object.`
       : "Create the object first, then mark its occurrences.";
   elements.createObjectButton.textContent = isUnlinkedSelection ? "Create + link" : "Create";
   elements.linkExistingBlock.hidden = !isUnlinkedSelection || state.objects.length === 0;
@@ -1339,7 +1359,7 @@ function renderObjectComposer() {
   for (const object of state.objects) {
     const option = document.createElement("option");
     option.value = object.id;
-    option.textContent = `${object.label} · ${object.id}`;
+    option.textContent = objectDisplayName(object);
     option.selected = object.id === state.selectedObjectId;
     elements.existingObjectSelect.append(option);
   }
@@ -1434,8 +1454,9 @@ function renderSelectedObjectPanel() {
   }
   const relatedNotes = state.notes.filter((note) => note.scope === "object" && note.objectId === object.id);
   const summary = summarizeObjectLens(occurrences, attachedDocumentIds());
-  elements.selectedObjectTitle.textContent = object.label;
+  elements.selectedObjectTitle.textContent = objectDisplayName(object);
   elements.selectedObjectIdentity.textContent = object.id;
+  elements.selectedObjectType.textContent = objectCategoryLabel(object.category);
   if (document.activeElement !== elements.editObjectCategory) {
     populateCategorySelect(elements.editObjectCategory, OBJECT_CATEGORY_GROUPS, object.category);
   }
@@ -1462,7 +1483,7 @@ function renderSelectedObjectPanel() {
   elements.deleteObject.disabled = relatedNotes.length > 0;
   elements.deleteObject.title = relatedNotes.length > 0
     ? "Remove this object's notes before deleting the object"
-    : `Delete ${object.label}`;
+    : `Delete ${objectDisplayName(object)}`;
   if (elements.evidenceExportStatus.dataset.subjectId !== object.id) {
     elements.objectExportMenu.open = false;
     elements.evidenceExportStatus.hidden = true;
@@ -1489,12 +1510,12 @@ function noteTargetLabel(note) {
   }
   if (note.scope === "object") {
     const object = getObject(note.objectId);
-    return object ? `${object.label} · ${object.id}` : note.objectId;
+    return object ? objectDisplayName(object) : note.objectId;
   }
   const occurrence = getOccurrence(note.occurrenceId);
   const projectDocument = occurrence ? getProjectDocument(occurrence.documentId) : null;
   return occurrence
-    ? `${projectDocument?.name ?? occurrence.documentId} · page ${occurrence.page} · ${occurrence.id}`
+    ? `${projectDocument?.name ?? occurrence.documentId} · page ${occurrence.page} · ${markName(occurrence)}`
     : note.occurrenceId;
 }
 
@@ -1504,7 +1525,7 @@ function renderNotes() {
   const objectOption = elements.noteScope.querySelector('option[value="object"]');
   const occurrenceOption = elements.noteScope.querySelector('option[value="occurrence"]');
   objectOption.disabled = !selectedObject;
-  objectOption.textContent = selectedObject ? `Object · ${selectedObject.label}` : "Selected object";
+  objectOption.textContent = selectedObject ? `Object · ${objectDisplayName(selectedObject)}` : "Selected object";
   occurrenceOption.disabled = !selectedOccurrence;
   occurrenceOption.textContent = selectedOccurrence ? `Occurrence · ${selectedOccurrence.id}` : "Selected occurrence";
   if (elements.noteScope.selectedOptions[0]?.disabled) {
@@ -1634,7 +1655,7 @@ function renderOverlay() {
     shape.setAttribute(
       "aria-label",
       object
-        ? `${object.label}, ${object.id}, ${occurrence.geometryType} occurrence on page ${occurrence.page}`
+        ? `${objectDisplayName(object)}, ${occurrence.geometryType} occurrence on page ${occurrence.page}`
         : `Unlinked ${occurrence.geometryType} occurrence on page ${occurrence.page}`,
     );
     overlayLayer.append(shape);
@@ -1720,7 +1741,7 @@ function relationSentence(relation) {
   const from = getObject(relation.from);
   const to = getObject(relation.to);
   const note = [relation.label, relation.origin === "revit" ? "from Revit" : ""].filter(Boolean).join(", ");
-  return `${from?.label ?? relation.from} ${relationPhrase(relation)} ${to?.label ?? relation.to}${note ? ` (${note})` : ""}`;
+  return `${from ? objectDisplayName(from) : relation.from} ${relationPhrase(relation)} ${to ? objectDisplayName(to) : relation.to}${note ? ` (${note})` : ""}`;
 }
 
 function svgPoint(point) {
@@ -1910,34 +1931,36 @@ function setRelateMode(objectId, repeat = null) {
   state.relateRepeat = enabled ? repeat : null;
   elements.relationGuide.hidden = !enabled;
   elements.relationGuideTitle.textContent = !enabled
-    ? "Relating"
+    ? "Linking"
     : state.relateRepeat
-      ? `${object.label} · ${repeatPhrase(state.relateRepeat)}`
-      : `Relating ${object.label}`;
+      ? `${objectDisplayName(object)} · ${repeatPhrase(state.relateRepeat)}`
+      : `Linking ${objectDisplayName(object)}`;
   elements.relationGuideText.textContent = state.relateRepeat
     ? "Each mark or list object you click gets this relation. Esc to finish."
     : "Click the other object's mark, or pick it in the list. Any page or PDF.";
   elements.pageSurface.classList.toggle("is-relating", enabled);
   elements.sidePanel.classList.toggle("is-relating", enabled);
-  elements.startRelation.textContent = enabled ? "Cancel" : "Relate";
+  elements.startRelation.textContent = enabled ? "Cancel" : "+ Add";
   elements.startRelation.setAttribute("aria-pressed", String(enabled));
-  elements.startRelation.title = enabled ? "Cancel relating (Escape)" : "Relate to another object (C)";
+  elements.startRelation.title = enabled ? "Cancel linking (Escape)" : "Link to another object (C)";
+  elements.relateFromPanel.textContent = enabled ? "Cancel" : "Link to…";
+  elements.relateFromPanel.setAttribute("aria-pressed", String(enabled));
   renderOverlay();
 }
 
 function startRelationFromSelection() {
   const object = getObject(state.selectedObjectId);
   if (!object) {
-    setStatus("Select an object first, then relate it to another.");
+    setStatus("Select an object first, then link it to another.");
     return;
   }
   if (state.relateFromObjectId) {
     setRelateMode(null);
-    setStatus("Relating cancelled.");
+    setStatus("Linking cancelled.");
     return;
   }
   setRelateMode(object.id);
-  setStatus(`Relating ${object.label}. Click the other object's mark or pick it in the list. Escape cancels.`);
+  setStatus(`Linking ${objectDisplayName(object)}. Click the other object's mark or pick it in the list. Escape cancels.`);
 }
 
 function pickRelationTarget(targetObjectId) {
@@ -1951,7 +1974,7 @@ function pickRelationTarget(targetObjectId) {
     return;
   }
   if (targetObjectId === from.id) {
-    setStatus(`That is ${from.label} itself. Pick another object.`);
+    setStatus(`That is ${objectDisplayName(from)} itself. Pick another object.`);
     return;
   }
   if (state.relateRepeat) {
@@ -2022,8 +2045,8 @@ function renderRelationDraft() {
   }
   elements.relationSideField.hidden = !type.sides;
   const words = type.sides?.[elements.relationSide.value] ?? type;
-  elements.relationFromLabel.textContent = getObject(relationDraft.from)?.label ?? relationDraft.from;
-  elements.relationToLabel.textContent = getObject(relationDraft.to)?.label ?? relationDraft.to;
+  elements.relationFromLabel.textContent = (getObject(relationDraft.from) ? objectDisplayName(getObject(relationDraft.from)) : relationDraft.from);
+  elements.relationToLabel.textContent = (getObject(relationDraft.to) ? objectDisplayName(getObject(relationDraft.to)) : relationDraft.to);
   elements.relationPhrasePreview.textContent = type.directed ? `${words.forward} →` : `${words.forward} ↔`;
   elements.swapRelation.disabled = !type.directed;
 }
@@ -2052,7 +2075,7 @@ function openRelationDialog({ id = null, from, to }) {
   delete elements.relationSide.dataset.type;
   elements.relationSide.replaceChildren(new Option("", existing?.side ?? ""));
   elements.relationSide.value = existing?.side ?? "";
-  elements.relationDialogTitle.textContent = existing ? "Edit relation" : "New relation";
+  elements.relationDialogTitle.textContent = existing ? "Edit link" : "New link";
   elements.deleteRelation.hidden = !existing;
   elements.saveRelationMore.hidden = Boolean(existing);
   setRelationError();
@@ -2167,10 +2190,9 @@ function renderRelationList() {
     target.className = "relation-row-target";
     target.dataset.action = "go-relation-target";
     target.dataset.objectId = entry.otherObjectId;
-    target.title = `Go to ${entry.other?.label ?? entry.otherObjectId}`;
-    targetLabel.textContent = entry.other?.label ?? entry.otherObjectId;
+    target.title = `Go to ${entry.other ? objectDisplayName(entry.other) : entry.otherObjectId}`;
+    targetLabel.textContent = entry.other ? objectDisplayName(entry.other) : entry.otherObjectId;
     targetMeta.textContent = [
-      entry.other ? objectCategoryLabel(entry.other.category) : "",
       entry.relation.label,
       entry.relation.origin === "revit" ? "from Revit" : "",
     ]
@@ -2248,7 +2270,7 @@ function renderRelatedData() {
     group.open = true;
     phrase.className = "related-data-phrase";
     phrase.textContent = relationPhrase(source.relation, object.id);
-    name.textContent = other.label;
+    name.textContent = objectDisplayName(other);
     meta.textContent = [
       parameters.length ? `${shown.length} of ${parameters.length}` : "",
       query ? `“${query}”` : "",
@@ -2257,7 +2279,7 @@ function renderRelatedData() {
     go.className = "compact-action";
     go.dataset.objectId = other.id;
     go.textContent = "Go";
-    go.title = `Go to ${other.label}`;
+    go.title = `Go to ${objectDisplayName(other)}`;
     summary.append(phrase, name, meta, go);
     group.append(summary);
 
@@ -2271,7 +2293,7 @@ function renderRelatedData() {
       const text = document.createElement("p");
       text.className = "related-data-note";
       text.textContent = note.text;
-      text.title = `Note on ${other.label} · ${note.id}`;
+      text.title = `Note on ${objectDisplayName(other)} · ${note.id}`;
       group.append(text);
     }
     if (shown.length === 0 && notes.length === 0) {
@@ -2279,7 +2301,7 @@ function renderRelatedData() {
       empty.className = "quiet-copy";
       empty.textContent = parameters.length
         ? `Nothing matches “${query}”.`
-        : `No data for ${other.label} yet. Load the Revit file, or add a note to ${other.label}.`;
+        : `No data for ${objectDisplayName(other)} yet. Load the Revit file, or add a note to ${objectDisplayName(other)}.`;
       group.append(empty);
     }
     elements.relatedDataList.append(group);
@@ -2310,7 +2332,7 @@ function startTrace() {
   state.trace = { rootId: object.id, steps: Number(elements.traceSteps.value) || 2 };
   refreshUi();
   const count = tracedObjectIds().size - 1;
-  setStatus(`Tracing from ${object.label}: ${count} related object${count === 1 ? "" : "s"}. Click one to go there; Escape ends the trace.`);
+  setStatus(`Tracing from ${objectDisplayName(object)}: ${count} related object${count === 1 ? "" : "s"}. Click one to go there; Escape ends the trace.`);
 }
 
 function endTrace() {
@@ -2347,7 +2369,7 @@ function renderTrace() {
     return;
   }
   const root = getObject(state.trace.rootId);
-  elements.traceTitle.textContent = `Trace from ${root.label}`;
+  elements.traceTitle.textContent = `Trace from ${objectDisplayName(root)}`;
   elements.traceSteps.value = String(state.trace.steps);
   for (const entry of traceRelations(state.relations, state.trace.rootId, state.trace.steps)) {
     const object = getObject(entry.objectId);
@@ -2370,7 +2392,7 @@ function renderTrace() {
     step.textContent = entry.step === 0 ? "●" : String(entry.step);
     step.title = entry.step === 0 ? "Start" : `${entry.step} step${entry.step === 1 ? "" : "s"} away`;
     copy.className = "trace-copy";
-    label.textContent = object.label;
+    label.textContent = objectDisplayName(object);
     detail.textContent = [
       entry.relation ? relationSentence(entry.relation) : objectCategoryLabel(object.category),
       objectPlacesLabel(object.id),
@@ -2398,7 +2420,7 @@ function exportOnexusGraph(objectIds = null) {
     revitObjects: state.revitData?.objects ?? [],
     objectIds,
     scope,
-    projectName: root ? `${projectName} · trace from ${root.label}` : projectName,
+    projectName: root ? `${projectName} · trace from ${objectDisplayName(root)}` : projectName,
   });
   const filename = `${projectName}${root ? `-trace-${root.label.replace(/[<>:"/\\|?*\s]+/g, "-")}` : ""}.onexus.json`;
   downloadBlob(new Blob([`${JSON.stringify(graph, null, 2)}\n`], { type: "application/json" }), filename);
@@ -2633,8 +2655,8 @@ function createRepresentationCard(occurrence, { isCurrent }) {
   const occurrenceNoteCount = state.notes.filter((note) => note.occurrenceId === occurrence.id).length;
   deleteButton.disabled = occurrenceNoteCount > 0;
   deleteButton.title = occurrenceNoteCount > 0
-    ? `Remove ${occurrenceNoteCount} linked note${occurrenceNoteCount === 1 ? "" : "s"} before deleting ${occurrence.id}`
-    : `Delete ${occurrence.id}`;
+    ? `Remove ${occurrenceNoteCount} linked note${occurrenceNoteCount === 1 ? "" : "s"} before deleting ${markName(occurrence)}`
+    : `Delete ${markName(occurrence)}`;
   deleteButton.textContent = "×";
   item.append(navigateButton, deleteButton);
   if (session) {
@@ -2691,7 +2713,7 @@ function openRepresentationBoard() {
   const summary = summarizeObjectLens(occurrences, attachedDocumentIds());
   const generation = ++representationBoardGeneration;
   elements.representationBoard.dataset.objectId = object.id;
-  elements.representationBoardTitle.textContent = object.label;
+  elements.representationBoardTitle.textContent = objectDisplayName(object);
   elements.representationBoardSummary.textContent = `${object.id} · ${summary.occurrenceCount} representation${summary.occurrenceCount === 1 ? "" : "s"} · ${summary.documentCount} PDF${summary.documentCount === 1 ? "" : "s"} · ${summary.pageCount} page${summary.pageCount === 1 ? "" : "s"}${summary.missingDocumentCount ? ` · ${summary.missingDocumentCount} source missing` : ""}`;
   elements.representationBoardGrid.replaceChildren();
   for (const occurrence of occurrences) {
@@ -2769,7 +2791,7 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
       downloadBlob(new Blob([manifestText], { type: "application/json" }), filename);
       elements.objectExportMenu.open = false;
       setEvidenceExportStatus(`Exported ${filename} with ${occurrences.length} source representation${occurrences.length === 1 ? "" : "s"}.`);
-      setStatus(`Exported the portable evidence manifest for ${object.label} (${object.id}).`);
+      setStatus(`Exported the portable evidence manifest for ${objectDisplayName(object)}.`);
       return;
     }
 
@@ -2807,11 +2829,11 @@ async function exportSelectedObjectEvidence(includePreviews = false) {
     setEvidenceExportStatus(
       `Exported ${filename} with ${assets.length} marked preview${assets.length === 1 ? "" : "s"}${unavailableCount ? `; ${unavailableCount} unavailable source${unavailableCount === 1 ? "" : "s"} recorded` : ""}.`,
     );
-    setStatus(`Exported the portable evidence set for ${object.label} (${object.id}).`);
+    setStatus(`Exported the portable evidence set for ${objectDisplayName(object)}.`);
   } catch (error) {
     console.error(error);
     setEvidenceExportStatus(`Export failed: ${error.message}`, true);
-    setStatus(`Evidence export for ${object.label} failed. The project was not changed.`);
+    setStatus(`Evidence export for ${objectDisplayName(object)} failed. The project was not changed.`);
   } finally {
     const currentObject = getObject(object.id);
     const hasRepresentations = getObjectOccurrences(state.occurrences, object.id).length > 0;
@@ -2909,11 +2931,11 @@ async function exportSelectedObjectForJoineryAi() {
     setEvidenceExportStatus(
       `Exported ${filename} with ${renderedAssets.length} clean/marked representation pair${renderedAssets.length === 1 ? "" : "s"} and one contact sheet${missingCount ? `; ${missingCount} unavailable source${missingCount === 1 ? "" : "s"} recorded` : ""}. Use it with the current prompt from Joinery Configurator.`,
     );
-    setStatus(`Exported the Joinery AI handoff for ${object.label} (${object.id}). The project was not changed.`);
+    setStatus(`Exported the Joinery AI handoff for ${objectDisplayName(object)}. The project was not changed.`);
   } catch (error) {
     console.error(error);
     setEvidenceExportStatus(`Joinery AI handoff failed: ${error.message}`, true);
-    setStatus(`Joinery AI export for ${object.label} failed. The project was not changed.`);
+    setStatus(`Joinery AI export for ${objectDisplayName(object)} failed. The project was not changed.`);
   } finally {
     const currentObject = getObject(object.id);
     const hasRepresentations = getObjectOccurrences(state.occurrences, object.id).length > 0;
@@ -3154,48 +3176,310 @@ function updateThumbnailStates() {
   }
 }
 
-// Drag or arrow keys move the line between the object browser and the properties pane.
-function setUpPaneSplitter() {
-  const minimum = 140;
-  const setBrowserSize = (pixels) => {
-    const total = elements.sidePanel.clientHeight - elements.paneSplitter.offsetHeight;
-    const clamped = Math.round(Math.min(Math.max(pixels, minimum), total - minimum));
-    elements.sidePanel.style.setProperty("--browser-pane-size", `${clamped}px`);
-    elements.paneSplitter.setAttribute("aria-valuenow", String(Math.round((clamped / total) * 100)));
-  };
+// Floating Properties panel, like CDI. Drag its header to move it; P shows or hides it.
+function applyPropertiesPanel() {
+  const { display } = state;
+  elements.propertiesPane.hidden = !display.propertiesOpen;
+  elements.propertiesPane.classList.toggle("is-collapsed", display.propertiesCollapsed);
+  elements.propertiesPane.style.setProperty("--float-x", `${display.propertiesOffset.x}px`);
+  elements.propertiesPane.style.setProperty("--float-y", `${display.propertiesOffset.y}px`);
+  elements.collapseProperties.setAttribute("aria-expanded", String(!display.propertiesCollapsed));
+  elements.collapseProperties.textContent = display.propertiesCollapsed ? "+" : "–";
+  elements.collapseProperties.title = display.propertiesCollapsed ? "Expand" : "Collapse";
+  elements.toggleProperties.setAttribute("aria-pressed", String(display.propertiesOpen));
+}
 
-  elements.paneSplitter.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0) {
+function setPropertiesOpen(open, { collapsed = state.display.propertiesCollapsed } = {}) {
+  state.display.propertiesOpen = open;
+  state.display.propertiesCollapsed = open ? collapsed : state.display.propertiesCollapsed;
+  applyPropertiesPanel();
+  if (open) {
+    clampPropertiesPanel();
+  }
+  saveDisplayPreferences();
+}
+
+// Keep the panel's header inside the drawing area after a move or a resize.
+function clampPropertiesPanel() {
+  const pane = elements.propertiesPane;
+  const area = pane.parentElement;
+  if (pane.hidden || !area) {
+    return;
+  }
+  // offsetLeft/Top is the home corner; the move is a transform on top of it.
+  const home = { x: pane.offsetLeft, y: pane.offsetTop };
+  const offset = state.display.propertiesOffset;
+  const minX = 8 - home.x;
+  const maxX = Math.max(minX, area.clientWidth - pane.offsetWidth - 8 - home.x);
+  const minY = 8 - home.y;
+  const maxY = Math.max(minY, area.clientHeight - 44 - home.y);
+  offset.x = Math.round(Math.min(Math.max(offset.x, minX), maxX));
+  offset.y = Math.round(Math.min(Math.max(offset.y, minY), maxY));
+  applyPropertiesPanel();
+}
+
+function setUpPropertiesPanel() {
+  applyPropertiesPanel();
+  elements.propertiesHandle.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("button")) {
       return;
     }
     event.preventDefault();
-    const top = elements.sidePanel.getBoundingClientRect().top;
-    elements.paneSplitter.setPointerCapture(event.pointerId);
-    elements.paneSplitter.classList.add("is-dragging");
-    const move = (moveEvent) => setBrowserSize(moveEvent.clientY - top);
-    const end = () => {
-      elements.paneSplitter.classList.remove("is-dragging");
-      elements.paneSplitter.removeEventListener("pointermove", move);
-      elements.paneSplitter.removeEventListener("pointerup", end);
-      elements.paneSplitter.removeEventListener("pointercancel", end);
+    const start = { x: event.clientX, y: event.clientY, offset: { ...state.display.propertiesOffset } };
+    elements.propertiesHandle.setPointerCapture(event.pointerId);
+    elements.propertiesPane.classList.add("is-dragging");
+    const moveTo = (moveEvent) => {
+      state.display.propertiesOffset = {
+        x: start.offset.x + moveEvent.clientX - start.x,
+        y: start.offset.y + moveEvent.clientY - start.y,
+      };
+      clampPropertiesPanel();
     };
-    elements.paneSplitter.addEventListener("pointermove", move);
-    elements.paneSplitter.addEventListener("pointerup", end);
-    elements.paneSplitter.addEventListener("pointercancel", end);
+    const end = () => {
+      elements.propertiesPane.classList.remove("is-dragging");
+      elements.propertiesHandle.removeEventListener("pointermove", moveTo);
+      elements.propertiesHandle.removeEventListener("pointerup", end);
+      elements.propertiesHandle.removeEventListener("pointercancel", end);
+      saveDisplayPreferences();
+    };
+    elements.propertiesHandle.addEventListener("pointermove", moveTo);
+    elements.propertiesHandle.addEventListener("pointerup", end);
+    elements.propertiesHandle.addEventListener("pointercancel", end);
   });
+  elements.propertiesHandle.addEventListener("dblclick", (event) => {
+    if (!event.target.closest("button")) {
+      setPropertiesOpen(true, { collapsed: !state.display.propertiesCollapsed });
+    }
+  });
+  elements.collapseProperties.addEventListener("click", () => {
+    setPropertiesOpen(true, { collapsed: !state.display.propertiesCollapsed });
+  });
+  elements.closeProperties.addEventListener("click", () => setPropertiesOpen(false));
+  elements.toggleProperties.addEventListener("click", () => setPropertiesOpen(!state.display.propertiesOpen));
+  window.addEventListener("resize", clampPropertiesPanel);
+}
 
-  elements.paneSplitter.addEventListener("keydown", (event) => {
-    const step = event.shiftKey ? 80 : 24;
-    const current = elements.browserPane.offsetHeight;
-    if (event.key === "ArrowUp") {
-      setBrowserSize(current - step);
-    } else if (event.key === "ArrowDown") {
-      setBrowserSize(current + step);
-    } else {
+// ── Right-click menu ──────────────────────────────────────
+// One small menu for marks, the empty page, and browser rows. Every item also exists
+// elsewhere in the UI; the menu only puts it next to the pointer.
+
+function closeContextMenu() {
+  if (elements.contextMenu.hidden) {
+    return;
+  }
+  elements.contextMenu.hidden = true;
+  elements.contextMenu.replaceChildren();
+}
+
+function showContextMenu(clientX, clientY, title, items) {
+  const menu = elements.contextMenu;
+  menu.replaceChildren();
+  if (title) {
+    const heading = document.createElement("p");
+    heading.className = "context-menu-title";
+    heading.textContent = title;
+    menu.append(heading);
+  }
+  for (const item of items) {
+    if (item === "-") {
+      const line = document.createElement("hr");
+      line.className = "context-menu-line";
+      menu.append(line);
+      continue;
+    }
+    const button = document.createElement("button");
+    const label = document.createElement("span");
+    button.type = "button";
+    button.className = `context-menu-item${item.danger ? " is-danger" : ""}`;
+    button.setAttribute("role", "menuitem");
+    button.disabled = Boolean(item.disabled);
+    if (item.title) {
+      button.title = item.title;
+    }
+    label.textContent = item.label;
+    button.append(label);
+    if (item.key) {
+      const key = document.createElement("kbd");
+      key.textContent = item.key;
+      button.append(key);
+    }
+    button.addEventListener("click", () => {
+      closeContextMenu();
+      item.run();
+    });
+    menu.append(button);
+  }
+  menu.hidden = false;
+  // Keep the menu on screen.
+  const { innerWidth, innerHeight } = window;
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  menu.style.left = `${Math.max(4, Math.min(clientX, innerWidth - width - 4))}px`;
+  menu.style.top = `${Math.max(4, Math.min(clientY, innerHeight - height - 4))}px`;
+  menu.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
+}
+
+function showProperties(focusTarget = null) {
+  setPropertiesOpen(true, { collapsed: false });
+  if (focusTarget && !focusTarget.disabled) {
+    focusTarget.focus();
+  }
+}
+
+function objectMenuItems(object, occurrence = null) {
+  const occurrences = getObjectOccurrences(state.occurrences, object.id);
+  const linkCount = relationsForObject(state.relations, object.id).length;
+  const items = [
+    {
+      label: "Link to another object…",
+      key: "C",
+      title: "Then click the other object's mark, on any page",
+      run: () => {
+        if (!state.relateFromObjectId) {
+          startRelationFromSelection();
+        }
+      },
+    },
+    {
+      label: "Mark another place",
+      disabled: !state.pdfDocument,
+      run: () => setMarkMode(true, object.id),
+    },
+    {
+      label: "Trace links",
+      disabled: linkCount === 0,
+      run: () => (state.trace ? null : startTrace()),
+    },
+    {
+      label: `Show all places (${occurrences.length})`,
+      disabled: occurrences.length === 0,
+      run: () => openRepresentationBoard(),
+    },
+    { label: "Add note…", run: () => openNotes() },
+    { label: "Rename…", run: () => showProperties(elements.editObjectLabel) },
+    "-",
+  ];
+  if (occurrence) {
+    items.push({
+      label: "Delete this mark",
+      danger: true,
+      run: () => deleteOccurrenceById(occurrence.id),
+    });
+  } else {
+    items.push({
+      label: "Delete object…",
+      danger: true,
+      disabled: elements.deleteObject.disabled,
+      title: elements.deleteObject.title,
+      run: () => deleteSelectedObject(),
+    });
+  }
+  return items;
+}
+
+function unlinkedMarkMenuItems(occurrence) {
+  return [
+    { label: "Create object…", run: () => showProperties(elements.objectLabel) },
+    {
+      label: "Link to existing object…",
+      disabled: state.objects.length === 0,
+      run: () => showProperties(elements.existingObjectSelect),
+    },
+    { label: "Add note…", run: () => openNotes() },
+    "-",
+    { label: "Delete this mark", danger: true, run: () => deleteOccurrenceById(occurrence.id) },
+  ];
+}
+
+function pageMenuItems() {
+  const items = [];
+  const selectedText = String(window.getSelection?.() ?? "").trim();
+  if (selectedText) {
+    items.push({
+      label: "Copy text",
+      run: () => navigator.clipboard?.writeText(selectedText).catch(() => {}),
+    }, "-");
+  }
+  items.push(
+    { label: "Mark something", key: "M", run: () => setMarkMode(true) },
+    { label: state.display.showAllRelations ? "Hide all links" : "Show all links", key: "G", run: () => setShowAllRelations(!state.display.showAllRelations) },
+    { label: state.display.showLabels ? "Hide names" : "Show names", key: "L", run: () => setShowLabels(!state.display.showLabels) },
+    { label: "Fit page", key: "F", run: () => fitPage() },
+    "-",
+    { label: state.display.propertiesOpen ? "Hide properties" : "Show properties", key: "P", run: () => setPropertiesOpen(!state.display.propertiesOpen, { collapsed: false }) },
+  );
+  return items;
+}
+
+function handlePageContextMenu(event) {
+  if (!state.pdfDocument || state.markMode || state.interaction) {
+    return;
+  }
+  event.preventDefault();
+  if (state.relateFromObjectId) {
+    return;
+  }
+  const occurrenceId = event.target.closest?.("[data-occurrence-id]")?.dataset.occurrenceId;
+  const occurrence = occurrenceId ? getOccurrence(occurrenceId) : null;
+  if (!occurrence) {
+    showContextMenu(event.clientX, event.clientY, null, pageMenuItems());
+    return;
+  }
+  state.selectedOccurrenceId = occurrence.id;
+  state.selectedObjectId = occurrence.objectId;
+  refreshUi();
+  const object = getObject(occurrence.objectId);
+  if (object) {
+    showContextMenu(event.clientX, event.clientY, objectDisplayName(object), objectMenuItems(object, occurrence));
+  } else {
+    showContextMenu(event.clientX, event.clientY, `${markName(occurrence)} · not linked`, unlinkedMarkMenuItems(occurrence));
+  }
+}
+
+async function handleObjectListContextMenu(event) {
+  const button = event.target.closest("button[data-object-id]");
+  if (!button || state.relateFromObjectId) {
+    return;
+  }
+  event.preventDefault();
+  const { clientX, clientY } = event;
+  await selectObjectAndNavigate(button.dataset.objectId);
+  const object = getObject(button.dataset.objectId);
+  if (object) {
+    showContextMenu(clientX, clientY, objectDisplayName(object), objectMenuItems(object));
+  }
+}
+
+function setUpContextMenu() {
+  elements.viewerStage.addEventListener("contextmenu", handlePageContextMenu);
+  elements.objectList.addEventListener("contextmenu", handleObjectListContextMenu);
+  document.addEventListener("pointerdown", (event) => {
+    if (!elements.contextMenu.contains(event.target)) {
+      closeContextMenu();
+    }
+  }, true);
+  document.addEventListener("keydown", (event) => {
+    if (elements.contextMenu.hidden) {
       return;
     }
-    event.preventDefault();
-  });
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeContextMenu();
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const buttons = [...elements.contextMenu.querySelectorAll("button:not(:disabled)")];
+      const at = buttons.indexOf(document.activeElement);
+      const next = (at + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    }
+  }, true);
+  window.addEventListener("resize", closeContextMenu);
+  window.addEventListener("blur", closeContextMenu);
+  elements.viewerStage.addEventListener("scroll", closeContextMenu, { passive: true });
 }
 
 function refreshObjectUi() {
@@ -4191,8 +4475,8 @@ async function selectOccurrenceAndNavigate(occurrenceId) {
   const projectDocument = getProjectDocument(occurrence.documentId);
   const location = `${projectDocument?.name ?? occurrence.documentId}, page ${occurrence.page}`;
   setStatus(object
-    ? `${occurrence.id} selected in ${location} for ${object.label} (${object.id}).${attached ? "" : " Relink this PDF to show it."}`
-    : `${occurrence.id} selected in ${location}. It is not linked to an object.${attached ? "" : " Relink this PDF to show it."}`);
+    ? `${markName(occurrence)} selected in ${location} for ${objectDisplayName(object)}.${attached ? "" : " Relink this PDF to show it."}`
+    : `${markName(occurrence)} selected in ${location}. It is not linked to an object.${attached ? "" : " Relink this PDF to show it."}`);
 }
 
 async function navigateFromDrawingMap(documentId, pageNumber) {
@@ -4218,7 +4502,7 @@ async function navigateFromDrawingMap(documentId, pageNumber) {
   const selectedObject = getObject(state.selectedObjectId);
   const containsSelectedObject = selectedObject
     && pageOccurrences.some((occurrence) => occurrence.objectId === selectedObject.id);
-  setStatus(`Showing ${projectDocument.name}, page ${pageNumber}. ${pageOccurrences.length} occurrence${pageOccurrences.length === 1 ? "" : "s"}.${containsSelectedObject ? ` Includes ${selectedObject.label} (${selectedObject.id}).` : ""}`);
+  setStatus(`Showing ${projectDocument.name}, page ${pageNumber}. ${pageOccurrences.length} occurrence${pageOccurrences.length === 1 ? "" : "s"}.${containsSelectedObject ? ` Includes ${objectDisplayName(selectedObject)}.` : ""}`);
 }
 
 async function selectObjectAndNavigate(objectId) {
@@ -4252,8 +4536,8 @@ async function selectObjectAndNavigate(objectId) {
   }
   const targetDocument = getProjectDocument(targetOccurrence?.documentId);
   setStatus(targetOccurrence
-    ? `${object.label} (${object.id}) selected. Showing ${targetOccurrence.id} in ${targetDocument?.name ?? targetOccurrence.documentId}, page ${targetOccurrence.page}, from ${occurrences.length} occurrence${occurrences.length === 1 ? "" : "s"}.${getDocumentSession(targetOccurrence.documentId) ? "" : " Relink this PDF to show it."}`
-    : `${object.label} (${object.id}) selected. This object has no occurrences yet.`);
+    ? `${objectDisplayName(object)} selected. Showing ${markName(targetOccurrence)} in ${targetDocument?.name ?? targetOccurrence.documentId}, page ${targetOccurrence.page}, from ${occurrences.length} mark${occurrences.length === 1 ? "" : "s"}.${getDocumentSession(targetOccurrence.documentId) ? "" : " Relink this PDF to show it."}`
+    : `${objectDisplayName(object)} selected. This object has no occurrences yet.`);
 }
 
 function deleteOccurrenceById(occurrenceId) {
@@ -4263,7 +4547,7 @@ function deleteOccurrenceById(occurrenceId) {
   }
   const noteCount = state.notes.filter((note) => note.occurrenceId === occurrenceId).length;
   if (noteCount > 0) {
-    setStatus(`Remove ${noteCount} note${noteCount === 1 ? "" : "s"} linked to ${occurrence.id} before deleting the occurrence.`);
+    setStatus(`Remove ${noteCount} note${noteCount === 1 ? "" : "s"} linked to ${markName(occurrence)} before deleting the occurrence.`);
     return false;
   }
 
@@ -4273,7 +4557,7 @@ function deleteOccurrenceById(occurrenceId) {
     state.selectedOccurrenceId = null;
   }
   refreshUi();
-  setStatus(`${occurrence.id} was deleted. Its object was preserved.`);
+  setStatus(`${markName(occurrence)} was deleted. Its object was preserved.`);
   return true;
 }
 
@@ -4455,8 +4739,8 @@ function handleOverlayPointerUp(event) {
       state.selectedOccurrenceId = occurrence.id;
       state.selectedObjectId = linkedObject?.id ?? null;
       completionMessage = linkedObject
-        ? `${occurrence.id} linked to ${linkedObject.label} (${linkedObject.id}).`
-        : `${occurrence.id} is unlinked. Create or choose its object.`;
+        ? `${markName(occurrence)} linked to ${objectDisplayName(linkedObject)}.`
+        : `${markName(occurrence)} is unlinked. Create or choose its object.`;
       setMarkMode(false);
     } else {
       completionMessage = `That ${state.markGeometryType} was too small. Try a larger shape, or zoom in with + or Ctrl/Command + wheel. Marking is still active; press Escape to cancel.`;
@@ -4469,9 +4753,9 @@ function handleOverlayPointerUp(event) {
       || (movedOccurrence.geometryType === "polygon" && !pointsAreEqual(movedOccurrence.points, interaction.originalPoints))
     )) {
       recordObjectMutation(`move ${interaction.occurrenceId}`, interaction.beforeSnapshot);
-      setStatus(`${interaction.occurrenceId} repositioned on page ${state.pageNumber}.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} repositioned on page ${state.pageNumber}.`);
     } else {
-      setStatus(`${interaction.occurrenceId} stayed in its original position.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} stayed in its original position.`);
     }
   } else if (interaction.type === "resize") {
     const resizedOccurrence = getOccurrence(interaction.occurrenceId);
@@ -4480,21 +4764,21 @@ function handleOverlayPointerUp(event) {
       || (resizedOccurrence.geometryType === "polygon" && !pointsAreEqual(resizedOccurrence.points, interaction.originalPoints))
     )) {
       recordObjectMutation(`resize ${interaction.occurrenceId}`, interaction.beforeSnapshot);
-      setStatus(`${interaction.occurrenceId} resized on page ${state.pageNumber}.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} resized on page ${state.pageNumber}.`);
     } else {
-      setStatus(`${interaction.occurrenceId} kept its original size.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} kept its original size.`);
     }
   } else if (interaction.type === "vertex-move") {
     const editedOccurrence = getOccurrence(interaction.occurrenceId);
     if (editedOccurrence && polygonArea(editedOccurrence.points) <= 1e-9) {
       editedOccurrence.points = interaction.originalPoints;
       editedOccurrence.bounds = interaction.originalBounds;
-      setStatus(`${interaction.occurrenceId} must keep an enclosed polygon area.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} must keep an enclosed polygon area.`);
     } else if (editedOccurrence && !pointsAreEqual(editedOccurrence.points, interaction.originalPoints)) {
       recordObjectMutation(`edit ${interaction.occurrenceId} vertices`, interaction.beforeSnapshot);
-      setStatus(`${interaction.occurrenceId} polygon vertex updated on page ${state.pageNumber}.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} polygon vertex updated on page ${state.pageNumber}.`);
     } else {
-      setStatus(`${interaction.occurrenceId} vertex stayed in its original position.`);
+      setStatus(`${markName(getOccurrence(interaction.occurrenceId))} vertex stayed in its original position.`);
     }
   }
 
@@ -4563,8 +4847,8 @@ function finishPolygonMark() {
   setMarkMode(false);
   refreshUi();
   setStatus(linkedObject
-    ? `${occurrence.id} polygon linked to ${linkedObject.label} (${linkedObject.id}).`
-    : `${occurrence.id} polygon is unlinked. Create or choose its object.`);
+    ? `${markName(occurrence)} polygon linked to ${objectDisplayName(linkedObject)}.`
+    : `${markName(occurrence)} polygon is unlinked. Create or choose its object.`);
   if (!linkedObject) {
     elements.objectLabel.focus();
   }
@@ -4629,8 +4913,8 @@ function handleOverlayKeyDown(event) {
   focusSelectedOccurrenceRectangle();
   const object = getObject(occurrence.objectId);
   setStatus(object
-    ? `${occurrence.id} selected for ${object.label} (${object.id}).`
-    : `${occurrence.id} selected. It is not linked to an object.`);
+    ? `${markName(occurrence)} selected for ${objectDisplayName(object)}.`
+    : `${markName(occurrence)} selected. It is not linked to an object.`);
 }
 
 function createObjectFromForm(event) {
@@ -4660,9 +4944,9 @@ function createObjectFromForm(event) {
   refreshUi();
 
   const linkedMessage = selectedOccurrence && !selectedOccurrence.objectId
-    ? ` and linked ${selectedOccurrence.id}`
+    ? ` and linked ${markName(selectedOccurrence)}`
     : "";
-  setStatus(`${objectCategoryLabel(object.category)} object ${object.label} created as ${object.id}${linkedMessage}.${duplicateLabelExists ? " The duplicate label remains a separate identity." : ""}`);
+  setStatus(`${objectDisplayName(object)} created${linkedMessage}.${duplicateLabelExists ? " The duplicate label remains a separate identity." : ""}`);
 }
 
 function linkSelectedOccurrenceToExistingObject() {
@@ -4676,7 +4960,7 @@ function linkSelectedOccurrenceToExistingObject() {
   state.occurrences = linkOccurrence(state.occurrences, occurrence.id, object.id);
   state.selectedObjectId = object.id;
   refreshUi();
-  setStatus(`${occurrence.id} linked to ${object.label} (${object.id}).`);
+  setStatus(`${markName(occurrence)} linked to ${objectDisplayName(object)}.`);
 }
 
 function saveSelectedObjectLabel() {
@@ -4690,7 +4974,7 @@ function saveSelectedObjectLabel() {
   elements.editObjectLabel.setCustomValidity("");
   const category = elements.editObjectCategory.value;
   if (object.label === label && object.category === category) {
-    setStatus(`${object.id} already uses ${objectCategoryLabel(category)} and the label ${label}.`);
+    setStatus(`${objectDisplayName(object)} is unchanged.`);
     return;
   }
 
@@ -4701,7 +4985,7 @@ function saveSelectedObjectLabel() {
   recordObjectMutation(`update ${object.id}`);
   state.objects = updateObjectDetails(state.objects, object.id, { category, label });
   refreshUi();
-  setStatus(`${object.id} updated to ${objectCategoryLabel(category)} · ${label}.${duplicateLabelExists ? " Another object has the same label but remains separate." : ""}`);
+  setStatus(`Renamed to ${objectDisplayName({ category, label })}.${duplicateLabelExists ? " Another object has the same label but remains separate." : ""}`);
 }
 
 function deleteSelectedObject() {
@@ -4712,7 +4996,7 @@ function deleteSelectedObject() {
 
   const noteCount = state.notes.filter((note) => note.scope === "object" && note.objectId === object.id).length;
   if (noteCount > 0) {
-    setStatus(`Remove ${noteCount} object note${noteCount === 1 ? "" : "s"} before deleting ${object.label} (${object.id}).`);
+    setStatus(`Remove ${noteCount} object note${noteCount === 1 ? "" : "s"} before deleting ${objectDisplayName(object)}.`);
     return;
   }
 
@@ -4722,7 +5006,7 @@ function deleteSelectedObject() {
     ? `\n${relationCount} relation${relationCount === 1 ? "" : "s"} will be removed. Undo brings them back.`
     : "";
   const confirmed = globalThis.confirm(
-    `Delete ${object.label} (${object.id})?\n\n${occurrenceCount} occurrence${occurrenceCount === 1 ? "" : "s"} will remain as unlinked marks.${relationWarning}`,
+    `Delete ${objectDisplayName(object)}?\n\n${occurrenceCount} occurrence${occurrenceCount === 1 ? "" : "s"} will remain as unlinked marks.${relationWarning}`,
   );
   if (!confirmed) {
     return;
@@ -4748,7 +5032,7 @@ function deleteSelectedObject() {
     const nextObjectButton = remainingObjectButtons[nextFocusIndex(deletedObjectIndex, remainingObjectButtons.length)];
     (nextObjectButton ?? elements.objectLabel).focus();
   }
-  setStatus(`${object.label} (${object.id}) deleted. Its occurrences were preserved as unlinked marks.`);
+  setStatus(`${objectDisplayName(object)} deleted. Its occurrences were preserved as unlinked marks.`);
 }
 
 function addNoteFromForm(event) {
@@ -5020,6 +5304,11 @@ function handleDocumentKeyDown(event) {
     setShowAllRelations(!state.display.showAllRelations);
     return;
   }
+  if (action === "toggle-properties") {
+    event.preventDefault();
+    setPropertiesOpen(!state.display.propertiesOpen);
+    return;
+  }
   if (action === "start-relation") {
     event.preventDefault();
     startRelationFromSelection();
@@ -5234,7 +5523,7 @@ elements.objectList.addEventListener("click", async (event) => {
   if (groupToggle) {
     const { display } = state;
     const key = groupToggle.dataset.groupToggle;
-    display.collapsedGroups = toggleSetMember(display.collapsedGroups, key);
+    display.expandedGroups = toggleSetMember(display.expandedGroups, key);
     renderObjectList();
     elements.objectList.querySelector(`button[data-group-toggle="${CSS.escape(key)}"]`)?.focus();
     return;
@@ -5291,7 +5580,8 @@ elements.thumbnailList.addEventListener("click", async (event) => {
   viewHistory.record(currentLocation(), { documentId: state.activeDocumentId, page });
   await navigateToPage(page);
 });
-setUpPaneSplitter();
+setUpPropertiesPanel();
+setUpContextMenu();
 elements.saveObjectLabel.addEventListener("click", saveSelectedObjectLabel);
 elements.editObjectLabel.addEventListener("input", () => elements.editObjectLabel.setCustomValidity(""));
 elements.editObjectLabel.addEventListener("keydown", (event) => {
@@ -5308,6 +5598,11 @@ elements.markForObject.addEventListener("click", () => {
 });
 elements.deleteObject.addEventListener("click", deleteSelectedObject);
 elements.startRelation.addEventListener("click", startRelationFromSelection);
+elements.relateFromPanel.addEventListener("click", startRelationFromSelection);
+elements.collapseAllGroups.addEventListener("click", () => {
+  state.display.expandedGroups = new Set();
+  renderObjectList();
+});
 elements.removeRevitRelations.addEventListener("click", removeRevitRelations);
 elements.relatedDataSearch.addEventListener("input", renderRelatedData);
 elements.relatedDataList.addEventListener("click", async (event) => {

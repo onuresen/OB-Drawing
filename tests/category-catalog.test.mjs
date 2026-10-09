@@ -27,3 +27,15 @@ test("category search matches labels, stable keys, and group names", () => {
   assert.ok(filterObjectCategoryGroups("electrical").flatMap((group) => group.categories).length >= 10);
   assert.deepEqual(filterObjectCategoryGroups("not-a-real-category"), []);
 });
+
+test("display names read like type names and never show the ID", async () => {
+  const { objectCategorySingular, objectDisplayName } = await import("../category-catalog.mjs");
+  assert.equal(objectCategorySingular("doors"), "Door");
+  assert.equal(objectCategorySingular("assemblies"), "Assembly");
+  assert.equal(objectCategorySingular("masses"), "Mass");
+  assert.equal(objectCategorySingular("furniture"), "Furniture");
+  assert.equal(objectCategorySingular("other"), "Object");
+  assert.equal(objectDisplayName({ id: "object-007", category: "doors", label: "577" }), "Door 577");
+  assert.equal(objectDisplayName({ id: "object-008", category: "doors", label: "Door D-2" }), "Door D-2");
+  assert.equal(objectDisplayName({ id: "object-009", category: "rooms", label: "" }), "Room");
+});
