@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Object-Centric Drawing prototype — mark object occurrences on architectural PDF drawing sets.">
   <title>Object-Centric Drawing</title>
-  <link rel="stylesheet" href="styles.css?v=2026-10-08-related-data">
+  <link rel="stylesheet" href="styles.css?v=2026-10-09-ui-cleanup">
 </head>
 <body>
   <header class="app-header">
@@ -71,6 +71,7 @@
           <button id="markOccurrence" class="button mark-button" type="button" aria-keyshortcuts="M" aria-pressed="false" title="Mark occurrence (M)" disabled>
             Mark
           </button>
+          <button id="toggleProperties" class="button button-quiet" type="button" aria-pressed="true" aria-controls="propertiesPane" aria-keyshortcuts="P" title="Properties (P)">Properties</button>
           <button id="openPdfSearch" class="button button-quiet" type="button" aria-keyshortcuts="Control+F Meta+F" aria-controls="pdfSearchBar" title="Find in current PDF (Ctrl+F)" disabled>Find</button>
           <button id="openDrawingMap" class="button button-quiet" type="button" aria-haspopup="dialog" aria-controls="drawingMapDialog" title="Open drawing set map">Map</button>
           <button id="openNotes" class="button button-quiet" type="button" aria-haspopup="dialog" aria-controls="notesDialog" title="Open project, object, and occurrence notes" disabled>Notes</button>
@@ -98,8 +99,10 @@
                 <div><dt><kbd>R</kbd> / <kbd>Shift</kbd> + <kbd>R</kbd></dt><dd>Rotate view clockwise / back</dd></div>
                 <div><dt><kbd>T</kbd></dt><dd>Page thumbnails</dd></div>
                 <div><dt><kbd>M</kbd></dt><dd>Toggle marking</dd></div>
-                <div><dt><kbd>C</kbd></dt><dd>Relate the selected object to another</dd></div>
-                <div><dt><kbd>G</kbd></dt><dd>All relations on the page</dd></div>
+                <div><dt><kbd>C</kbd></dt><dd>Link the selected object to another</dd></div>
+                <div><dt><kbd>P</kbd></dt><dd>Show / hide Properties</dd></div>
+                <div><dt>Right-click</dt><dd>Menu for a mark, the page, or a list row</dd></div>
+                <div><dt><kbd>G</kbd></dt><dd>All links on the page</dd></div>
                 <div><dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>Previous / next place of the selected object</dd></div>
                 <div><dt><kbd>Alt</kbd> + <kbd>←</kbd> <kbd>→</kbd></dt><dd>Back / forward through jumps</dd></div>
                 <div><dt><kbd>/</kbd></dt><dd>Search objects</dd></div>
@@ -172,6 +175,162 @@
           </div>
         </div>
       </div>
+      <aside id="propertiesPane" class="properties-float" aria-labelledby="propertiesTitle">
+        <header id="propertiesHandle" class="float-heading" title="Drag to move">
+          <h2 id="propertiesTitle">Properties</h2>
+          <button id="collapseProperties" class="icon-button float-button" type="button" aria-label="Collapse properties" aria-expanded="true" title="Collapse">–</button>
+          <button id="closeProperties" class="icon-button float-button" type="button" aria-label="Close properties" aria-keyshortcuts="P" title="Close (P)">×</button>
+        </header>
+        <div id="propertiesBody" class="float-body">
+
+        <div id="propertiesEmpty" class="concept-note">
+          <strong>Nothing selected.</strong>
+          <span>Select a mark or an object. Right-click a mark for more.</span>
+        </div>
+
+        <section id="objectComposer" class="object-composer" aria-labelledby="objectFormTitle">
+          <h3 id="objectFormTitle">Create object</h3>
+          <p id="objectFormHint" class="quiet-copy">Open a PDF before creating objects.</p>
+
+          <form id="createObjectForm" class="create-object-form">
+            <label class="field-label" for="categoryFilter">Find category</label>
+            <input id="categoryFilter" class="text-input" type="search" placeholder="Search categories" autocomplete="off" disabled>
+            <label class="field-label" for="objectCategory">Category</label>
+            <select id="objectCategory" class="text-input" required disabled></select>
+            <label class="field-label" for="objectLabel">Name</label>
+            <div class="form-row">
+              <input id="objectLabel" class="text-input" type="text" maxlength="80" placeholder="D-105" required autocomplete="off" disabled>
+              <button id="createObjectButton" class="button button-primary" type="submit" disabled>Create</button>
+            </div>
+          </form>
+
+          <div id="linkExistingBlock" class="link-existing" hidden>
+            <span class="choice-divider">or link to an existing object</span>
+            <div class="form-row">
+              <label class="visually-hidden" for="existingObjectSelect">Existing object</label>
+              <select id="existingObjectSelect" class="text-input" disabled></select>
+              <button id="linkExistingObject" class="button" type="button" disabled>Link</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="selectedObjectPanel" class="selected-object-panel" aria-labelledby="selectedObjectTitle" hidden>
+          <div class="section-heading">
+            <div>
+              <p id="selectedObjectType" class="eyebrow">Object</p>
+              <h3 id="selectedObjectTitle">Object</h3>
+            </div>
+          </div>
+
+          <label class="field-label" for="editObjectCategory">Category</label>
+          <select id="editObjectCategory" class="text-input"></select>
+          <label class="field-label" for="editObjectLabel">Name</label>
+          <div class="form-row">
+            <input id="editObjectLabel" class="text-input" type="text" maxlength="80" required autocomplete="off">
+            <button id="saveObjectLabel" class="button" type="button">Save</button>
+          </div>
+
+          <div class="panel-actions">
+            <button id="markForObject" class="button button-primary" type="button" aria-label="Mark another occurrence" title="Mark another occurrence" disabled>Mark</button>
+            <button id="relateFromPanel" class="button" type="button" aria-keyshortcuts="C" title="Link this object to another object (C). Then click the other mark.">Link to…</button>
+            <button id="deleteObject" class="button danger-button" type="button" aria-label="Delete selected object" title="Delete selected object">Delete</button>
+          </div>
+
+          <div id="objectLensSummary" class="object-lens-summary" aria-live="polite"></div>
+
+          <section class="relation-section" aria-labelledby="relationSectionTitle">
+            <div class="subsection-heading">
+              <h4 id="relationSectionTitle">Links</h4>
+              <div class="subsection-actions">
+                <span id="relationCount">0</span>
+                <button id="toggleTrace" class="compact-action" type="button" aria-pressed="false" title="Follow relations from this object, across pages">Trace</button>
+                <button id="startRelation" class="compact-action" type="button" aria-keyshortcuts="C" title="Link to another object (C)">+ Add</button>
+              </div>
+            </div>
+            <p id="noRelations" class="quiet-copy">None yet. Use Link to…, or right-click a mark.</p>
+            <ol id="relationList" class="relation-list"></ol>
+            <section id="tracePanel" class="trace-panel" aria-labelledby="traceTitle" hidden>
+              <div class="trace-heading">
+                <strong id="traceTitle">Trace</strong>
+                <label class="trace-steps">
+                  <span class="visually-hidden">Steps to follow</span>
+                  <select id="traceSteps" class="text-input">
+                    <option value="1">1 step</option>
+                    <option value="2" selected>2 steps</option>
+                    <option value="3">3 steps</option>
+                  </select>
+                </label>
+                <button id="endTrace" class="icon-button" type="button" aria-label="End trace" title="End trace (Escape)">×</button>
+              </div>
+              <ol id="traceList" class="trace-list"></ol>
+              <button id="exportTraceOnexus" class="compact-action" type="button" title="Download only the traced objects and their relations as an ONEXUS graph">Export trace to ONEXUS</button>
+            </section>
+          </section>
+
+          <section id="relatedData" class="related-data" aria-labelledby="relatedDataTitle" hidden>
+            <div class="subsection-heading">
+              <h4 id="relatedDataTitle">Related data</h4>
+              <span id="relatedDataCount">0</span>
+            </div>
+            <p class="quiet-copy">From linked rooms, hosts and sources. View only.</p>
+            <label class="visually-hidden" for="relatedDataSearch">Filter related data</label>
+            <input id="relatedDataSearch" class="text-input" type="search" placeholder="Filter, e.g. finish" autocomplete="off">
+            <div id="relatedDataList" class="related-data-list"></div>
+          </section>
+
+          <section id="revitProperties" class="revit-properties" aria-labelledby="revitPropertiesTitle" hidden>
+            <div class="subsection-heading">
+              <h4 id="revitPropertiesTitle">Revit properties</h4>
+              <span id="revitPropertyCount">0</span>
+            </div>
+            <p id="revitIdentity" class="revit-identity"></p>
+            <label class="visually-hidden" for="revitPropertySearch">Search Revit properties</label>
+            <input id="revitPropertySearch" class="text-input" type="search" placeholder="Search Revit properties" autocomplete="off">
+            <p id="noRevitProperties" class="quiet-copy" hidden>No properties match this search.</p>
+            <details class="revit-property-group" open>
+              <summary>Instance <span id="revitInstanceCount">0</span></summary>
+              <dl id="revitInstanceProperties" class="revit-property-list"></dl>
+            </details>
+            <details class="revit-property-group" open>
+              <summary>Type <span id="revitTypeCount">0</span></summary>
+              <dl id="revitTypeProperties" class="revit-property-list"></dl>
+            </details>
+          </section>
+
+          <div class="evidence-export">
+            <details id="objectExportMenu" class="object-export-menu">
+              <summary class="button">Export</summary>
+              <div class="object-export-options">
+                <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral object JSON manifest" disabled>
+                  <strong>Object JSON</strong>
+                  <span>Portable manifest</span>
+                </button>
+                <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export the object with marked preview images" disabled>
+                  <strong>Object ZIP</strong>
+                  <span>Manifest + marked previews</span>
+                </button>
+                <button id="exportJoineryAiPack" class="object-export-option" type="button" aria-label="Export selected object for Joinery Configurator AI" title="Export an AI-ready Joinery Configurator evidence pack" disabled>
+                  <strong>Joinery AI pack</strong>
+                  <span id="joineryAiHint">Door and Window objects</span>
+                </button>
+              </div>
+            </details>
+            <p id="evidenceExportStatus" class="evidence-export-status" role="status" aria-live="polite" hidden></p>
+          </div>
+
+          <div class="subsection-heading">
+            <h4>Representations</h4>
+            <div class="subsection-actions">
+              <span id="selectedOccurrenceCount">0</span>
+              <button id="openRepresentationBoard" class="compact-action" type="button" aria-haspopup="dialog" aria-controls="representationBoard" disabled>Show all</button>
+            </div>
+          </div>
+          <p id="noObjectOccurrences" class="quiet-copy">This object has no linked representations yet.</p>
+          <p class="object-id-line">ID <span id="selectedObjectIdentity"></span></p>
+
+        </section>
+        </div>
+      </aside>
       </div>
 
       <footer class="status-bar">
@@ -187,7 +346,10 @@
             <p class="eyebrow">Browser</p>
             <h2>Objects</h2>
           </div>
-          <span id="objectBadge" class="count-badge">0</span>
+          <div class="panel-heading-actions">
+            <button id="collapseAllGroups" class="compact-action" type="button" title="Collapse all groups">Collapse all</button>
+            <span id="objectBadge" class="count-badge">0</span>
+          </div>
         </div>
 
         <div class="display-bar">
@@ -251,10 +413,10 @@
             <h3 id="sidecarTitle">Project file</h3>
             <span id="saveState" class="save-state" role="status" aria-live="polite" data-dirty="false">No document</span>
           </div>
-          <p class="quiet-copy">Import a project or its optional Revit companion data. Revit properties stay read-only and separate from the project.</p>
+          <p class="quiet-copy">Save or open the project. Revit data is read-only.</p>
           <div class="sidecar-actions">
-            <button id="exportSidecar" class="button button-primary" type="button" disabled>Export JSON</button>
-            <button id="chooseSidecar" class="button" type="button">Import JSON</button>
+            <button id="exportSidecar" class="button button-primary" type="button" title="Download the project as JSON" disabled>Save</button>
+            <button id="chooseSidecar" class="button" type="button" title="Open a project JSON or Revit data JSON">Open</button>
             <input id="sidecarFile" class="visually-hidden" type="file" accept="application/json,.json">
           </div>
           <button id="linkOnexus" class="button revit-relations-action" type="button" title="Open ONEXUS in another window and keep it in step: the graph, the selection, and the trace. Clicking a node there selects the object here." disabled>Open live ONEXUS</button>
@@ -269,164 +431,10 @@
         </section>
       </div>
 
-      <div id="paneSplitter" class="pane-splitter" role="separator" tabindex="0"
-        aria-orientation="horizontal" aria-controls="browserPane propertiesPane"
-        aria-label="Resize the object browser" title="Drag to resize. Arrow keys also work."></div>
-
-      <div id="propertiesPane" class="panel-pane properties-pane" aria-label="Properties" role="region">
-        <div class="panel-heading">
-          <h2>Properties</h2>
-        </div>
-
-        <div id="propertiesEmpty" class="concept-note">
-          <strong>A label is not identity.</strong>
-          <span>You create or choose the object. The app never merges marks because their visible labels match.</span>
-        </div>
-
-        <section id="objectComposer" class="object-composer" aria-labelledby="objectFormTitle">
-          <p class="eyebrow">Explicit identity</p>
-          <h3 id="objectFormTitle">Create object</h3>
-          <p id="objectFormHint" class="quiet-copy">Open a PDF before creating objects.</p>
-
-          <form id="createObjectForm" class="create-object-form">
-            <label class="field-label" for="categoryFilter">Find category</label>
-            <input id="categoryFilter" class="text-input" type="search" placeholder="Search categories" autocomplete="off" disabled>
-            <label class="field-label" for="objectCategory">Category</label>
-            <select id="objectCategory" class="text-input" required disabled></select>
-            <label class="field-label" for="objectLabel">Object label</label>
-            <div class="form-row">
-              <input id="objectLabel" class="text-input" type="text" maxlength="80" placeholder="D-105" required autocomplete="off" disabled>
-              <button id="createObjectButton" class="button button-primary" type="submit" disabled>Create</button>
-            </div>
-          </form>
-
-          <div id="linkExistingBlock" class="link-existing" hidden>
-            <span class="choice-divider">or link to an existing object</span>
-            <div class="form-row">
-              <label class="visually-hidden" for="existingObjectSelect">Existing object</label>
-              <select id="existingObjectSelect" class="text-input" disabled></select>
-              <button id="linkExistingObject" class="button" type="button" disabled>Link</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="selectedObjectPanel" class="selected-object-panel" aria-labelledby="selectedObjectTitle" hidden>
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Object Lens</p>
-              <h3 id="selectedObjectTitle">Object</h3>
-            </div>
-            <span id="selectedObjectIdentity"></span>
-          </div>
-
-          <label class="field-label" for="editObjectCategory">Category</label>
-          <select id="editObjectCategory" class="text-input"></select>
-          <label class="field-label" for="editObjectLabel">Label</label>
-          <div class="form-row">
-            <input id="editObjectLabel" class="text-input" type="text" maxlength="80" required autocomplete="off">
-            <button id="saveObjectLabel" class="button" type="button">Save</button>
-          </div>
-
-          <div class="panel-actions">
-            <button id="markForObject" class="button button-primary" type="button" aria-label="Mark another occurrence" title="Mark another occurrence" disabled>Mark</button>
-            <button id="deleteObject" class="button danger-button" type="button" aria-label="Delete selected object" title="Delete selected object">Delete</button>
-          </div>
-
-          <div id="objectLensSummary" class="object-lens-summary" aria-live="polite"></div>
-
-          <section class="relation-section" aria-labelledby="relationSectionTitle">
-            <div class="subsection-heading">
-              <h4 id="relationSectionTitle">Relations</h4>
-              <div class="subsection-actions">
-                <span id="relationCount">0</span>
-                <button id="toggleTrace" class="compact-action" type="button" aria-pressed="false" title="Follow relations from this object, across pages">Trace</button>
-                <button id="startRelation" class="compact-action" type="button" aria-keyshortcuts="C" title="Relate to another object (C)">Relate</button>
-              </div>
-            </div>
-            <p id="noRelations" class="quiet-copy">None yet. Press Relate, then click the other mark.</p>
-            <ol id="relationList" class="relation-list"></ol>
-            <section id="tracePanel" class="trace-panel" aria-labelledby="traceTitle" hidden>
-              <div class="trace-heading">
-                <strong id="traceTitle">Trace</strong>
-                <label class="trace-steps">
-                  <span class="visually-hidden">Steps to follow</span>
-                  <select id="traceSteps" class="text-input">
-                    <option value="1">1 step</option>
-                    <option value="2" selected>2 steps</option>
-                    <option value="3">3 steps</option>
-                  </select>
-                </label>
-                <button id="endTrace" class="icon-button" type="button" aria-label="End trace" title="End trace (Escape)">×</button>
-              </div>
-              <ol id="traceList" class="trace-list"></ol>
-              <button id="exportTraceOnexus" class="compact-action" type="button" title="Download only the traced objects and their relations as an ONEXUS graph">Export trace to ONEXUS</button>
-            </section>
-          </section>
-
-          <section id="relatedData" class="related-data" aria-labelledby="relatedDataTitle" hidden>
-            <div class="subsection-heading">
-              <h4 id="relatedDataTitle">Related data</h4>
-              <span id="relatedDataCount">0</span>
-            </div>
-            <p class="quiet-copy">From the objects this one opens to, is hosted on, or takes data from. View only.</p>
-            <label class="visually-hidden" for="relatedDataSearch">Filter related data</label>
-            <input id="relatedDataSearch" class="text-input" type="search" placeholder="Filter, e.g. finish" autocomplete="off">
-            <div id="relatedDataList" class="related-data-list"></div>
-          </section>
-
-          <section id="revitProperties" class="revit-properties" aria-labelledby="revitPropertiesTitle" hidden>
-            <div class="subsection-heading">
-              <h4 id="revitPropertiesTitle">Revit properties</h4>
-              <span id="revitPropertyCount">0</span>
-            </div>
-            <p id="revitIdentity" class="revit-identity"></p>
-            <label class="visually-hidden" for="revitPropertySearch">Search Revit properties</label>
-            <input id="revitPropertySearch" class="text-input" type="search" placeholder="Search Revit properties" autocomplete="off">
-            <p id="noRevitProperties" class="quiet-copy" hidden>No properties match this search.</p>
-            <details class="revit-property-group" open>
-              <summary>Instance <span id="revitInstanceCount">0</span></summary>
-              <dl id="revitInstanceProperties" class="revit-property-list"></dl>
-            </details>
-            <details class="revit-property-group" open>
-              <summary>Type <span id="revitTypeCount">0</span></summary>
-              <dl id="revitTypeProperties" class="revit-property-list"></dl>
-            </details>
-          </section>
-
-          <div class="evidence-export">
-            <details id="objectExportMenu" class="object-export-menu">
-              <summary class="button">Export</summary>
-              <div class="object-export-options">
-                <button id="exportObjectEvidence" class="object-export-option" type="button" title="Export a target-neutral object JSON manifest" disabled>
-                  <strong>Object JSON</strong>
-                  <span>Portable manifest</span>
-                </button>
-                <button id="exportObjectEvidenceZip" class="object-export-option" type="button" title="Export the object with marked preview images" disabled>
-                  <strong>Object ZIP</strong>
-                  <span>Manifest + marked previews</span>
-                </button>
-                <button id="exportJoineryAiPack" class="object-export-option" type="button" aria-label="Export selected object for Joinery Configurator AI" title="Export an AI-ready Joinery Configurator evidence pack" disabled>
-                  <strong>Joinery AI pack</strong>
-                  <span id="joineryAiHint">Door and Window objects</span>
-                </button>
-              </div>
-            </details>
-            <p id="evidenceExportStatus" class="evidence-export-status" role="status" aria-live="polite" hidden></p>
-          </div>
-
-          <div class="subsection-heading">
-            <h4>Representations</h4>
-            <div class="subsection-actions">
-              <span id="selectedOccurrenceCount">0</span>
-              <button id="openRepresentationBoard" class="compact-action" type="button" aria-haspopup="dialog" aria-controls="representationBoard" disabled>Show all</button>
-            </div>
-          </div>
-          <p id="noObjectOccurrences" class="quiet-copy">This object has no linked representations yet.</p>
-
-        </section>
-      </div>
     </aside>
   </main>
+
+  <div id="contextMenu" class="context-menu" role="menu" hidden></div>
 
   <dialog id="notesDialog" class="notes-dialog" aria-labelledby="notesTitle" aria-describedby="notesHelp">
     <div class="notes-dialog-shell">
@@ -464,7 +472,7 @@
   <dialog id="relationDialog" class="relation-dialog" aria-labelledby="relationDialogTitle">
     <form id="relationForm" class="relation-form" method="dialog">
       <header class="relation-dialog-header">
-        <h2 id="relationDialogTitle">New relation</h2>
+        <h2 id="relationDialogTitle">New link</h2>
         <button id="closeRelationDialog" class="icon-button" type="button" aria-label="Close" title="Close (Escape)">×</button>
       </header>
       <p class="relation-sentence" aria-live="polite">

@@ -139,10 +139,33 @@ test("only viewer preferences are remembered, and bad stored values are ignored"
   display.query = "secret";
   display.hiddenCategories.add("doors");
   const stored = displayPreferences(display);
-  assert.deepEqual(Object.keys(stored).sort(), ["currentPageOnly", "groupBy", "markFocus", "onexusUrl", "showAllRelations", "showLabels", "showThumbnails"]);
+  assert.deepEqual(Object.keys(stored).sort(), [
+    "currentPageOnly", "groupBy", "markFocus", "onexusUrl",
+    "propertiesCollapsed", "propertiesOffset", "propertiesOpen",
+    "showAllRelations", "showLabels", "showThumbnails",
+  ]);
   const restored = applyDisplayPreferences(createDisplayState(), { ...stored, groupBy: "nonsense", markFocus: "none" });
   assert.equal(restored.groupBy, "category");
   assert.equal(restored.markFocus, "none");
   assert.equal(restored.showLabels, true);
   assert.equal(applyDisplayPreferences(createDisplayState(), null).groupBy, "category");
+});
+
+test("the floating Properties panel is open by default and ignores a bad stored offset", () => {
+  const fresh = applyDisplayPreferences(createDisplayState(), {});
+  assert.equal(fresh.propertiesOpen, true);
+  assert.equal(fresh.propertiesCollapsed, false);
+  assert.deepEqual(fresh.propertiesOffset, { x: 0, y: 0 });
+  const closed = applyDisplayPreferences(createDisplayState(), {
+    propertiesOpen: false,
+    propertiesCollapsed: true,
+    propertiesOffset: { x: 40.4, y: "far" },
+  });
+  assert.equal(closed.propertiesOpen, false);
+  assert.equal(closed.propertiesCollapsed, true);
+  assert.deepEqual(closed.propertiesOffset, { x: 0, y: 0 });
+});
+
+test("browser groups start collapsed", () => {
+  assert.equal(createDisplayState().expandedGroups.size, 0);
 });

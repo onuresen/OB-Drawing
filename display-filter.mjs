@@ -16,8 +16,13 @@ export function createDisplayState() {
     onexusUrl: "",
     showThumbnails: false,
     hiddenCategories: new Set(),
-    collapsedGroups: new Set(),
+    // Groups start collapsed; only the ones opened here are listed.
+    expandedGroups: new Set(),
     markFocus: "all",
+    propertiesOpen: true,
+    propertiesCollapsed: false,
+    // Offset of the floating Properties panel from its home corner, in pixels.
+    propertiesOffset: { x: 0, y: 0 },
   };
 }
 
@@ -31,6 +36,9 @@ export function displayPreferences(display) {
     onexusUrl: display.onexusUrl,
     showThumbnails: display.showThumbnails,
     markFocus: display.markFocus,
+    propertiesOpen: display.propertiesOpen,
+    propertiesCollapsed: display.propertiesCollapsed,
+    propertiesOffset: display.propertiesOffset,
   };
 }
 
@@ -49,6 +57,12 @@ export function applyDisplayPreferences(display, stored) {
   display.showAllRelations = stored.showAllRelations === true;
   display.onexusUrl = typeof stored.onexusUrl === "string" ? stored.onexusUrl.slice(0, 500) : "";
   display.showThumbnails = stored.showThumbnails === true;
+  display.propertiesOpen = stored.propertiesOpen !== false;
+  display.propertiesCollapsed = stored.propertiesCollapsed === true;
+  const offset = stored.propertiesOffset;
+  if (offset && Number.isFinite(offset.x) && Number.isFinite(offset.y)) {
+    display.propertiesOffset = { x: Math.round(offset.x), y: Math.round(offset.y) };
+  }
   return display;
 }
 

@@ -103,6 +103,9 @@ export function keyboardShortcutAction(event) {
       if (lowerKey === "g") {
         return "toggle-relations";
       }
+      if (lowerKey === "p") {
+        return "toggle-properties";
+      }
       return null;
   }
 }
