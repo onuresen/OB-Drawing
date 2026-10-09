@@ -61,6 +61,7 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 - [x] Group AL — live ONEXUS link: "Open live ONEXUS" opens ONEXUS in a window and keeps the graph, selection, and trace in step; tapping a node there selects the object here. Browser-window messaging only.
 - [x] Group AM — door sides (`side: "to" | "from"` on `connectsTo`, from Revit To/From Room) and a view-only Related data section showing Revit parameters and notes of the objects a selected object opens to, is hosted on, or takes data from.
 - [x] Group AN — UI cleanup: compact fonts, floating Properties panel (left, draggable, P), object browser alone on the right rail, groups start collapsed, right-click menu on marks/page/browser rows with "Link to another object…", and readable names ("Door 577", "Mark 12") with IDs kept out of the UI.
+- [x] Group AO — ui-system Executive skin: local `ui-base.css` + `palettes/executive.css` copies, self-hosted fonts, `--accent` blue for actions and selection, `--mark` orange for marks, `--accent2` bronze for warnings.
 - [ ] Revit verification — rectangle export was built and run on one real sheet; build and run the newer Outline option, then check multi-sheet page order. Checklist in `revit-addin/README.md`.
 - [ ] Later, when needed — toolbar back/forward buttons and a level filter in the Revit export.
 - [x] Public hosting — GitHub Pages deploys the static app from `main` after source checks and tests pass.
@@ -78,7 +79,9 @@ The one-way Revit export adapter in `revit-addin/` is allowed (see `DECISIONS.md
 | File | Role |
 |---|---|
 | `index.html` | Application structure and controls. Properties is a floating panel inside `.viewer-row`; the browser is the right rail. |
-| `styles.css` | Object-Centric Drawing visual system and responsive layout. |
+| `styles.css` | Object-Centric Drawing layout and components, on top of the ui-system tokens. |
+| `ui-base.css`, `palettes/executive.css` | Stamped ui-system copies (Executive). Do not edit here. |
+| `vendor/fonts/` | Self-hosted DM Sans, Archivo, JetBrains Mono (OFL). |
 | `app.js` | PDF session, rendering, interaction state, and object/occurrence UI. |
 | `geometry.mjs` | Pure normalized-coordinate helpers. |
 | `object-model.mjs` | Pure category-neutral object identity, link, edit, and delete operations. |
@@ -258,7 +261,12 @@ All other runtime state stays in memory. The explicit user-controlled JSON sidec
 
 ## Visual conventions
 
-- Use the CSS variables in `:root`.
+- The skin is ui-system **Executive**, Tier A: `ui-base.css` and `palettes/executive.css` are stamped copies from `Vibe_Coding/ui-system`. Edit them there and re-sync; never edit the copies here, never link `../ui-system/`.
+- Fonts (DM Sans, Archivo, JetBrains Mono) are self-hosted in `vendor/fonts/`, so the CSP needs no font CDN.
+- Load order: `vendor/fonts/fonts.css` → `ui-base.css` → `palettes/executive.css` → `styles.css`.
+- Use the CSS variables in `:root`. Its local names (`--ink`, `--line`, …) map onto the ui-system tokens.
+- `--accent` is the Executive blue: primary buttons and selection. Never redefine it in `styles.css`.
+- `--mark` (orange) is the mark colour only. `--accent2` (bronze) is for warnings: missing PDF, unsaved changes.
 - Do not add hardcoded hex colors.
 - Preserve the orange occurrence / blue selection distinction.
 - Keep the drawing as the dominant surface. The side panel explains and lists; it must not become the product.

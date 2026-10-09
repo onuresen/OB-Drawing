@@ -1,0 +1,8 @@
+/* Self-hosted fonts for the ui-system Executive pairing (DM Sans body, Archivo display,
+   JetBrains Mono). Local files keep the strict CSP: no Google Fonts request.
+   Latin subsets from @fontsource 5.0.x. SIL Open Font License 1.1, see OFL-*.txt. */
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("dm-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 500 600; font-display: swap; src: url("dm-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "DM Sans"; font-style: normal; font-weight: 650 900; font-display: swap; src: url("dm-sans-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 600 800; font-display: swap; src: url("archivo-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 600; font-display: swap; src: url("jetbrains-mono-latin-500-normal.woff2") format("woff2"); }

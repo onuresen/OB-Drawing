@@ -1,24 +1,29 @@
 :root {
   color-scheme: light;
-  --ink: hsl(218 34% 16%);
-  --ink-soft: hsl(216 16% 42%);
-  --paper: hsl(42 33% 98%);
-  --panel: hsl(40 28% 96%);
-  --surface-muted: hsl(216 18% 97%);
-  --viewer: hsl(216 14% 89%);
-  --line: hsl(215 17% 84%);
-  --line-strong: hsl(216 20% 68%);
-  --accent: hsl(24 92% 54%);
-  --accent-deep: hsl(20 86% 42%);
-  --accent-soft: hsl(29 100% 94%);
-  --selection: hsl(205 78% 40%);
-  --selection-soft: hsl(205 92% 49% / 0.13);
-  --navy: hsl(218 45% 20%);
-  --navy-soft: hsl(216 31% 29%);
-  --white: hsl(0 0% 100%);
-  --shadow: 0 18px 50px hsl(220 35% 12% / 0.14);
-  --shadow-soft: 0 8px 24px hsl(220 28% 16% / 0.08);
-  --radius: 12px;
+  /* Base tokens come from ui-base.css + palettes/executive.css (ui-system, Executive).
+     These local names map onto them, so the rest of this file stays unchanged. */
+  --ink: var(--text);
+  --ink-soft: var(--text2);
+  --paper: var(--bg);
+  --panel: var(--surface2);
+  --surface-muted: var(--surface2);
+  --viewer: var(--surface3);
+  --line: var(--border);
+  --line-strong: var(--border2);
+  --navy: var(--text);
+  --navy-soft: var(--text2);
+  --white: var(--surface);
+  --radius: var(--r-md);
+  --shadow: var(--shadow-md);
+  --shadow-soft: var(--shadow-sm);
+  /* Blue selection is the Executive accent. */
+  --selection: var(--accent);
+  --selection-soft: var(--accent-dim);
+  /* Orange is the mark colour: a linked occurrence on the drawing. It is a semantic
+     colour, like CDI's node colours, not the tool accent. */
+  --mark: hsl(24 92% 54%);
+  --mark-deep: hsl(20 86% 42%);
+  --mark-soft: hsl(29 100% 94%);
   /* Relation families. Orange and blue stay reserved for marks and selection. */
   --relation-assembly: hsl(218 32% 36%);
   --relation-spatial: hsl(174 62% 30%);
@@ -26,7 +31,7 @@
   --relation-data: hsl(328 58% 44%);
   --relation-general: hsl(216 12% 46%);
   --danger: hsl(5 64% 40%);
-  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 * {
@@ -116,6 +121,7 @@ p {
 
 h1 {
   margin-bottom: 0;
+  font-family: var(--font-display);
   font-size: 0.96rem;
   letter-spacing: 0.01em;
 }
@@ -231,14 +237,15 @@ h1 {
 }
 
 .button-primary {
-  border-color: var(--accent-deep);
-  color: var(--white);
-  background: var(--accent-deep);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent);
 }
 
 .button-primary:hover:not(:disabled) {
   border-color: var(--accent);
   background: var(--accent);
+  filter: brightness(0.92);
 }
 
 .button-quiet {
@@ -247,14 +254,14 @@ h1 {
 }
 
 .mark-button {
-  border-color: var(--accent-deep);
-  color: var(--accent-deep);
+  border-color: var(--mark-deep);
+  color: var(--mark-deep);
 }
 
 .mark-button[aria-pressed="true"] {
   color: var(--white);
-  background: var(--accent-deep);
-  box-shadow: 0 0 0 4px var(--accent-soft);
+  background: var(--mark-deep);
+  box-shadow: 0 0 0 4px var(--mark-soft);
 }
 
 .icon-button {
@@ -539,7 +546,7 @@ h1 {
   height: 10px;
   border: 2px solid var(--white);
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--mark);
   box-shadow: 0 0 0 3px hsl(24 92% 54% / 0.2);
 }
 
@@ -574,6 +581,7 @@ h1 {
 
 .empty-state {
   width: min(450px, 92%);
+  color: var(--text);
   padding: 36px;
   border: 1px solid hsl(216 18% 80% / 0.86);
   border-radius: 14px;
@@ -604,7 +612,7 @@ h1 {
 .empty-symbol span {
   position: absolute;
   inset: 8px;
-  border: 2px solid var(--accent-deep);
+  border: 2px solid var(--mark-deep);
   border-radius: 5px;
 }
 
@@ -615,7 +623,7 @@ h1 {
 
 .empty-symbol span:nth-child(3) {
   inset: 29px 23px 14px 0;
-  border-color: var(--accent);
+  border-color: var(--mark);
 }
 
 .page-surface {
@@ -728,7 +736,7 @@ h1 {
 
 .text-layer .pdf-search-highlight.is-active {
   background: hsl(24 100% 52% / 0.56);
-  box-shadow: 0 0 0 1px var(--accent-deep);
+  box-shadow: 0 0 0 1px var(--mark-deep);
 }
 
 .page-surface.is-marking .text-layer {
@@ -754,7 +762,7 @@ h1 {
 
 .occurrence-shape {
   fill: hsl(28 100% 52% / 0.11);
-  stroke: var(--accent-deep);
+  stroke: var(--mark-deep);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
   cursor: grab;
@@ -989,7 +997,7 @@ h1 {
 .object-id-line {
   margin: 14px 0 0;
   color: var(--ink-soft);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   opacity: 0.8;
 }
@@ -1666,7 +1674,7 @@ details[open] > .section-summary h3::before {
 }
 
 .drawing-map-document.is-missing {
-  background: var(--accent-soft);
+  background: var(--accent2-dim);
 }
 
 .drawing-map-document-heading {
@@ -1714,7 +1722,7 @@ details[open] > .section-summary h3::before {
 }
 
 .drawing-map-document.is-missing .drawing-map-source-state {
-  color: var(--accent-deep);
+  color: var(--accent2-text);
   background: var(--white);
   font-weight: 750;
 }
@@ -1774,9 +1782,9 @@ details[open] > .section-summary h3::before {
 }
 
 .drawing-map-page.density-high {
-  border-color: var(--accent-deep);
-  color: var(--accent-deep);
-  background: var(--accent-soft);
+  border-color: var(--mark-deep);
+  color: var(--mark-deep);
+  background: var(--mark-soft);
 }
 
 .drawing-map-page.has-selected-object {
@@ -1880,8 +1888,8 @@ details[open] > .section-summary h3::before {
 }
 
 .document-state.is-missing {
-  color: var(--accent-deep);
-  background: var(--accent-soft);
+  color: var(--accent2-text);
+  background: var(--accent2-dim);
   font-weight: 750;
 }
 
@@ -2016,7 +2024,7 @@ kbd {
   border-radius: 5px;
   color: var(--ink);
   background: var(--panel);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.67rem;
   text-align: center;
 }
@@ -2198,9 +2206,9 @@ select.text-input {
 }
 
 .section-heading .save-state[data-dirty="true"] {
-  border-color: var(--accent);
-  color: var(--accent-deep);
-  background: var(--accent-soft);
+  border-color: var(--accent2);
+  color: var(--accent2-text);
+  background: var(--accent2-dim);
   font-weight: 750;
 }
 
@@ -2238,7 +2246,7 @@ select.text-input {
 
 #selectedObjectIdentity {
   color: var(--ink-soft);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.66rem;
 }
 
@@ -2275,8 +2283,8 @@ select.text-input {
 
 .object-lens-summary .object-lens-missing {
   border-color: hsl(28 80% 76%);
-  color: var(--accent-deep);
-  background: var(--accent-soft);
+  color: var(--accent2-text);
+  background: var(--accent2-dim);
 }
 
 .revit-properties {
@@ -2950,7 +2958,7 @@ select.text-input {
 
 .object-lens-preview.is-missing .object-lens-placeholder,
 .object-lens-preview.has-error .object-lens-placeholder {
-  color: var(--accent-deep);
+  color: var(--accent2-text);
   background: hsl(29 100% 94% / 0.9);
 }
 
@@ -2976,7 +2984,7 @@ select.text-input {
 
 .object-lens-meta small {
   color: var(--ink-soft);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
 }
 
@@ -3113,8 +3121,8 @@ select.text-input {
 }
 
 .occurrence-nav-button:hover {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--mark);
+  background: var(--mark-soft);
 }
 
 .occurrence-nav-button[aria-current="true"] {
@@ -3131,7 +3139,7 @@ select.text-input {
   border-radius: 6px;
   color: var(--ink-soft);
   background: var(--panel);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   font-weight: 750;
 }
@@ -3149,7 +3157,7 @@ select.text-input {
 .occurrence-details small {
   overflow: hidden;
   color: var(--ink-soft);
-  font-family: ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.62rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3167,7 +3175,7 @@ select.text-input {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--mark);
   content: "";
 }
 
