@@ -18,7 +18,7 @@ test("workspace surfaces retain explicit rows when PDF search is hidden", async 
 
 test("the application requests the current corrected stylesheet version", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(html, /styles\.css\?v=2026-10-09-ui-cleanup/);
+  assert.match(html, /styles\.css\?v=2026-10-09-executive/);
 });
 
 test("the application requests the complete text-selection module version", async () => {
@@ -92,4 +92,25 @@ test("the narrow toolbar lets each control cluster shrink and wrap", async () =>
     narrowRules,
     /\.toolbar-navigation\s*>\s*\.control-group\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*flex-wrap:\s*wrap;/s,
   );
+});
+
+test("the ui-system Executive skin is a local stamped copy, loaded before the app styles", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const order = ["vendor/fonts/fonts.css", "ui-base.css", "palettes/executive.css", "styles.css"]
+    .map((href) => html.indexOf(`href="${href}`));
+  assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), "stylesheets out of order");
+  assert.doesNotMatch(html, /\.\.\/ui-system|fonts\.googleapis/, "copy, never link; no font CDN");
+  const base = await readFile(new URL("../ui-base.css", import.meta.url), "utf8");
+  const palette = await readFile(new URL("../palettes/executive.css", import.meta.url), "utf8");
+  const stamp = base.match(/VERSION (\d+\.\d+\.\d+)/)?.[1];
+  assert.ok(stamp, "ui-base.css has no version stamp");
+  assert.match(palette, new RegExp(`v${stamp.replaceAll(".", "\\.")}`), "palette and ui-base versions differ");
+});
+
+test("orange stays the mark colour and never the tool accent", async () => {
+  const css = await readFile(new URL("../styles.css", import.meta.url), "utf8");
+  const root = css.match(/:root \{[^}]*\}/s)[0];
+  assert.doesNotMatch(root, /--accent\s*:/, "styles.css must not redefine the ui-system accent");
+  assert.match(root, /--mark:/);
+  assert.match(css, /\.occurrence-shape \{[^}]*stroke: var\(--mark-deep\);/s);
 });

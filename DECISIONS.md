@@ -557,3 +557,17 @@
 **Revisit when:** A second screen or a docked layout is wanted; the float can then dock left.
 
 **Confidence:** med. Driven in Chromium on a sample PDF; needs a real drawing set.
+
+## 2026-10-09 — ui-system Executive skin
+
+**Decision:** Object-Centric Drawing joins ui-system as Tier A with the Executive palette.
+
+**Why:** It is a professional, Obayashi-facing tool. Executive is the shelf palette for that audience. CDI's decision path, OneRoot v4 and the BIM guide already use it.
+
+**Colours:** Blue `--accent` for actions and selection. Orange `--mark` stays the mark colour. Bronze `--accent2` marks warnings. Orange was `--accent` before; it was renamed because ui-system owns that name.
+
+**Fonts:** Self-hosted in `vendor/fonts/`. The CSP blocks font CDNs, and loosening it for fonts is not worth it.
+
+**Alternative:** Tier B, tokens only, no `ui-base.css` copy. Rejected: the app is vanilla and no-build, which is exactly Tier A.
+
+**Confidence:** high.
