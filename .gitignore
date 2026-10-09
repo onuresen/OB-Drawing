@@ -21,3 +21,4 @@ Thumbs.db
 revit-addin/bin/
 revit-addin/obj/
 *.objdraw-revit.json
+/revit-addin/.vs
